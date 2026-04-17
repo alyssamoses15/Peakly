@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Peakly — Second Brain</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;--blue-muted:#DBEAFE;
+  --orange:#F97316;--orange-light:#FFF7ED;--orange-dark:#C2410C;--orange-muted:#FED7AA;
+  --bg:#F0F4FA;--bg2:#E8EFF8;--white:#fff;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;--text4:#A8BDD1;
+  --border:#D4E0EE;--border2:#EAF0F8;
+  --green:#059669;--green-light:#ECFDF5;--green-dark:#065F46;
+  --red:#DC2626;--red-light:#FEF2F2;
+  --purple:#7C3AED;--purple-light:#F5F3FF;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --display:'Playfair Display',Georgia,serif;
+  --r:8px;--rm:12px;--rl:16px;
+  --shadow:0 1px 4px rgba(15,28,46,0.07),0 0 0 1px rgba(15,28,46,0.04);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;}
+input,textarea,select{font-family:var(--font);}
+textarea{resize:vertical;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+@keyframes slideIn{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:translateX(0);}}
+
+nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:100;box-shadow:0 1px 8px rgba(15,28,46,0.06);}
+.nav-brand{display:flex;align-items:center;gap:10px;}
+.nav-links{display:flex;gap:2px;}
+.nav-links button{padding:6px 14px;border-radius:var(--rm);font-size:13px;color:var(--text2);transition:background .15s;}
+.nav-links button.active{background:var(--blue);color:#fff;font-weight:600;}
+.nav-links button:hover:not(.active){background:var(--bg);}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+.ph{background:var(--white);border-bottom:1px solid var(--border2);padding:16px 20px;}
+.ph h1{font-family:var(--display);font-size:24px;font-weight:700;margin-bottom:2px;}
+.ph p{font-size:13px;color:var(--text3);}
+.body{max-width:1380px;margin:0 auto;padding:18px 20px;display:grid;grid-template-columns:220px 1fr;gap:16px;align-items:start;}
+.sidebar{position:sticky;top:72px;}
+.snav{background:var(--white);border-radius:var(--rl);box-shadow:var(--shadow);border:1px solid var(--border2);overflow:hidden;margin-bottom:12px;}
+.snav button{width:100%;padding:11px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border2);background:transparent;border-left:3px solid transparent;transition:all .15s;text-align:left;}
+.snav button:last-child{border-bottom:none;}
+.snav button.active{background:var(--blue-light);border-left-color:var(--blue);}
+.snav button .ni{font-size:16px;}
+.snav button .nl{font-size:13px;color:var(--text2);}
+.snav button.active .nl{color:var(--blue);font-weight:700;}
+.upbox{padding:14px;background:var(--orange-light);border-radius:var(--rl);border:1px solid var(--orange-muted);text-align:center;}
+.upbox h4{font-size:12px;font-weight:700;color:var(--orange-dark);margin-bottom:4px;}
+.upbox p{font-size:11px;color:var(--text3);margin-bottom:10px;}
+.content{animation:slideIn .25s ease;}
+.sblock{background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);box-shadow:var(--shadow);overflow:hidden;margin-bottom:14px;}
+.sh{padding:13px 16px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;transition:background .15s;}
+.sh:hover{background:var(--bg);}
+.sh-left{display:flex;align-items:center;gap:8px;}
+.sh-left .si{font-size:18px;}
+.sh-left .st{font-size:14px;font-weight:700;color:var(--text);}
+.sb{padding:16px;}
+.sb.hidden{display:none;}
+.inp{width:100%;padding:8px 10px;border-radius:var(--r);border:1px solid var(--border);font-size:13px;color:var(--text);background:var(--bg);outline:none;font-family:var(--font);transition:border-color .2s;}
+.inp:focus{border-color:var(--blue);}
+.clabel{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin-bottom:8px;}
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;}
+.check-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border2);}
+.check-row:last-child{border-bottom:none;}
+.chk{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;transition:all .2s;}
+.chk.done{background:var(--green);border-color:var(--green);}
+.info{padding:10px 12px;border-radius:var(--rm);font-size:12px;margin-bottom:10px;}
+.info.blue{background:var(--blue-light);color:var(--blue);}
+.info.orange{background:var(--orange-light);color:var(--orange-dark);}
+.info.green{background:var(--green-light);color:var(--green-dark);}
+.info.red{background:var(--red-light);color:var(--red);}
+.info.purple{background:var(--purple-light);color:var(--purple);}
+.ubanner{padding:10px 12px;background:var(--orange-light);border-radius:var(--rm);display:flex;align-items:center;gap:8px;border:1px solid var(--orange-muted);margin-top:10px;}
+.ubanner h5{font-size:12px;font-weight:700;color:var(--orange-dark);}
+.ubanner p{font-size:11px;color:var(--text3);}
+.addbtn{width:100%;padding:8px;border-radius:var(--rm);border:1.5px dashed var(--border);font-size:12px;color:var(--text3);display:flex;align-items:center;justify-content:center;gap:6px;background:none;margin-top:8px;transition:all .15s;cursor:pointer;}
+.addbtn:hover{border-color:var(--blue);color:var(--blue);}
+.bar-wrap{background:var(--bg2);border-radius:100px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:100px;transition:width .6s ease;}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:100px;font-size:11px;font-weight:600;}
+.ttoggle{display:flex;gap:6px;margin-bottom:10px;}
+.ttoggle button{flex:1;padding:7px;border-radius:var(--r);border:2px solid var(--border);background:var(--bg);color:var(--text2);font-size:12px;font-weight:600;transition:all .2s;}
+.ttoggle button.active{border-color:var(--blue);background:var(--blue-light);color:var(--blue);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;}
+.cal-day-hdr{font-size:10px;font-weight:700;color:var(--text4);text-align:center;padding:4px 0;letter-spacing:.5px;}
+.cal-day{min-height:56px;border-radius:var(--r);border:1px solid var(--border2);padding:4px;cursor:pointer;transition:background .15s;position:relative;background:var(--white);}
+.cal-day:hover{background:var(--blue-light);}
+.cal-day.today{border-color:var(--blue);background:var(--blue-light);}
+.cal-day .dn{font-size:10px;font-weight:600;color:var(--text3);}
+.cal-day.today .dn{color:var(--blue);}
+.cal-day .event{font-size:9px;padding:1px 4px;border-radius:3px;margin-top:2px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sticky-note{position:relative;padding:12px;border-radius:var(--rm);min-height:100px;cursor:pointer;}
+.sticky-note textarea{background:transparent;border:none;outline:none;width:100%;font-size:13px;line-height:1.6;resize:none;font-family:var(--font);}
+.sticky-note .del-btn{position:absolute;top:6px;right:8px;font-size:16px;color:rgba(0,0,0,0.3);opacity:0;transition:opacity .2s;}
+.sticky-note:hover .del-btn{opacity:1;}
+.graph-wrap{position:relative;width:100%;height:120px;margin:8px 0;}
+canvas.graph{width:100%;height:100%;}
+.metric-toggle{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border2);}
+.metric-toggle:last-child{border-bottom:none;}
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:12px;}
+.week-col{background:var(--bg);border-radius:var(--rm);padding:8px;border:1px solid var(--border2);}
+.week-col .wday{font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:center;}
+.week-col .wdate{font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <svg width="32" height="32" viewBox="0 0 64 64"><rect width="64" height="64" rx="13" fill="#1A5FA8"/><polyline points="8,50 22,28 33,38 44,17 56,50" fill="none" stroke="white" stroke-width="3.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="44" cy="17" r="4.5" fill="#F97316"/><line x1="44" y1="17" x2="56" y2="17" stroke="#F97316" stroke-width="2.2" stroke-linecap="round"/></svg>
+    <div><div style="font-family:var(--display);font-size:18px;font-weight:700;color:var(--text);">Peakly</div><div style="font-size:9px;color:var(--text4);letter-spacing:.8px;text-transform:uppercase;">Lock in your goals</div></div>
+  </div>
+  <div class="nav-links">
+    <button>Home</button><button>Goals</button><button class="active">Second Brain</button><button>Calendar</button>
+  </div>
+  <div class="avatar">JD</div>
+</nav>
+
+<div class="ph"><h1>🤖 Second Brain</h1><p>Your personal assistant — everything handled in one place</p></div>
+
+<div class="body">
+  <div class="sidebar">
+    <div class="snav" id="snav"></div>
+    <div class="upbox">
+      <h4>⭐ Upgrade to Pro</h4>
+      <p>File uploads, calendar sync, custom sections & more</p>
+      <button style="width:100%;padding:8px;border-radius:var(--rm);background:var(--orange);color:#fff;font-size:12px;font-weight:700;">Upgrade — $9/mo</button>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);font-size:11px;color:var(--text3);text-align:center;">
+      Part 1 of 2 · <a href="peakly-second-brain-2.html" style="color:var(--blue);font-weight:600;text-decoration:none;">→ Open Part 2</a>
+    </div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+
+function mk(tag,css,html){const e=document.createElement(tag);if(css)e.className=css;if(html)e.innerHTML=html;return e;}
+function inp(ph,val,cb,type='text'){const i=mk('input','inp');i.type=type;i.placeholder=ph||'';i.value=val||'';if(cb)i.addEventListener('input',e=>cb(e.target.value));return i;}
+function ta(ph,val,cb,rows=2){const t=mk('textarea','inp');t.placeholder=ph||'';t.value=val||'';t.rows=rows;if(cb)t.addEventListener('input',e=>cb(e.target.value));return t;}
+function fld(lbl,inputEl,mb=10){const d=mk('div','field');d.style.marginBottom=mb+'px';const l=mk('label');l.textContent=lbl;d.appendChild(l);d.appendChild(inputEl);return d;}
+function grid(cols,...kids){const d=mk('div');d.style.cssText=`display:grid;grid-template-columns:${cols};gap:10px;margin-bottom:10px;`;kids.filter(Boolean).forEach(k=>d.appendChild(k));return d;}
+function sblock(title,icon,fn,open=true){
+  const w=mk('div','sblock');
+  const h=mk('div','sh');h.innerHTML=`<div class="sh-left"><span class="si">${icon}</span><span class="st">${title}</span></div><span style="font-size:20px;color:var(--text3);font-weight:300;">${open?'−':'+'}</span>`;
+  const b=mk('div','sb'+(open?'':' hidden'));
+  fn(b);
+  h.addEventListener('click',()=>{const o=!b.classList.contains('hidden');b.classList.toggle('hidden',o);h.querySelector('span:last-child').textContent=o?'+':'−';});
+  w.appendChild(h);w.appendChild(b);return w;
+}
+function chkRow(label,sub,done,onToggle,extra){
+  const r=mk('div','check-row');
+  const c=mk('div','chk'+(done?' done':''));
+  if(done)c.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  c.addEventListener('click',onToggle);
+  const info=mk('div');info.style.flex='1';
+  const lbl=mk('div');lbl.style.cssText=`font-size:13px;color:${done?'var(--text3)':'var(--text)'};text-decoration:${done?'line-through':'none'};`;lbl.textContent=label;
+  info.appendChild(lbl);
+  if(sub){const s=mk('div');s.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;';s.textContent=sub;info.appendChild(s);}
+  r.appendChild(c);r.appendChild(info);
+  if(extra)r.appendChild(extra);
+  return r;
+}
+function ubanner(feat){const d=mk('div','ubanner');d.innerHTML=`<span style="font-size:16px">⭐</span><div><h5>Paid — ${feat}</h5><p>Upgrade to Peakly Pro</p></div>`;return d;}
+function addbtn(lbl,cb){const b=mk('button','addbtn');b.innerHTML=`<span style="font-size:16px;line-height:1">+</span> ${lbl}`;if(cb)b.addEventListener('click',cb);return b;}
+function infoBox(html,type='blue'){const d=mk('div','info '+type);d.innerHTML=html;return d;}
+function badge(txt,bg,color){const s=mk('span','tag');s.style.cssText=`background:${bg};color:${color};`;s.textContent=txt;return s;}
+function calSyncBtn(label,dataKey,data){
+  const b=mk('button');b.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;display:flex;align-items:center;gap:4px;';
+  b.innerHTML='📅 '+label;
+  b.addEventListener('click',()=>{
+    const stored=LS.get('cal_events',[]);
+    stored.push({...data,key:dataKey,synced:new Date().toISOString()});
+    LS.set('cal_events',stored);
+    b.style.background='var(--green-light)';b.style.color='var(--green-dark)';b.style.borderColor='var(--green)';b.innerHTML='✓ Saved for calendar';
+    setTimeout(()=>{b.style.background='var(--blue-light)';b.style.color='var(--blue)';b.style.borderColor='var(--blue-muted)';b.innerHTML='📅 '+label;},2000);
+  });
+  return b;
+}
+
+// ── NAV ───────────────────────────────────────────────────────────────────
+const NAV=[
+  {id:'dashboard',label:'Dashboard',icon:'🗂️'},
+  {id:'health',label:'Health & Wellness',icon:'💚'},
+  {id:'vehicle',label:'Vehicle',icon:'🚗'},
+  {id:'housing',label:'Housing',icon:'🏠'},
+  {id:'part2',label:'→ Part 2 (Pro, Finance…)',icon:'📂'},
+];
+let cur='dashboard';
+function buildNav(){
+  const n=document.getElementById('snav');n.innerHTML='';
+  NAV.forEach(item=>{
+    const b=mk('button');b.dataset.id=item.id;
+    b.innerHTML=`<span class="ni">${item.icon}</span><span class="nl">${item.label}</span>`;
+    if(item.id===cur)b.classList.add('active');
+    b.addEventListener('click',()=>{
+      if(item.id==='part2'){window.location.href='peakly-second-brain-2.html';return;}
+      loadPage(item.id);
+    });
+    n.appendChild(b);
+  });
+}
+function loadPage(id){
+  cur=id;buildNav();
+  const c=document.getElementById('content');
+  c.innerHTML='';c.style.animation='none';
+  requestAnimationFrame(()=>c.style.animation='slideIn .25s ease');
+  const nav=NAV.find(n=>n.id===id);
+  const hdr=mk('div');hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
+  const t=mk('div');t.style.cssText='font-family:var(--display);font-size:20px;font-weight:700;color:var(--text);';t.textContent=`${nav.icon} ${nav.label}`;
+  hdr.appendChild(t);c.appendChild(hdr);
+  PAGES[id](c);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════════
+function buildDashboard(wrap){
+  const cats=[
+    {id:'health',icon:'💚',label:'Health & Wellness',color:'var(--green)',bg:'var(--green-light)',items:['Workout planned','Metrics logged','Appointments up to date']},
+    {id:'vehicle',icon:'🚗',label:'Vehicle',color:'var(--blue)',bg:'var(--blue-light)',items:['Oil change due in 2 months','Registration renews yearly']},
+    {id:'housing',icon:'🏠',label:'Housing',color:'var(--orange)',bg:'var(--orange-light)',items:['Rent due 1st','3 chores this week']},
+    {id:'professional',icon:'💼',label:'Professional',color:'var(--purple)',bg:'var(--purple-light)',items:['Cert renews in 30 days','2 meetings this week']},
+    {id:'finances',icon:'💰',label:'Finances',color:'var(--green)',bg:'var(--green-light)',items:['Budget on track','2 bills due this week']},
+    {id:'family',icon:'👨‍👩‍👧',label:'Family & Friends',color:'var(--blue)',bg:'var(--blue-light)',items:["Child's dentist due","Text Sarah this week"]},
+    {id:'pets',icon:'🐾',label:'Pets',color:'var(--orange)',bg:'var(--orange-light)',items:['Vet visit due','Flea prevention this month']},
+    {id:'community',icon:'🌍',label:'Community',color:'var(--purple)',bg:'var(--purple-light)',items:['Election reminder set','8 volunteer hours logged']},
+  ];
+  // Summary strip
+  const strip=mk('div');strip.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;';
+  [{label:'Tasks due today',val:'5',color:'var(--blue)'},{label:'Upcoming reminders',val:'3',color:'var(--orange)'},{label:'Streak',val:'14 🔥',color:'var(--orange)'},{label:'Goals active',val:'4 / 5',color:'var(--green)'}].forEach(s=>{
+    const c=mk('div');c.style.cssText=`background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);padding:14px;text-align:center;box-shadow:var(--shadow);`;
+    c.innerHTML=`<div style="font-size:22px;font-weight:700;color:${s.color};margin-bottom:4px;">${s.val}</div><div style="font-size:11px;color:var(--text3);">${s.label}</div>`;
+    strip.appendChild(c);
+  });
+  wrap.appendChild(strip);
+  // Category cards
+  const g=mk('div');g.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:14px;';
+  cats.forEach(cat=>{
+    const card=mk('div');card.style.cssText=`background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);padding:16px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .2s;`;
+    card.onmouseover=()=>card.style.boxShadow='0 4px 16px rgba(15,28,46,0.12)';
+    card.onmouseout=()=>card.style.boxShadow='var(--shadow)';
+    const top=mk('div');top.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px;';
+    const ic=mk('div');ic.style.cssText=`width:36px;height:36px;border-radius:var(--rm);background:${cat.bg};display:flex;align-items:center;justify-content:center;font-size:18px;`;ic.textContent=cat.icon;
+    const nm=mk('div');nm.style.cssText='font-size:14px;font-weight:700;color:var(--text);';nm.textContent=cat.label;
+    top.appendChild(ic);top.appendChild(nm);card.appendChild(top);
+    cat.items.forEach(item=>{
+      const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:7px;margin-bottom:5px;';
+      const dot=mk('div');dot.style.cssText=`width:5px;height:5px;border-radius:50%;background:${cat.color};flex-shrink:0;`;
+      const txt=mk('div');txt.style.cssText='font-size:12px;color:var(--text2);';txt.textContent=item;
+      row.appendChild(dot);row.appendChild(txt);card.appendChild(row);
+    });
+    const openBtn=mk('button');openBtn.style.cssText=`margin-top:12px;width:100%;padding:7px;border-radius:var(--rm);background:${cat.bg};color:${cat.color};font-size:12px;font-weight:600;border:none;`;
+    openBtn.textContent='Open '+cat.label+' →';
+    openBtn.addEventListener('click',()=>{
+      if(['professional','finances','family','pets','community'].includes(cat.id)){window.location.href='peakly-second-brain-2.html';}
+      else loadPage(cat.id);
+    });
+    card.appendChild(openBtn);g.appendChild(card);
+  });
+  wrap.appendChild(g);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HEALTH & WELLNESS
+// ═══════════════════════════════════════════════════════════════════════════
+function buildHealth(wrap){
+  // ── NUTRITION ────────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Nutrition & Meal Planning','🥗',b=>{
+    b.appendChild(infoBox('🔗 Linked to your Home page meal tracker — meals planned here appear automatically on your daily planner.','blue'));
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const today=new Date();
+    const weekStart=new Date(today);weekStart.setDate(today.getDate()-today.getDay());
+    const wg=mk('div','week-grid');
+    days.forEach((d,i)=>{
+      const date=new Date(weekStart);date.setDate(weekStart.getDate()+i);
+      const col=mk('div','week-col');
+      col.innerHTML=`<div class="wday">${d}</div><div class="wdate">${date.getMonth()+1}/${date.getDate()}</div>`;
+      ['Breakfast','Lunch','Dinner','Snack'].forEach(meal=>{
+        const key=`meal_${date.toDateString()}_${meal}`;
+        const mf=mk('div');mf.style.marginBottom='4px';
+        const lbl=mk('div');lbl.style.cssText='font-size:9px;font-weight:700;color:var(--text4);text-transform:uppercase;margin-bottom:2px;';lbl.textContent=meal;
+        const mi=mk('input','inp');mi.placeholder=meal+'…';mi.value=LS.get(key,'');mi.style.cssText='font-size:11px;padding:4px 6px;';
+        mi.addEventListener('input',e=>{LS.set(key,e.target.value);});
+        mf.appendChild(lbl);mf.appendChild(mi);col.appendChild(mf);
+      });
+      wg.appendChild(col);
+    });
+    b.appendChild(wg);
+    // Meal prep & grocery planning
+    const mpd=mk('div');mpd.style.cssText='background:var(--bg);border-radius:var(--rm);padding:12px;margin-top:8px;';
+    mpd.innerHTML='<div class="clabel">Meal prep & grocery schedule</div>';
+    ['Meal planning','Meal prep','Grocery shopping'].forEach(task=>{
+      const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+      const key=`mprep_${task}`;
+      let data=LS.get(key,{done:false,date:''});
+      const chk=mk('div','chk'+(data.done?' done':''));
+      if(data.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      chk.addEventListener('click',()=>{
+        data.done=!data.done;LS.set(key,data);
+        chk.className='chk'+(data.done?' done':'');
+        chk.innerHTML=data.done?'<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>':'';
+      });
+      const lbl=mk('span');lbl.style.cssText='font-size:13px;font-weight:500;color:var(--text);min-width:120px;';lbl.textContent=task;
+      const di=mk('input','inp');di.type='datetime-local';di.value=data.date;di.style.cssText='font-size:12px;flex:1;';
+      di.addEventListener('input',e=>{data.date=e.target.value;LS.set(key,data);});
+      const csb=calSyncBtn('Sync',`mprep_${task}`,{title:task,date:data.date,type:'meal_prep'});
+      row.appendChild(chk);row.appendChild(lbl);row.appendChild(di);row.appendChild(csb);mpd.appendChild(row);
+    });
+    b.appendChild(mpd);
+
+    // Grocery list
+    const gld=mk('div');gld.style.cssText='background:var(--bg);border-radius:var(--rm);padding:12px;margin-top:10px;';
+    gld.innerHTML='<div class="clabel" style="margin-bottom:8px;">Grocery list</div>';
+    let groceries=LS.get('groceries',[]);
+    const glWrap=mk('div');
+    const renderGL=()=>{
+      glWrap.innerHTML='';
+      groceries.forEach((g,i)=>{
+        const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:5px;';
+        const chk=mk('div','chk'+(g.done?' done':''));
+        if(g.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        chk.addEventListener('click',()=>{g.done=!g.done;LS.set('groceries',groceries);renderGL();});
+        const gi=mk('input','inp');gi.value=g.text;gi.style.cssText='font-size:12px;flex:1;text-decoration:'+(g.done?'line-through':'none')+';';
+        gi.addEventListener('input',e=>{g.text=e.target.value;LS.set('groceries',groceries);});
+        const del=mk('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;';
+        del.addEventListener('click',()=>{groceries.splice(i,1);LS.set('groceries',groceries);renderGL();});
+        row.appendChild(chk);row.appendChild(gi);row.appendChild(del);glWrap.appendChild(row);
+      });
+    };
+    renderGL();
+    gld.appendChild(glWrap);
+    gld.appendChild(addbtn('Add item',()=>{groceries.push({text:'',done:false});LS.set('groceries',groceries);renderGL();}));
+    b.appendChild(gld);
+  },true));
+
+  // ── WORKOUT PLAN ─────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Workout Plan','💪',b=>{
+    const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const today=new Date();const weekStart=new Date(today);weekStart.setDate(today.getDate()-today.getDay());
+    const wg=mk('div','week-grid');
+    days.forEach((d,i)=>{
+      const date=new Date(weekStart);date.setDate(weekStart.getDate()+i);
+      const key=`workout_${date.toDateString()}`;
+      let data=LS.get(key,{plan:'',time:'',location:'',done:false});
+      const col=mk('div','week-col');
+      col.innerHTML=`<div class="wday">${d}</div><div class="wdate">${date.getMonth()+1}/${date.getDate()}</div>`;
+      const pi=mk('textarea','inp');pi.placeholder='Workout…';pi.value=data.plan;pi.rows=3;pi.style.cssText='font-size:11px;margin-bottom:4px;';
+      pi.addEventListener('input',e=>{data.plan=e.target.value;LS.set(key,data);});
+      const ti=mk('input','inp');ti.type='time';ti.value=data.time;ti.style.cssText='font-size:11px;margin-bottom:4px;';
+      ti.addEventListener('input',e=>{data.time=e.target.value;LS.set(key,data);});
+      const li=mk('input','inp');li.placeholder='Location';li.value=data.location;li.style.cssText='font-size:11px;margin-bottom:4px;';
+      li.addEventListener('input',e=>{data.location=e.target.value;LS.set(key,data);});
+      const csb=calSyncBtn('Sync','workout_'+date.toDateString(),{title:'Workout',date:date.toDateString(),time:data.time,location:data.location,type:'workout'});
+      csb.style.fontSize='10px';
+      col.appendChild(pi);col.appendChild(ti);col.appendChild(li);col.appendChild(csb);wg.appendChild(col);
+    });
+    b.appendChild(wg);
+  },false));
+
+  // ── BODY METRICS ─────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Body Metrics','📏',b=>{
+    let m=LS.get('body_met',{weight:'',height:'',bmi:'',fat:'',goalWeight:'',waist:'',hips:'',chest:'',arms:'',legs:''});
+    const save=()=>LS.set('body_met',m);
+    b.appendChild(infoBox('💡 Track up to 3 time-period groups for before/after comparisons.','blue'));
+    const row1=mk('div');row1.innerHTML='<div class="clabel">Measurements</div>';
+    row1.appendChild(grid('1fr 1fr 1fr 1fr 1fr',
+      fld('Weight (lbs)',inp('—',m.weight,v=>{m.weight=v;save();})),
+      fld('Height',inp('—',m.height,v=>{m.height=v;save();})),
+      fld('BMI',inp('—',m.bmi,v=>{m.bmi=v;save();})),
+      fld('Body Fat %',inp('—',m.fat,v=>{m.fat=v;save();})),
+      fld('Goal Weight',inp('—',m.goalWeight,v=>{m.goalWeight=v;save();}))
+    ));
+    b.appendChild(row1);
+    const row2=mk('div');row2.innerHTML='<div class="clabel">Circumference (inches)</div>';
+    row2.appendChild(grid('1fr 1fr 1fr 1fr 1fr',
+      fld('Waist',inp('—',m.waist,v=>{m.waist=v;save();})),
+      fld('Hips',inp('—',m.hips,v=>{m.hips=v;save();})),
+      fld('Chest',inp('—',m.chest,v=>{m.chest=v;save();})),
+      fld('Arms',inp('—',m.arms,v=>{m.arms=v;save();})),
+      fld('Legs',inp('—',m.legs,v=>{m.legs=v;save();}))
+    ));
+    b.appendChild(row2);
+  },false));
+
+  // ── 30-DAY TRACKER ────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('30-Day Tracker','📈',b=>{
+    const metrics=[
+      {key:'mood',label:'Mood',color:'#F97316',unit:'/10'},
+      {key:'energy',label:'Energy',color:'#1A5FA8',unit:'/10'},
+      {key:'steps',label:'Steps',color:'#059669',unit:'k'},
+      {key:'hr',label:'Heart Rate',color:'#DC2626',unit:'bpm'},
+      {key:'bp_s',label:'Blood Pressure (sys)',color:'#7C3AED',unit:'mmHg'},
+      {key:'glucose',label:'Blood Glucose',color:'#C2410C',unit:'mg/dL'},
+      {key:'water',label:'Water',color:'#0EA5E9',unit:'glasses'},
+      {key:'sleep',label:'Sleep',color:'#4F46E5',unit:'hrs'},
+    ];
+    let enabledMetrics=LS.get('tracker_enabled',{mood:true,energy:true,steps:false,hr:false,bp_s:false,glucose:false,water:true,sleep:true});
+    let trackerData=LS.get('tracker_data',{});
+
+    const renderAll=()=>{
+      b.innerHTML='';
+      b.appendChild(infoBox('Toggle which metrics to track, then click <strong>Add Today\'s Data</strong> to log.','blue'));
+
+      // Toggle switches
+      const tg=mk('div');tg.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;';
+      metrics.forEach(mt=>{
+        const btn=mk('button');btn.style.cssText=`padding:5px 12px;border-radius:100px;font-size:11px;font-weight:600;border:2px solid ${enabledMetrics[mt.key]?mt.color:'var(--border)'};background:${enabledMetrics[mt.key]?mt.color+'22':'var(--bg)'};color:${enabledMetrics[mt.key]?mt.color:'var(--text3)'};transition:all .2s;`;
+        btn.textContent=(enabledMetrics[mt.key]?'✓ ':'')+mt.label;
+        btn.addEventListener('click',()=>{enabledMetrics[mt.key]=!enabledMetrics[mt.key];LS.set('tracker_enabled',enabledMetrics);renderAll();});
+        tg.appendChild(btn);
+      });
+      b.appendChild(tg);
+
+      // Add data button + form
+      const today=new Date().toLocaleDateString();
+      const formWrap=mk('div');formWrap.style.cssText='background:var(--bg);border-radius:var(--rm);padding:12px;margin-bottom:14px;';
+      formWrap.innerHTML='<div class="clabel">Add today\'s data — '+today+'</div>';
+      const formGrid=mk('div');formGrid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;';
+      const tempVals={};
+      metrics.filter(m=>enabledMetrics[m.key]).forEach(mt=>{
+        const fd=mk('div');
+        const fl=mk('label');fl.style.cssText='display:block;font-size:10px;font-weight:600;color:var(--text2);margin-bottom:3px;';fl.textContent=mt.label+' ('+mt.unit+')';
+        const fi=mk('input','inp');fi.placeholder='0';fi.type='number';fi.style.cssText='font-size:12px;padding:6px 8px;';
+        fi.addEventListener('input',e=>tempVals[mt.key]=e.target.value);
+        fd.appendChild(fl);fd.appendChild(fi);formGrid.appendChild(fd);
+      });
+      formWrap.appendChild(formGrid);
+      const saveBtn=mk('button');saveBtn.style.cssText='padding:8px 18px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;';
+      saveBtn.textContent='Add Today\'s Data';
+      saveBtn.addEventListener('click',()=>{
+        const dateKey=new Date().toISOString().split('T')[0];
+        if(!trackerData[dateKey])trackerData[dateKey]={};
+        Object.assign(trackerData[dateKey],tempVals);
+        LS.set('tracker_data',trackerData);renderAll();
+      });
+      formWrap.appendChild(saveBtn);
+      b.appendChild(formWrap);
+
+      // Graphs for each enabled metric
+      metrics.filter(m=>enabledMetrics[m.key]).forEach(mt=>{
+        const gw=mk('div');gw.style.cssText='margin-bottom:16px;';
+        const gl=mk('div');gl.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+        const gn=mk('span');gn.style.cssText=`font-size:12px;font-weight:700;color:${mt.color};`;gn.textContent=mt.label;
+        gl.appendChild(gn);gw.appendChild(gl);
+
+        // Build 30 days of data
+        const pts=[];
+        for(let i=29;i>=0;i--){
+          const d=new Date();d.setDate(d.getDate()-i);
+          const key=d.toISOString().split('T')[0];
+          pts.push({d:d.getDate(),v:trackerData[key]?parseFloat(trackerData[key][mt.key])||null:null});
+        }
+
+        // Mini canvas graph
+        const canvas=mk('canvas');canvas.width=600;canvas.height=80;canvas.style.cssText='width:100%;height:80px;display:block;';
+        gw.appendChild(canvas);
+
+        setTimeout(()=>{
+          const ctx=canvas.getContext('2d');
+          const W=canvas.width,H=canvas.height;
+          ctx.clearRect(0,0,W,H);
+          const vals=pts.map(p=>p.v).filter(v=>v!==null);
+          if(!vals.length){ctx.fillStyle='#A8BDD1';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText('No data yet — add data above',W/2,H/2);return;}
+          const maxV=Math.max(...vals)*1.2||10;
+          const step=W/29;
+          ctx.strokeStyle=mt.color;ctx.lineWidth=2;ctx.lineJoin='round';ctx.lineCap='round';
+          ctx.beginPath();
+          let first=true;
+          pts.forEach((p,i)=>{
+            if(p.v===null)return;
+            const x=i*step;const y=H-(p.v/maxV)*(H-16)-4;
+            if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);
+          });
+          ctx.stroke();
+          // Fill under line
+          ctx.fillStyle=mt.color+'22';
+          ctx.beginPath();
+          let fx=null,fy=null;
+          pts.forEach((p,i)=>{
+            if(p.v===null)return;
+            const x=i*step;const y=H-(p.v/maxV)*(H-16)-4;
+            if(fx===null){ctx.moveTo(x,H);ctx.lineTo(x,y);fx=x;fy=y;}else ctx.lineTo(x,y);
+          });
+          if(fx!==null){ctx.lineTo(pts[pts.length-1-[...pts].reverse().findIndex(p=>p.v!==null)]*step+step,H);ctx.closePath();ctx.fill();}
+          // Dots
+          pts.forEach((p,i)=>{if(p.v===null)return;const x=i*step;const y=H-(p.v/maxV)*(H-16)-4;ctx.fillStyle=mt.color;ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();});
+          // Date labels (every 5 days)
+          ctx.fillStyle='#A8BDD1';ctx.font='9px sans-serif';ctx.textAlign='center';
+          pts.forEach((p,i)=>{if(i%5===0)ctx.fillText(p.d,i*step,H);});
+        },100);
+        b.appendChild(gw);
+      });
+    };
+    renderAll();
+  },false));
+
+  // ── MENTAL HEALTH ─────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Mental Health','🧠',b=>{
+    [['Meditation / Mindfulness log','Duration, type, notes…'],
+     ['Weekly mental review','How was my mental energy this week? What helped most?']
+    ].forEach(([l,p])=>b.appendChild(fld(l,ta(p,'',null,2))));
+
+    // Therapy with date + calendar sync
+    const td=mk('div');td.style.cssText='margin-bottom:10px;';
+    td.innerHTML='<label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Therapy / Counseling session</label>';
+    const trow=mk('div');trow.style.cssText='display:flex;gap:8px;align-items:center;';
+    const tdate=mk('input','inp');tdate.type='datetime-local';tdate.style.flex='1';
+    const tnotes=mk('input','inp');tnotes.placeholder='Key takeaways, action items…';tnotes.style.flex='2';
+    const csb=calSyncBtn('Sync therapy','therapy',{type:'therapy',title:'Therapy session'});
+    trow.appendChild(tdate);trow.appendChild(tnotes);trow.appendChild(csb);
+    td.appendChild(trow);b.appendChild(td);
+
+    const bb=mk('div');bb.style.cssText='padding:12px;background:var(--purple-light);border-radius:var(--rm);border:1px solid #DDD6FE;margin-bottom:10px;';
+    bb.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px;">🌬️ Breathing exercises</div>';
+    ['4-7-8 Breathing (inhale 4, hold 7, exhale 8)','Box breathing (4-4-4-4)','5-5 Breathing (in 5, out 5)'].forEach(ex=>{
+      const d=mk('div');d.style.cssText='font-size:12px;color:var(--text2);padding:4px 0;border-bottom:1px solid #EDE9FE;';d.textContent=ex;bb.appendChild(d);
+    });
+    b.appendChild(bb);
+    const bo=mk('div');bo.style.cssText='padding:12px;background:var(--bg);border-radius:var(--rm);';
+    bo.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;">Burnout signs checklist</div>';
+    ['Exhausted even after rest','Decreased motivation or joy','Increased irritability','Difficulty concentrating','Feeling detached or numb'].forEach(s=>{
+      const r=mk('div');r.style.cssText='font-size:12px;color:var(--text2);padding:4px 0;display:flex;gap:8px;align-items:center;';
+      const cb=mk('input');cb.type='checkbox';cb.style.cssText='accent-color:var(--blue);width:15px;height:15px;';
+      r.appendChild(cb);r.appendChild(document.createTextNode(s));bo.appendChild(r);
+    });
+    b.appendChild(bo);
+  },false));
+
+  // ── MEDICAL ───────────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Medical & Appointments','🩺',b=>{
+    b.appendChild(infoBox('💡 Healthy adults: PCP every 1–3 years · Dentist every 6 months','blue'));
+    let apts=LS.get('med_apts',[
+      {id:1,type:'PCP / Annual physical',done:false,date:'',notes:'',nextDue:''},
+      {id:2,type:'Dentist',done:false,date:'',notes:'',nextDue:''},
+      {id:3,type:'Eye doctor',done:false,date:'',notes:'',nextDue:''},
+    ]);
+    const aptWrap=mk('div');b.appendChild(aptWrap);
+    const renderApts=()=>{
+      aptWrap.innerHTML='';
+      apts.forEach(a=>{
+        const card=mk('div');card.style.cssText='padding:10px 0;border-bottom:1px solid var(--border2);';
+        const top=mk('div');top.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px;';
+        const chk=mk('div','chk'+(a.done?' done':''));
+        if(a.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        chk.addEventListener('click',()=>{a.done=!a.done;LS.set('med_apts',apts);renderApts();});
+        const lbl=mk('span');lbl.style.cssText='font-size:13px;font-weight:600;color:var(--text);flex:1;';lbl.textContent=a.type;
+        // Next due button (appears after checking off)
+        const ndBtn=mk('button');ndBtn.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--orange-light);color:var(--orange-dark);font-weight:600;border:1px solid var(--orange-muted);';
+        ndBtn.textContent='Set next due';
+        ndBtn.addEventListener('click',()=>{
+          const d=prompt('Enter next due date (MM/DD/YYYY):');
+          if(d){a.nextDue=d;LS.set('med_apts',apts);
+          const cal=LS.get('cal_events',[]);cal.push({title:a.type+' due',date:d,reminder:'30days',type:'medical'});LS.set('cal_events',cal);
+          alert('Saved! You\'ll be reminded 30 days before: '+d);}
+        });
+        top.appendChild(chk);top.appendChild(lbl);
+        if(a.done||a.nextDue)top.appendChild(ndBtn);
+        const drow=mk('div');drow.style.cssText='padding-left:30px;display:flex;gap:8px;align-items:center;';
+        const di=mk('input','inp');di.type='date';di.value=a.date;di.style.cssText='width:140px;font-size:12px;';
+        di.addEventListener('input',e=>{a.date=e.target.value;LS.set('med_apts',apts);});
+        const ni=mk('input','inp');ni.placeholder='Notes for this appointment…';ni.value=a.notes;ni.style.cssText='flex:1;font-size:12px;';
+        ni.addEventListener('input',e=>{a.notes=e.target.value;LS.set('med_apts',apts);});
+        const csb=calSyncBtn('Sync','apt_'+a.id,{title:a.type,date:a.date,type:'medical_apt',reminder:'30days'});
+        drow.appendChild(di);drow.appendChild(ni);drow.appendChild(csb);
+        card.appendChild(top);card.appendChild(drow);
+        if(a.nextDue){const nd=mk('div');nd.style.cssText='padding-left:30px;margin-top:4px;font-size:11px;color:var(--orange-dark);font-weight:600;';nd.textContent='📅 Next due: '+a.nextDue;card.appendChild(nd);}
+        aptWrap.appendChild(card);
+      });
+      aptWrap.appendChild(addbtn('Add appointment',()=>{
+        apts.push({id:Date.now(),type:'',done:false,date:'',notes:'',nextDue:''});
+        LS.set('med_apts',apts);renderApts();
+      }));
+    };
+    renderApts();
+  },false));
+
+  // ── MEDICATIONS ───────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Medications & Supplements','💊',b=>{
+    b.appendChild(infoBox('🔔 Medication time reminders will notify you when each dose is due.','orange'));
+    let meds=LS.get('meds_list',[]);
+    const mWrap=mk('div');b.appendChild(mWrap);
+    const renderMeds=()=>{
+      mWrap.innerHTML='';
+      meds.forEach(m=>{
+        const card=mk('div');card.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:8px;';
+        const r1=mk('div');r1.style.cssText='display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:6px;';
+        [['Medication / supplement','name'],['Dose','dose'],['Time','time']].forEach(([ph,key])=>{
+          const i=mk('input','inp');i.placeholder=ph;i.value=m[key]||'';i.style.fontSize='12px';
+          i.addEventListener('input',e=>{m[key]=e.target.value;LS.set('meds_list',meds);});r1.appendChild(i);
+        });
+        const ni=mk('input','inp');ni.placeholder='Side effects, notes…';ni.value=m.notes||'';ni.style.fontSize='12px';
+        ni.addEventListener('input',e=>{m.notes=e.target.value;LS.set('meds_list',meds);});
+        card.appendChild(r1);card.appendChild(ni);mWrap.appendChild(card);
+      });
+      mWrap.appendChild(addbtn('Add medication or supplement',()=>{meds.push({id:Date.now(),name:'',dose:'',time:'',notes:''});LS.set('meds_list',meds);renderMeds();}));
+    };
+    renderMeds();
+  },false));
+
+  // ── WOMEN'S HEALTH ────────────────────────────────────────────────────────
+  wrap.appendChild(sblock("Women's Health",'🌸',b=>{
+    b.appendChild(grid('1fr 1fr',
+      fld('Last period start',inp('','','','date')),
+      fld('Cycle length (avg days)',inp('28',''))
+    ));
+    const papD=mk('div');papD.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
+    papD.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Pap smear — Next due</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6;">📋 Under 21 or over 65 — not typically needed · Ages 21–65 — every 3 years</div>`;
+    const pi=mk('input','inp');pi.type='date';pi.style.fontSize='12px';papD.appendChild(pi);
+    const pcsb=calSyncBtn('Sync pap reminder','pap',{title:'Pap smear due',type:'womens_health',reminder:'30days'});pcsb.style.marginTop='6px';papD.appendChild(pcsb);
+    b.appendChild(papD);
+    const mamD=mk('div');mamD.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
+    mamD.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Mammogram — Next due</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">📋 Consult your PCP to determine the right frequency for you.</div>`;
+    const mi=mk('input','inp');mi.type='date';mi.style.fontSize='12px';mamD.appendChild(mi);
+    const mcsb=calSyncBtn('Sync mammogram reminder','mammo',{title:'Mammogram due',type:'womens_health',reminder:'30days'});mcsb.style.marginTop='6px';mamD.appendChild(mcsb);
+    b.appendChild(mamD);
+    b.appendChild(grid('1fr 1fr',
+      fld('Birth control type',inp('Pill, IUD, implant…','')),
+      fld('Birth control expiration',inp('','','','date'))
+    ));
+    b.appendChild(fld('Hormonal mood insights',ta('Track mood patterns across your cycle…','',null,2)));
+    b.appendChild(infoBox('🔒 Advanced features (ovulation, pregnancy tracker, postpartum recovery) available with Pro.','blue'));
+  },false));
+
+  // ── HABITS & SELF-CARE ────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Habits & Self-Care','🌅',b=>{
+    const routines=[
+      {label:'Morning Routine',key:'routine_Morning_routine',icon:'🌄',defaultTime:'07:00',color:'var(--orange)',colorLight:'var(--orange-light)',colorDark:'var(--orange-dark)'},
+      {label:'Night Routine',key:'routine_Night_routine',icon:'🌙',defaultTime:'21:00',color:'var(--blue)',colorLight:'var(--blue-light)',colorDark:'var(--blue-dark)'},
+    ];
+
+    routines.forEach(routine=>{
+      let tasks=LS.get(routine.key,[]);
+      let calConfig=LS.get(routine.key+'_cal',{time:routine.defaultTime,duration:'30',days:{sun:true,mon:true,tue:true,wed:true,thu:true,fri:true,sat:true},synced:false});
+      const saveConfig=()=>LS.set(routine.key+'_cal',calConfig);
+
+      const rd=mk('div');rd.style.cssText=`margin-bottom:16px;border-radius:var(--rl);border:1px solid var(--border2);overflow:hidden;`;
+
+      // Header bar
+      const rHeader=mk('div');rHeader.style.cssText=`padding:12px 14px;background:${routine.colorLight};display:flex;align-items:center;justify-content:space-between;`;
+      const rTitle=mk('div');rTitle.style.cssText='display:flex;align-items:center;gap:8px;';
+      rTitle.innerHTML=`<span style="font-size:18px;">${routine.icon}</span><span style="font-size:13px;font-weight:700;color:var(--text);">${routine.label}</span>`;
+
+      // Sync status badge
+      const syncBadge=mk('div');syncBadge.style.cssText=`font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;background:${calConfig.synced?'var(--green-light)':'var(--bg2)'};color:${calConfig.synced?'var(--green-dark)':'var(--text3)'};border:1px solid ${calConfig.synced?'#BBF7D0':'var(--border)'};`;
+      syncBadge.textContent=calConfig.synced?'📅 Synced to calendar':'📅 Not synced';
+      rHeader.appendChild(rTitle);rHeader.appendChild(syncBadge);rd.appendChild(rHeader);
+
+      // Calendar settings panel
+      const calPanel=mk('div');calPanel.style.cssText='padding:12px 14px;background:var(--white);border-bottom:1px solid var(--border2);';
+      calPanel.innerHTML='<div class="clabel" style="margin-bottom:8px;">📅 Calendar schedule — recurring daily</div>';
+
+      // Time + Duration
+      const timeRow=mk('div');timeRow.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;';
+      const timeFld=mk('div');
+      const timeLbl=mk('label');timeLbl.style.cssText='display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;';timeLbl.textContent='Start time (can be changed anytime)';
+      const timeInp=mk('input','inp');timeInp.type='time';timeInp.value=calConfig.time;timeInp.style.fontSize='13px';
+      timeInp.addEventListener('input',e=>{calConfig.time=e.target.value;saveConfig();syncBadge.textContent='📅 Unsaved changes';syncBadge.style.background='var(--orange-light)';syncBadge.style.color='var(--orange-dark)';syncBadge.style.borderColor='var(--orange-muted)';});
+      timeFld.appendChild(timeLbl);timeFld.appendChild(timeInp);
+
+      const durFld=mk('div');
+      const durLbl=mk('label');durLbl.style.cssText='display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;';durLbl.textContent='Duration (minutes)';
+      const durInp=mk('input','inp');durInp.type='number';durInp.min='5';durInp.max='180';durInp.step='5';durInp.value=calConfig.duration;durInp.style.fontSize='13px';
+      durInp.addEventListener('input',e=>{calConfig.duration=e.target.value;saveConfig();});
+      durFld.appendChild(durLbl);durFld.appendChild(durInp);
+      timeRow.appendChild(timeFld);timeRow.appendChild(durFld);calPanel.appendChild(timeRow);
+
+      // Days of week
+      const daysLbl=mk('div');daysLbl.style.cssText='font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;';daysLbl.textContent='Repeats on (uncheck days to skip)';
+      calPanel.appendChild(daysLbl);
+      const daysRow=mk('div');daysRow.style.cssText='display:flex;gap:6px;margin-bottom:10px;';
+      const dayKeys=['sun','mon','tue','wed','thu','fri','sat'];
+      const dayLabels=['S','M','T','W','T','F','S'];
+      dayKeys.forEach((dk,di)=>{
+        const dayBtn=mk('button');
+        const isActive=calConfig.days[dk]!==false;
+        dayBtn.style.cssText=`width:32px;height:32px;border-radius:50%;font-size:11px;font-weight:700;border:2px solid ${isActive?routine.color:'var(--border)'};background:${isActive?routine.colorLight:'var(--bg)'};color:${isActive?routine.colorDark:'var(--text3)'};transition:all .2s;cursor:pointer;`;
+        dayBtn.textContent=dayLabels[di];
+        dayBtn.addEventListener('click',()=>{
+          calConfig.days[dk]=calConfig.days[dk]===false?true:false;
+          saveConfig();
+          const active=calConfig.days[dk]!==false;
+          dayBtn.style.border=`2px solid ${active?routine.color:'var(--border)'}`;
+          dayBtn.style.background=active?routine.colorLight:'var(--bg)';
+          dayBtn.style.color=active?routine.colorDark:'var(--text3)';
+        });
+        daysRow.appendChild(dayBtn);
+      });
+      calPanel.appendChild(daysRow);
+
+      // Sync button
+      const syncBtn=mk('button');syncBtn.style.cssText=`width:100%;padding:9px;border-radius:var(--rm);background:${routine.color};color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;`;
+      syncBtn.innerHTML='📅 Save to calendar (recurring)';
+      syncBtn.addEventListener('click',()=>{
+        // Save recurring event to cal_events
+        const calEvents=LS.get('cal_events',[]);
+        // Remove any old entries for this routine
+        const filtered=calEvents.filter(e=>e.routineKey!==routine.key);
+        const activeDays=dayKeys.filter(dk=>calConfig.days[dk]!==false);
+        filtered.push({
+          routineKey:routine.key,
+          title:routine.label,
+          time:calConfig.time,
+          duration:calConfig.duration,
+          days:activeDays,
+          type:'routine',
+          recurring:'weekly',
+          icon:routine.icon,
+        });
+        LS.set('cal_events',filtered);
+        calConfig.synced=true;saveConfig();
+        syncBadge.textContent='📅 Synced to calendar';
+        syncBadge.style.background='var(--green-light)';syncBadge.style.color='var(--green-dark)';syncBadge.style.borderColor='#BBF7D0';
+        syncBtn.textContent='✓ Saved! Updates to calendar whenever you change time or days.';
+        syncBtn.style.background='var(--green)';
+        setTimeout(()=>{syncBtn.innerHTML='📅 Update calendar sync';syncBtn.style.background=routine.color;},2500);
+      });
+      calPanel.appendChild(syncBtn);
+
+      // Info note
+      const note=mk('div');note.style.cssText='margin-top:8px;font-size:11px;color:var(--text3);line-height:1.5;';
+      note.textContent='💡 You can change the time or days at any time and re-sync. This will update the recurring event on your calendar.';
+      calPanel.appendChild(note);
+      rd.appendChild(calPanel);
+
+      // Tasks section
+      const tasksPanel=mk('div');tasksPanel.style.cssText='padding:12px 14px;background:var(--white);';
+      const tWrap=mk('div');
+      const renderTasks=()=>{
+        tWrap.innerHTML='';
+        const done=tasks.filter(t=>t.done).length;
+        if(tasks.length){
+          const prog=mk('div');prog.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+          const bw=mk('div','bar-wrap');bw.style.cssText='flex:1;height:5px;';
+          const bf=mk('div','bar-fill');bf.style.cssText=`width:${tasks.length?Math.round(done/tasks.length*100):0}%;background:${routine.color};`;
+          bw.appendChild(bf);
+          const pct=mk('span');pct.style.cssText=`font-size:11px;font-weight:600;color:${routine.colorDark};`;pct.textContent=done+'/'+tasks.length;
+          prog.appendChild(bw);prog.appendChild(pct);tWrap.appendChild(prog);
+        }
+        tasks.forEach((t,i)=>{
+          const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+          const chk=mk('div','chk'+(t.done?' done':''));
+          if(t.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+          chk.addEventListener('click',()=>{t.done=!t.done;LS.set(routine.key,tasks);renderTasks();});
+          const ti=mk('input','inp');ti.value=t.text||'';ti.placeholder='Task…';ti.style.cssText='flex:1;font-size:12px;border:none;background:transparent;';
+          ti.addEventListener('input',e=>{t.text=e.target.value;LS.set(routine.key,tasks);});
+          const del=mk('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;cursor:pointer;';
+          del.addEventListener('click',()=>{tasks.splice(i,1);LS.set(routine.key,tasks);renderTasks();});
+          row.appendChild(chk);row.appendChild(ti);row.appendChild(del);tWrap.appendChild(row);
+        });
+      };
+      renderTasks();
+      tasksPanel.appendChild(tWrap);
+      tasksPanel.appendChild(addbtn('Add task',()=>{tasks.push({text:'',done:false});LS.set(routine.key,tasks);renderTasks();}));
+      rd.appendChild(tasksPanel);
+      b.appendChild(rd);
+    });
+
+    // Streak
+    const streak=LS.get('habit_streak',0);
+    const sd=mk('div');sd.style.cssText='display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:var(--orange-light);border-radius:var(--rm);margin-top:4px;';
+    sd.innerHTML=`<span style="font-size:20px;">🔥</span><span style="font-size:16px;font-weight:700;color:var(--orange-dark);">${streak} day streak</span>`;
+    b.appendChild(sd);
+  },false));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// VEHICLE
+// ═══════════════════════════════════════════════════════════════════════════
+function buildVehicle(wrap){
+  let cars=LS.get('cars',[]);
+  const carsWrap=mk('div');carsWrap.id='carsWrap';wrap.appendChild(carsWrap);
+
+  const renderCars=()=>{
+    carsWrap.innerHTML='';
+    cars.forEach((car,ci)=>{
+      const block=sblock((car.year&&car.make)?`${car.year} ${car.make} ${car.model}`:'Vehicle '+(ci+1),'🚗',b=>{
+        // Details
+        b.appendChild(grid('1fr 1fr 1fr',
+          fld('Year',inp('2022',car.year,v=>{car.year=v;LS.set('cars',cars);})),
+          fld('Make',inp('Toyota',car.make,v=>{car.make=v;LS.set('cars',cars);})),
+          fld('Model',inp('Camry',car.model,v=>{car.model=v;LS.set('cars',cars);}))
+        ));
+        // Lease info with finances link
+        const lbox=mk('div');lbox.style.cssText='padding:10px 12px;background:var(--bg);border-radius:var(--rm);border:1px solid var(--border2);margin-bottom:10px;';
+        lbox.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">Leasing Info</div>';
+        lbox.appendChild(grid('1fr 1fr 1fr',
+          fld('Due date',inp('1st of month',car.leaseDate,v=>{car.leaseDate=v;LS.set('cars',cars);})),
+          fld('Payment',inp('$350/mo',car.payment,v=>{car.payment=v;LS.set('cars',cars);})),
+          fld('Leasing bank',inp('Toyota Financial',car.bank,v=>{car.bank=v;LS.set('cars',cars);}))
+        ));
+        const finRow=mk('div');finRow.style.cssText='display:flex;gap:8px;align-items:center;';
+        const finBtn=mk('button');finBtn.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--green-light);color:var(--green-dark);font-weight:600;border:1px solid #BBF7D0;cursor:pointer;';
+        finBtn.innerHTML='💰 Auto-add to Finances';
+        finBtn.addEventListener('click',()=>{
+          if(car.payment&&car.leaseDate){
+            const fe=LS.get('fin_exp',[]);
+            const exists=fe.find(e=>e.cat==='Car lease — '+(car.make||'Vehicle '+(ci+1)));
+            if(!exists){fe.push({id:Date.now(),cat:'Car lease — '+(car.make||'Vehicle '+(ci+1)),budget:car.payment,actual:'',type:'need',due:car.leaseDate,source:'vehicle'});LS.set('fin_exp',fe);}
+            const calEvt=LS.get('cal_events',[]);calEvt.push({title:'Car lease payment — '+(car.make||''),date:car.leaseDate,type:'payment',recurring:'monthly'});LS.set('cal_events',calEvt);
+            finBtn.style.background='var(--green)';finBtn.style.color='#fff';finBtn.textContent='✓ Added to Finances & Calendar';
+          }else{alert('Please enter due date and payment amount first.');}
+        });
+        finRow.appendChild(finBtn);lbox.appendChild(finRow);b.appendChild(lbox);
+
+        // Maintenance
+        let maint=LS.get('car_maint_'+ci,[
+          {id:1,label:'Oil change',months:5,done:false,nextDue:''},
+          {id:2,label:'Rotate tires',months:10,done:false,nextDue:''},
+          {id:3,label:'Replace wipers',months:10,done:false,nextDue:''},
+          {id:4,label:'Replace air & cabin filters',months:10,done:false,nextDue:''},
+          {id:5,label:'Register car',months:12,done:false,nextDue:''},
+          {id:6,label:'Car insurance renewal',months:12,done:false,nextDue:''},
+          {id:7,label:'Change tires',months:48,done:false,nextDue:''},
+          {id:8,label:'Brake pads',months:48,done:false,nextDue:''},
+          {id:9,label:'Spark plugs',months:48,done:false,nextDue:''},
+          {id:10,label:'Coolant flush',months:48,done:false,nextDue:''},
+        ]);
+        const mw=mk('div');mw.innerHTML='<div class="clabel" style="margin-top:12px;">Maintenance tracker</div>';
+        const done=maint.filter(m=>m.done).length;
+        const prow=mk('div');prow.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:8px;';
+        prow.innerHTML=`<span style="font-size:12px;color:var(--text3);flex-shrink:0">${done}/${maint.length}</span>`;
+        const bw=mk('div','bar-wrap');bw.style.cssText='flex:1;height:7px;';
+        const bf=mk('div','bar-fill');bf.style.cssText=`width:${Math.round(done/maint.length*100)}%;background:var(--green);`;
+        bw.appendChild(bf);prow.appendChild(bw);mw.appendChild(prow);
+
+        const renderMaint=()=>{
+          const existing=mw.querySelectorAll('.maint-row');existing.forEach(e=>e.remove());
+          maint.forEach(m=>{
+            const row=mk('div','check-row maint-row');
+            const chk=mk('div','chk'+(m.done?' done':''));
+            if(m.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            chk.addEventListener('click',()=>{m.done=!m.done;LS.set('car_maint_'+ci,maint);renderMaint();});
+            const info=mk('div');info.style.flex='1';
+            const lbl=mk('div');lbl.style.cssText=`font-size:13px;color:${m.done?'var(--text3)':'var(--text)'};text-decoration:${m.done?'line-through':'none'};`;lbl.textContent=m.label;
+            const sub=mk('div');sub.style.cssText='font-size:11px;color:var(--text3);margin-top:1px;';
+            sub.textContent='Every '+m.months+' months'+(m.nextDue?' · Next: '+m.nextDue:'');
+            info.appendChild(lbl);info.appendChild(sub);
+            // Date/time inputs
+            const di=mk('input','inp');di.type='datetime-local';di.placeholder='Date done';di.style.cssText='width:160px;font-size:11px;';
+            di.addEventListener('input',e=>{m.completedDate=e.target.value;LS.set('car_maint_'+ci,maint);});
+            const csb=calSyncBtn('Sync','car_maint_'+m.id+ci,{title:m.label,type:'vehicle_maintenance',recurMonths:m.months});
+            row.appendChild(chk);row.appendChild(info);row.appendChild(di);row.appendChild(csb);mw.appendChild(row);
+            // Next due when done
+            if(m.done&&!m.nextDue){
+              const nd=new Date();nd.setMonth(nd.getMonth()+m.months);
+              m.nextDue=nd.toLocaleDateString();LS.set('car_maint_'+ci,maint);
+            }
+          });
+        };
+        renderMaint();b.appendChild(mw);
+
+        // Notes
+        b.appendChild(fld('Vehicle notes',ta('VIN, insurance info, quirks, notes…',car.notes,v=>{car.notes=v;LS.set('cars',cars);},2)));
+        // Custom data fields
+        const cdfBox=mk('div');cdfBox.style.cssText='padding:10px 12px;background:var(--bg);border-radius:var(--rm);border:1px solid var(--border2);margin-bottom:10px;';
+        cdfBox.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">📌 Custom info (tires, insurance, etc.)</div>';
+        let cFields=LS.get('car_custom_'+ci,[]);
+        const renderCF=()=>{
+          const wrap2=cdfBox.querySelector('.cf-wrap')||(()=>{const d=mk('div');d.className='cf-wrap';cdfBox.appendChild(d);return d;})();
+          wrap2.innerHTML='';
+          cFields.forEach((cf,cfi)=>{
+            const row=mk('div');row.style.cssText='display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+            const li=mk('input','inp');li.placeholder='Label (e.g. Tires)';li.value=cf.label||'';li.style.cssText='flex:1;font-size:12px;';li.addEventListener('input',e=>{cf.label=e.target.value;LS.set('car_custom_'+ci,cFields);});
+            const vi=mk('input','inp');vi.placeholder='Value (e.g. Michelin 225/65R17)';vi.value=cf.value||'';vi.style.cssText='flex:2;font-size:12px;';vi.addEventListener('input',e=>{cf.value=e.target.value;LS.set('car_custom_'+ci,cFields);});
+            const del=mk('button');del.textContent='×';del.style.cssText='padding:4px 8px;border-radius:var(--r);border:1px solid var(--border);background:var(--white);color:var(--text3);cursor:pointer;font-size:14px;flex-shrink:0;';del.addEventListener('click',()=>{cFields.splice(cfi,1);LS.set('car_custom_'+ci,cFields);renderCF();});
+            row.appendChild(li);row.appendChild(vi);row.appendChild(del);wrap2.appendChild(row);
+          });
+          wrap2.appendChild(addbtn('+ Add custom field',()=>{cFields.push({label:'',value:''});LS.set('car_custom_'+ci,cFields);renderCF();}));
+        };
+        renderCF();b.appendChild(cdfBox);
+        b.appendChild(ubanner('file & document uploads'));
+      },ci===0);
+      carsWrap.appendChild(block);
+    });
+
+    const addCarBtn=mk('button','addbtn add-car-btn');addCarBtn.innerHTML='<span style="font-size:16px">+</span> Add another vehicle';
+    addCarBtn.addEventListener('click',()=>{
+      cars.push({year:'',make:'',model:'',leaseDate:'',payment:'',bank:'',notes:''});
+      LS.set('cars',cars);renderCars();
+    });
+    carsWrap.appendChild(addCarBtn);
+  };
+  renderCars();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HOUSING
+// ═══════════════════════════════════════════════════════════════════════════
+function buildHousing(wrap){
+  // ── HOME DETAILS ──────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Home Details','🏠',b=>{
+    let info=LS.get('house',{type:'rent',place:'apartment',address:'',amount:'',dueDay:''});
+    const save=()=>LS.set('house',info);
+    const g=mk('div');g.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;';
+    // Own/Rent toggle
+    const td=mk('div');
+    const tl=mk('label');tl.textContent='Own or Rent';tl.style.cssText='display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;';
+    const tog=mk('div','ttoggle');tog.style.marginBottom='0';
+    ['own','rent'].forEach(t=>{
+      const btn=mk('button',t===info.type?'active':'');btn.textContent=t;
+      btn.addEventListener('click',()=>{info.type=t;save();tog.querySelectorAll('button').forEach(b=>b.className='');btn.className='active';});
+      tog.appendChild(btn);
+    });
+    td.appendChild(tl);td.appendChild(tog);
+    const pd=mk('div');
+    const pl=mk('label');pl.textContent='Home type';pl.style.cssText='display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;';
+    const sel=mk('select','inp');sel.style.padding='8px 10px';
+    ['apartment','house','condo','townhouse','manufactured home'].forEach(p=>{const o=mk('option');o.value=p;o.textContent=p.charAt(0).toUpperCase()+p.slice(1);if(info.place===p)o.selected=true;sel.appendChild(o);});
+    sel.addEventListener('change',e=>{info.place=e.target.value;save();});
+    pd.appendChild(pl);pd.appendChild(sel);
+    g.appendChild(td);g.appendChild(pd);b.appendChild(g);
+    b.appendChild(fld('Address',inp('123 Main St, City, State',info.address,v=>{info.address=v;save();})));
+    b.appendChild(grid('1fr 1fr',
+      fld('Monthly rent/mortgage amount',inp('$1,500',info.amount,v=>{info.amount=v;save();})),
+      fld('Due day of month',inp('1st',info.dueDay,v=>{info.dueDay=v;save();}))
+    ));
+    // Link to finances button
+    const finRow=mk('div');finRow.style.cssText='display:flex;gap:8px;margin-top:6px;';
+    const finBtn=mk('button');finBtn.style.cssText='font-size:11px;padding:6px 12px;border-radius:var(--r);background:var(--green-light);color:var(--green-dark);font-weight:600;border:1px solid #BBF7D0;cursor:pointer;';
+    finBtn.innerHTML='💰 Auto-add to Finances';
+    finBtn.addEventListener('click',()=>{
+      if(info.amount&&info.dueDay){
+        const fe=LS.get('fin_exp',[]);
+        if(!fe.find(e=>e.source==='housing_rent')){
+          fe.push({id:Date.now(),cat:info.type==='rent'?'Rent':'Mortgage',budget:info.amount,actual:'',type:'need',due:info.dueDay,source:'housing_rent'});
+          LS.set('fin_exp',fe);
+          const calEvt=LS.get('cal_events',[]);
+          calEvt.push({title:(info.type==='rent'?'Rent':'Mortgage')+' due',day:info.dueDay,type:'payment',recurring:'monthly'});
+          LS.set('cal_events',calEvt);
+          finBtn.style.background='var(--green)';finBtn.style.color='#fff';finBtn.textContent='✓ Added to Finances & Calendar';
+        }else{finBtn.textContent='✓ Already linked';}
+      }else{alert('Enter amount and due date first.');}
+    });
+    const rentLinkInput=mk('input','inp');rentLinkInput.placeholder='Rent/mortgage payment website URL…';rentLinkInput.style.cssText='flex:1;font-size:12px;';
+    const openLink=mk('button');openLink.style.cssText='font-size:11px;padding:6px 12px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;';
+    openLink.textContent='Open payment site →';
+    openLink.addEventListener('click',()=>{const u=rentLinkInput.value;if(u)window.open(u,'_blank');});
+    finRow.appendChild(finBtn);b.appendChild(finRow);
+    b.appendChild(fld('Payment website',rentLinkInput));
+  },true));
+
+  // ── CHORES ────────────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Household Chores','🧹',b=>{
+    let chores=LS.get('chores',[
+      {id:1,label:'Vacuum / sweep floors',freq:'weekly',done:false,time:''},
+      {id:2,label:'Clean bathrooms',freq:'weekly',done:false,time:''},
+      {id:3,label:'Take out trash',freq:'weekly',done:false,time:''},
+      {id:4,label:'Clean kitchen',freq:'weekly',done:false,time:''},
+      {id:5,label:'Laundry',freq:'weekly',done:false,time:''},
+      {id:6,label:'Dust surfaces',freq:'biweekly',done:false,time:''},
+      {id:7,label:'Mop floors',freq:'biweekly',done:false,time:''},
+      {id:8,label:'Clean refrigerator',freq:'monthly',done:false,time:''},
+      {id:9,label:'Deep clean oven',freq:'monthly',done:false,time:''},
+      {id:10,label:'Check smoke detectors',freq:'monthly',done:false,time:''},
+    ]);
+    const freqs=['daily','weekly','biweekly','monthly','annually'];
+    const freqLabels={daily:'Daily',weekly:'Weekly',biweekly:'Bi-weekly',monthly:'Monthly',annually:'Annually'};
+    const cWrap=mk('div');b.appendChild(cWrap);
+
+    const renderChores=()=>{
+      cWrap.innerHTML='';
+      freqs.forEach(freq=>{
+        const group=chores.filter(c=>c.freq===freq&&!c.done);
+        if(!group.length)return;
+        const lbl=mk('div','clabel');lbl.textContent=freqLabels[freq];cWrap.appendChild(lbl);
+        group.forEach(c=>{
+          const row=mk('div','check-row');
+          const chk=mk('div','chk');
+          chk.addEventListener('click',()=>{
+            c.done=true;
+            // Calculate next due
+            const freqDays={daily:1,weekly:7,biweekly:14,monthly:30,annually:365};
+            const nd=new Date();nd.setDate(nd.getDate()+freqDays[c.freq]);
+            c.nextDue=nd.toLocaleDateString();c.done=false;// reset with new due date
+            LS.set('chores',chores);renderChores();
+          });
+          const info=mk('div');info.style.flex='1';
+          const ci=mk('input','inp');ci.value=c.label;ci.style.cssText='font-size:13px;border:none;background:transparent;padding:2px 4px;font-weight:500;';
+          ci.addEventListener('input',e=>{c.label=e.target.value;LS.set('chores',chores);});
+          const csub=mk('div');csub.style.cssText='font-size:10px;color:var(--text3);margin-top:1px;';
+          csub.textContent=c.nextDue?'Next due: '+c.nextDue:'';
+          info.appendChild(ci);info.appendChild(csub);
+          const ti=mk('input','inp');ti.type='time';ti.value=c.time;ti.style.cssText='width:100px;font-size:11px;';
+          ti.addEventListener('input',e=>{c.time=e.target.value;LS.set('chores',chores);});
+          const csb=calSyncBtn('Sync','chore_'+c.id,{title:c.label,time:c.time,type:'chore',recurring:c.freq});
+          const del=mk('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;';
+          del.addEventListener('click',()=>{chores=chores.filter(x=>x.id!==c.id);LS.set('chores',chores);renderChores();});
+          row.appendChild(chk);row.appendChild(info);row.appendChild(ti);row.appendChild(csb);row.appendChild(del);cWrap.appendChild(row);
+        });
+      });
+      // Add chore form
+      const addForm=mk('div');addForm.style.cssText='margin-top:10px;padding:10px;background:var(--bg);border-radius:var(--rm);';
+      const newLabel=mk('input','inp');newLabel.placeholder='Chore name…';newLabel.style.cssText='font-size:12px;margin-bottom:6px;';
+      const row2=mk('div');row2.style.cssText='display:flex;gap:8px;';
+      const freqSel=mk('select','inp');freqSel.style.cssText='font-size:12px;padding:7px;flex:1;';
+      freqs.forEach(f=>{const o=mk('option');o.value=f;o.textContent=freqLabels[f];freqSel.appendChild(o);});
+      const timeIn=mk('input','inp');timeIn.type='time';timeIn.style.cssText='font-size:12px;width:120px;';
+      const addBtn2=mk('button');addBtn2.style.cssText='padding:7px 14px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;white-space:nowrap;';
+      addBtn2.textContent='+ Add';
+      addBtn2.addEventListener('click',()=>{
+        if(newLabel.value.trim()){
+          chores.push({id:Date.now(),label:newLabel.value.trim(),freq:freqSel.value,time:timeIn.value,done:false,nextDue:''});
+          LS.set('chores',chores);newLabel.value='';renderChores();
+        }
+      });
+      row2.appendChild(freqSel);row2.appendChild(timeIn);row2.appendChild(addBtn2);
+      addForm.appendChild(newLabel);addForm.appendChild(row2);cWrap.appendChild(addForm);
+      b.appendChild(ubanner('assign chores to household members'));
+    };
+    renderChores();
+  }));
+
+  // ── UTILITIES ─────────────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Utility Tracker','💡',b=>{
+    let utilities=LS.get('utilities',[
+      {name:'Electric',amount:'',due:'',done:false,nextDue:''},
+      {name:'Gas',amount:'',due:'',done:false,nextDue:''},
+      {name:'Water',amount:'',due:'',done:false,nextDue:''},
+      {name:'Internet',amount:'',due:'',done:false,nextDue:''},
+      {name:'Trash',amount:'',due:'',done:false,nextDue:''},
+    ]);
+    const uWrap=mk('div');b.appendChild(uWrap);
+    const renderUtils=()=>{
+      uWrap.innerHTML='';
+      const hdr=mk('div');hdr.style.cssText='display:grid;grid-template-columns:100px 1fr 1fr 120px 60px;gap:8px;margin-bottom:6px;';
+      ['Utility','Monthly $','Due date','',''].forEach(h=>{const d=mk('div');d.style.cssText='font-size:10px;font-weight:700;color:var(--text4);text-transform:uppercase;';d.textContent=h;hdr.appendChild(d);});
+      uWrap.appendChild(hdr);
+      utilities.forEach(u=>{
+        const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+        const lbl=mk('div');lbl.style.cssText='font-size:12px;font-weight:600;color:var(--text);min-width:80px;';lbl.textContent=u.name;
+        const ai=mk('input','inp');ai.placeholder='$0';ai.value=u.amount;ai.style.cssText='font-size:12px;width:80px;';
+        ai.addEventListener('input',e=>{u.amount=e.target.value;LS.set('utilities',utilities);});
+        const di=mk('input','inp');di.type='date';di.value=u.due;di.style.cssText='font-size:12px;width:140px;';
+        di.addEventListener('input',e=>{u.due=e.target.value;LS.set('utilities',utilities);});
+        const chk=mk('div','chk'+(u.done?' done':''));
+        if(u.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        chk.addEventListener('click',()=>{
+          u.done=!u.done;
+          if(u.done){const nd=new Date(u.due||new Date());nd.setMonth(nd.getMonth()+1);u.nextDue=nd.toLocaleDateString();}
+          LS.set('utilities',utilities);renderUtils();
+        });
+        const finBtn=mk('button');finBtn.style.cssText='font-size:10px;padding:4px 8px;border-radius:var(--r);background:var(--green-light);color:var(--green-dark);font-weight:600;border:1px solid #BBF7D0;cursor:pointer;';
+        finBtn.innerHTML='💰';finBtn.title='Add to Finances';
+        finBtn.addEventListener('click',()=>{
+          const fe=LS.get('fin_exp',[]);
+          if(!fe.find(e=>e.cat===u.name+' utility')){
+            fe.push({id:Date.now(),cat:u.name+' utility',budget:u.amount,actual:'',type:'need',due:u.due,source:'utility_'+u.name});
+            LS.set('fin_exp',fe);finBtn.textContent='✓';
+          }
+        });
+        row.appendChild(lbl);row.appendChild(ai);row.appendChild(di);row.appendChild(chk);row.appendChild(finBtn);uWrap.appendChild(row);
+        if(u.nextDue){const nd=mk('div');nd.style.cssText='font-size:10px;color:var(--green-dark);font-weight:600;margin-left:88px;margin-bottom:4px;';nd.textContent='✓ Paid · Next due: '+u.nextDue;uWrap.appendChild(nd);}
+      });
+    };
+    renderUtils();
+  }));
+
+  // ── HOME MAINTENANCE ──────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Home Maintenance','🔨',b=>{
+    let info=LS.get('house',{type:'rent',place:'apartment'});
+    const maintByType={
+      own:{house:['HVAC filter change (every 3 mo)','Check water heater (yearly)','Gutter cleaning (twice yearly)','Pest inspection (yearly)','Roof inspection (every 3–5 yrs)','Check caulking & seals (yearly)','Service garage door (yearly)','Test sump pump (yearly)'],
+        apartment:['HVAC filter check (every 3 mo)','Test smoke & CO detectors (monthly)','Check for leaks (monthly)'],
+        condo:['HVAC filter change (every 3 mo)','Check water heater (yearly)','Test smoke detectors (monthly)'],
+        townhouse:['HVAC filter change (every 3 mo)','Gutter cleaning (twice yearly)','Pest inspection (yearly)','Test smoke detectors (monthly)'],
+        'manufactured home':['HVAC filter change (every 3 mo)','Check roof seals (yearly)','Test smoke detectors (monthly)','Check skirting & vents (twice yearly)']},
+      rent:{house:['Report any leaks to landlord','Test smoke & CO detectors (monthly)','Change HVAC filter if allowed (every 3 mo)'],
+        apartment:['Test smoke & CO detectors (monthly)','Report maintenance issues to landlord','Change HVAC filter if allowed'],
+        condo:['Test smoke & CO detectors (monthly)','Report issues to landlord or HOA'],
+        townhouse:['Test smoke & CO detectors (monthly)','Report issues to landlord'],
+        'manufactured home':['Test smoke & CO detectors (monthly)','Report issues to landlord']}
+    };
+    const tasks=(maintByType[info.type]||maintByType.rent)[info.place]||maintByType.rent.apartment;
+    let savedMaint=LS.get('home_maint_'+info.type+'_'+info.place,tasks.map((t,i)=>({id:i,label:t,done:false,time:'',nextDue:''})));
+    const mWrap=mk('div');b.appendChild(mWrap);
+    const renderMaint=()=>{
+      mWrap.innerHTML='';
+      savedMaint.forEach(m=>{
+        const row=mk('div','check-row');
+        const chk=mk('div','chk'+(m.done?' done':''));
+        if(m.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        chk.addEventListener('click',()=>{m.done=!m.done;LS.set('home_maint_'+info.type+'_'+info.place,savedMaint);renderMaint();});
+        const info2=mk('div');info2.style.flex='1';
+        const lbl=mk('div');lbl.style.cssText=`font-size:13px;color:${m.done?'var(--text3)':'var(--text)'};text-decoration:${m.done?'line-through':'none'};`;lbl.textContent=m.label;
+        if(m.nextDue){const nd=mk('div');nd.style.cssText='font-size:10px;color:var(--green-dark);margin-top:2px;';nd.textContent='Next: '+m.nextDue;info2.appendChild(nd);}
+        info2.insertBefore(lbl,info2.firstChild);
+        const ti=mk('input','inp');ti.type='datetime-local';ti.style.cssText='width:160px;font-size:11px;';
+        const csb=calSyncBtn('Sync','hmaint_'+m.id,{title:m.label,type:'home_maintenance'});
+        row.appendChild(chk);row.appendChild(info2);row.appendChild(ti);row.appendChild(csb);mWrap.appendChild(row);
+      });
+      mWrap.appendChild(addbtn('Add maintenance task',()=>{savedMaint.push({id:Date.now(),label:'',done:false,time:'',nextDue:''});LS.set('home_maint_'+info.type+'_'+info.place,savedMaint);renderMaint();}));
+    };
+    b.appendChild(infoBox(`🏠 Showing ${info.type==='own'?'homeowner':'renter'} maintenance for a ${info.place}. Update in Home Details to change.`,'blue'));
+    renderMaint();
+  }));
+
+  // ── WHITEBOARD / INSPO ────────────────────────────────────────────────────
+  wrap.appendChild(sblock('Whiteboard & Inspiration','🎨',b=>{
+    b.appendChild(infoBox('🖊️ Free: sticky notes & text. Upgrade for image uploads & full collage builder.','blue'));
+    let notes=LS.get('inspo_notes',[]);
+    const colors=['#FEF3C7','#DBEAFE','#DCFCE7','#FCE7F3','#EDE9FE','#FFF7ED'];
+    const notesGrid=mk('div');notesGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;';
+
+    const renderNotes=()=>{
+      notesGrid.innerHTML='';
+      notes.forEach((note,i)=>{
+        const sn=mk('div','sticky-note');sn.style.cssText=`background:${note.color};border-radius:var(--rm);padding:12px;min-height:100px;position:relative;`;
+        const del=mk('button','del-btn');del.textContent='×';del.style.cssText='position:absolute;top:6px;right:8px;font-size:18px;color:rgba(0,0,0,0.3);opacity:0;transition:opacity .2s;background:none;border:none;cursor:pointer;';
+        sn.onmouseover=()=>del.style.opacity='1';sn.onmouseout=()=>del.style.opacity='0';
+        del.addEventListener('click',()=>{notes.splice(i,1);LS.set('inspo_notes',notes);renderNotes();});
+        const ta2=mk('textarea');ta2.style.cssText='background:transparent;border:none;outline:none;width:100%;font-size:13px;line-height:1.6;resize:none;font-family:var(--font);color:var(--text);min-height:80px;';
+        ta2.value=note.text;ta2.placeholder='Type a note…';
+        ta2.addEventListener('input',e=>{note.text=e.target.value;LS.set('inspo_notes',notes);});
+        sn.appendChild(del);sn.appendChild(ta2);notesGrid.appendChild(sn);
+      });
+      b.appendChild(notesGrid);
+    };
+    renderNotes();
+
+    // Color picker for new note
+    const addRow=mk('div');addRow.style.cssText='display:flex;gap:8px;align-items:center;margin-top:4px;';
+    const colorPicker=mk('div');colorPicker.style.cssText='display:flex;gap:4px;';
+    let selectedColor=colors[0];
+    colors.forEach(c=>{
+      const dot=mk('div');dot.style.cssText=`width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;border:2px solid ${c===selectedColor?'var(--text)':'transparent'};transition:border .15s;`;
+      dot.addEventListener('click',()=>{selectedColor=c;colorPicker.querySelectorAll('div').forEach(d=>d.style.border='2px solid transparent');dot.style.border='2px solid var(--text)';});
+      colorPicker.appendChild(dot);
+    });
+    const addNoteBtn=mk('button');addNoteBtn.style.cssText='padding:7px 14px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;';
+    addNoteBtn.textContent='+ Add sticky note';
+    addNoteBtn.addEventListener('click',()=>{notes.push({text:'',color:selectedColor});LS.set('inspo_notes',notes);renderNotes();});
+    addRow.appendChild(colorPicker);addRow.appendChild(addNoteBtn);b.appendChild(addRow);
+
+    // Upgrade section for image collage
+    b.appendChild(ubanner('image uploads & drag-and-drop collage builder'));
+  },false));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUTER
+// ═══════════════════════════════════════════════════════════════════════════
+const PAGES={dashboard:buildDashboard,health:buildHealth,vehicle:buildVehicle,housing:buildHousing};
+
+buildNav();
+loadPage('dashboard');
+</script>
+</body>
+</html>

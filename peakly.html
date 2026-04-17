@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Peakly — Lock In Your Goals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-mid:#3B82F6;--blue-dark:#0F3D6E;--blue-muted:#DBEAFE;
+  --orange:#F97316;--orange-light:#FFF7ED;--orange-dark:#C2410C;--orange-muted:#FED7AA;
+  --bg:#F0F4FA;--bg2:#E8EFF8;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;--text4:#A8BDD1;
+  --border:#D4E0EE;--border2:#EAF0F8;
+  --red:#DC2626;--red-light:#FEF2F2;
+  --font-display:'Playfair Display',Georgia,serif;
+  --font-body:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:22px;
+  --shadow:0 1px 4px rgba(15,28,46,0.07),0 0 0 1px rgba(15,28,46,0.04);
+}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+#root{min-height:100vh;}
+button{font-family:var(--font-body);cursor:pointer;border:none;background:none;}
+input,textarea,select{font-family:var(--font-body);}
+textarea{resize:none;}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pop{0%{transform:scale(0.85);opacity:0;}65%{transform:scale(1.06);}100%{transform:scale(1);opacity:1;}}
+@keyframes confettiFall{to{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+@keyframes shimmer{0%,100%{opacity:1;}50%{opacity:0.5;}}
+.confetti-piece{position:fixed;top:-20px;border-radius:3px;animation:confettiFall linear forwards;pointer-events:none;z-index:9999;}
+.card{background:var(--white);border-radius:var(--r-lg);box-shadow:var(--shadow);border:1px solid var(--border2);padding:14px;}
+.clabel{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin-bottom:8px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+const todayKey=()=>new Date().toDateString();
+const pad=n=>String(n).padStart(2,'0');
+const LS={
+  get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+};
+
+const SEED_GOALS=[
+  {id:1,name:'Lose 20 lbs',emoji:'🏃',color:'blue',habits:[
+    {id:101,name:'Morning workout',time:'7:00',done:false},
+    {id:102,name:'Evening walk',time:'19:00',done:false},
+    {id:103,name:'Track calories',time:'20:00',done:false},
+  ]},
+  {id:2,name:'Read 24 books',emoji:'📚',color:'orange',habits:[
+    {id:201,name:'Read 20 pages',time:'15:00',done:false},
+  ]},
+  {id:3,name:'Save $10k',emoji:'💰',color:'blue',habits:[
+    {id:301,name:'Review budget',time:'9:00',done:false},
+    {id:302,name:'Log daily spending',time:'21:00',done:false},
+  ]},
+  {id:4,name:'Learn guitar',emoji:'🎸',color:'orange',habits:[
+    {id:401,name:'Practice 30 mins',time:'18:00',done:false},
+  ]},
+];
+const MOODS=['😔','😕','😐','🙂','😄'];
+const HOURS=Array.from({length:24},(_,i)=>i);
+const fmtHour=h=>{if(h===0)return'12 AM';if(h<12)return`${h} AM`;if(h===12)return'12 PM';return`${h-12} PM`;};
+const CMAP={
+  blue:{bg:'#EFF6FF',text:'#1A5FA8',border:'#BFDBFE',accent:'#1A5FA8'},
+  orange:{bg:'#FFF7ED',text:'#C2410C',border:'#FED7AA',accent:'#F97316'},
+};
+
+// ─ Logo ─
+function Logo({size=32}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 64 64" style={{flexShrink:0}}>
+      <rect width="64" height="64" rx="13" fill="#1A5FA8"/>
+      <polyline points="8,50 22,28 33,38 44,17 56,50" fill="none" stroke="white" strokeWidth="3.2" strokeLinejoin="round" strokeLinecap="round"/>
+      <circle cx="44" cy="17" r="4.5" fill="#F97316"/>
+      <line x1="44" y1="17" x2="56" y2="17" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+// ─ Confetti ─
+function Confetti({active,onDone}){
+  useEffect(()=>{
+    if(!active)return;
+    const colors=['#1A5FA8','#F97316','#3B82F6','#FB923C','#DBEAFE','#FED7AA'];
+    const pieces=[];
+    for(let i=0;i<88;i++){
+      const el=document.createElement('div');el.className='confetti-piece';
+      const s=6+Math.random()*8;
+      el.style.cssText=`left:${Math.random()*100}vw;width:${s}px;height:${s}px;background:${colors[i%colors.length]};animation-duration:${1.4+Math.random()*2}s;animation-delay:${Math.random()*0.5}s;border-radius:${Math.random()>0.5?'50%':'3px'};`;
+      document.body.appendChild(el);pieces.push(el);
+    }
+    const t=setTimeout(()=>{pieces.forEach(p=>p.remove());onDone&&onDone();},3800);
+    return()=>{clearTimeout(t);pieces.forEach(p=>p.remove());};
+  },[active]);
+  return null;
+}
+
+// ─ Modals ─
+function Overlay({children}){
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(15,28,46,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,backdropFilter:'blur(3px)'}}>
+      <div style={{background:'var(--white)',borderRadius:'var(--r-xl)',padding:'32px',maxWidth:380,width:'92%',boxShadow:'0 24px 64px rgba(15,28,46,0.2)',animation:'pop 0.3s cubic-bezier(0.34,1.56,0.64,1)'}}>
+        {children}
+      </div>
+    </div>
+  );
+}
+function SickModal({onConfirm,onCancel}){
+  return(
+    <Overlay>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:46,marginBottom:10}}>🤒</div>
+        <div style={{fontFamily:'var(--font-display)',fontSize:22,fontWeight:700,marginBottom:8}}>Taking a sick day?</div>
+        <p style={{fontSize:14,color:'var(--text2)',lineHeight:1.7,marginBottom:24}}>All your habits and tasks will be pushed forward one day. Rest up — recovery is part of the climb.</p>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onCancel} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',border:'1px solid var(--border)',color:'var(--text2)',fontSize:13,fontWeight:500}}>Cancel</button>
+          <button onClick={onConfirm} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',background:'var(--red-light)',color:'var(--red)',fontSize:13,fontWeight:600,border:'1px solid #FCA5A5'}}>Push everything</button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+function CongratsModal({msg,onClose}){
+  return(
+    <Overlay>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:52,marginBottom:8}}>🎉</div>
+        <div style={{fontFamily:'var(--font-display)',fontSize:24,fontWeight:700,color:'var(--blue)',marginBottom:8}}>You crushed it!</div>
+        <p style={{fontSize:14,color:'var(--text2)',lineHeight:1.7,marginBottom:24}}>{msg}</p>
+        <button onClick={onClose} style={{width:'100%',padding:'12px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:14,fontWeight:600,border:'none'}}>Keep going 💪</button>
+      </div>
+    </Overlay>
+  );
+}
+
+// ─ Bar ─
+function Bar({pct,color='var(--blue)',h=8,style={}}){
+  return(
+    <div style={{background:'var(--bg2)',borderRadius:100,height:h,overflow:'hidden',...style}}>
+      <div style={{width:`${Math.min(100,Math.max(0,pct))}%`,height:'100%',background:color,borderRadius:100,transition:'width 0.7s cubic-bezier(0.4,0,0.2,1)'}}/>
+    </div>
+  );
+}
+
+// ─ Date Card ─
+function DateCard(){
+  const [now,setNow]=useState(new Date());
+  const [vibe,setVibe]=useState(()=>LS.get('home_vibe_img',''));
+  const [showPicker,setShowPicker]=useState(false);
+  const [tab,setTab]=useState('unsplash');
+  const [query,setQuery]=useState('');
+  const [results,setResults]=useState([]);
+  const [loading,setLoading]=useState(false);
+
+  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
+
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const h=now.getHours(),m=now.getMinutes();
+  const ampm=h>=12?'PM':'AM';
+  const h12=h%12||12;
+
+  const UNSPLASH_DEFAULTS=['nature+morning','motivation+sunrise','aesthetic+minimal','cozy+calm','city+vibes','flowers+soft'];
+  const GIPHY_DEFAULTS=['good+morning','motivation','aesthetic+vibe','happy','calm','focus'];
+
+  const searchUnsplash=async(q)=>{
+    setLoading(true);
+    const terms=(q||UNSPLASH_DEFAULTS[Math.floor(Math.random()*UNSPLASH_DEFAULTS.length)]).replace(/ /,'+');
+    // Use picsum with search terms as seed for variety
+    const imgs=Array.from({length:6},(_,i)=>`https://source.unsplash.com/300x200/?${encodeURIComponent(q||'morning,vibe,aesthetic')}&sig=${Date.now()+i}`);
+    setResults(imgs);setLoading(false);
+  };
+
+  const searchGiphy=async(q)=>{
+    setLoading(true);
+    try{
+      const term=encodeURIComponent(q||'good morning');
+      const res=await fetch(`https://api.giphy.com/v1/gifs/search?api_key=sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh&q=${term}&limit=6&rating=g`);
+      const data=await res.json();
+      const urls=(data.data||[]).map(g=>g.images.fixed_height.url);
+      setResults(urls);
+    }catch{setResults([]);}
+    setLoading(false);
+  };
+
+  const pickImage=(url)=>{
+    setVibe(url);LS.set('home_vibe_img',url);setShowPicker(false);setResults([]);
+  };
+
+  const handleUpload=(e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{pickImage(ev.target.result);};
+    reader.readAsDataURL(file);
+  };
+
+  const openPicker=(t)=>{setTab(t);setShowPicker(true);setResults([]);setQuery('');};
+
+  return(
+    <div>
+      {/* Date/time card */}
+      <div style={{background:'var(--blue)',borderRadius:'var(--r-lg)',boxShadow:'var(--shadow)',padding:'20px 16px',textAlign:'center',marginBottom:10}}>
+        <div style={{fontSize:10,fontWeight:700,letterSpacing:'2px',textTransform:'uppercase',color:'rgba(255,255,255,0.55)',marginBottom:4}}>
+          {months[now.getMonth()]} {now.getFullYear()}
+        </div>
+        <div style={{fontFamily:'var(--font-display)',fontSize:76,fontWeight:700,color:'#fff',lineHeight:1,marginBottom:2}}>
+          {String(now.getDate()).padStart(2,'0')}
+        </div>
+        <div style={{fontFamily:'var(--font-display)',fontSize:20,fontWeight:500,color:'rgba(255,255,255,0.88)',marginBottom:14}}>
+          {days[now.getDay()]}
+        </div>
+        <div style={{display:'inline-flex',alignItems:'baseline',gap:5,background:'rgba(255,255,255,0.12)',borderRadius:100,padding:'6px 18px'}}>
+          <span style={{fontFamily:'var(--font-display)',fontSize:26,fontWeight:700,color:'#fff',letterSpacing:'-0.5px'}}>{pad(h12)}:{pad(m)}</span>
+          <span style={{fontSize:13,color:'rgba(255,255,255,0.7)',fontWeight:600}}>{ampm}</span>
+        </div>
+      </div>
+
+      {/* Vibe image box */}
+      <div className="card" style={{padding:0,overflow:'hidden'}}>
+        {vibe?(
+          <div style={{position:'relative'}}>
+            <img src={vibe} alt="vibe" style={{width:'100%',height:160,objectFit:'cover',display:'block'}}
+              onError={()=>{setVibe('');LS.set('home_vibe_img','');}}/>
+            <div style={{position:'absolute',inset:0,background:'linear-gradient(to top,rgba(0,0,0,.45) 0%,transparent 60%)',display:'flex',alignItems:'flex-end',justifyContent:'space-between',padding:'8px 10px'}}>
+              <span style={{fontSize:11,color:'rgba(255,255,255,.8)',fontWeight:600}}>Today's vibe ✨</span>
+              <div style={{display:'flex',gap:4}}>
+                <button onClick={()=>openPicker('unsplash')} style={{fontSize:10,padding:'3px 8px',borderRadius:100,background:'rgba(255,255,255,.2)',color:'#fff',backdropFilter:'blur(4px)'}}>📷 Change</button>
+                <button onClick={()=>openPicker('gif')} style={{fontSize:10,padding:'3px 8px',borderRadius:100,background:'rgba(255,255,255,.2)',color:'#fff',backdropFilter:'blur(4px)'}}>GIF</button>
+              </div>
+            </div>
+          </div>
+        ):(
+          <div style={{height:130,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,background:'var(--bg)',cursor:'pointer'}} onClick={()=>openPicker('unsplash')}>
+            <div style={{fontSize:28}}>🖼️</div>
+            <div style={{fontSize:12,color:'var(--text3)',fontWeight:600}}>Set today's vibe</div>
+            <div style={{display:'flex',gap:6}}>
+              <button onClick={e=>{e.stopPropagation();openPicker('unsplash');}} style={{fontSize:10,padding:'4px 10px',borderRadius:100,background:'var(--blue-light)',color:'var(--blue)',fontWeight:600}}>Photos</button>
+              <button onClick={e=>{e.stopPropagation();openPicker('gif');}} style={{fontSize:10,padding:'4px 10px',borderRadius:100,background:'var(--orange-light)',color:'var(--orange)',fontWeight:600}}>GIFs</button>
+              <label style={{fontSize:10,padding:'4px 10px',borderRadius:100,background:'var(--bg2)',color:'var(--text2)',fontWeight:600,cursor:'pointer'}}>
+                Upload<input type="file" accept="image/*,image/gif" style={{display:'none'}} onChange={handleUpload}/>
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Vibe picker modal */}
+      {showPicker&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(15,28,46,.5)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={()=>setShowPicker(false)}>
+          <div style={{background:'var(--white)',borderRadius:20,width:'100%',maxWidth:420,maxHeight:'90vh',overflow:'hidden',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(15,28,46,.2)'}} onClick={e=>e.stopPropagation()}>
+            {/* Header */}
+            <div style={{padding:'14px 18px',borderBottom:'1px solid var(--border2)',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+              <div style={{fontFamily:'var(--font-display)',fontSize:16,fontWeight:700}}>Set today's vibe ✨</div>
+              <button onClick={()=>setShowPicker(false)} style={{fontSize:20,color:'var(--text4)'}}>×</button>
+            </div>
+            {/* Tabs */}
+            <div style={{display:'flex',gap:2,padding:'10px 18px',borderBottom:'1px solid var(--border2)',flexShrink:0}}>
+              {[{id:'unsplash',label:'📷 Photos',color:'var(--blue)'},
+                {id:'gif',label:'🎬 GIFs',color:'var(--orange)'},
+                {id:'upload',label:'⬆️ Upload',color:'var(--green)'}].map(t=>(
+                <button key={t.id} onClick={()=>{setTab(t.id);setResults([]);}}
+                  style={{flex:1,padding:'6px 4px',borderRadius:'var(--r-sm)',fontSize:11,fontWeight:700,border:'none',background:tab===t.id?t.color:'var(--bg)',color:tab===t.id?'#fff':'var(--text3)',cursor:'pointer'}}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {/* Body */}
+            <div style={{flex:1,overflowY:'auto',padding:'14px 18px'}}>
+              {tab==='upload'?(
+                <div style={{textAlign:'center',padding:'20px 0'}}>
+                  <div style={{fontSize:32,marginBottom:10}}>📁</div>
+                  <div style={{fontSize:13,color:'var(--text2)',marginBottom:14}}>Upload a photo or GIF from your device</div>
+                  <label style={{padding:'10px 24px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer',display:'inline-block'}}>
+                    Choose file
+                    <input type="file" accept="image/*,image/gif" style={{display:'none'}} onChange={handleUpload}/>
+                  </label>
+                </div>
+              ):(
+                <>
+                  <div style={{display:'flex',gap:6,marginBottom:12}}>
+                    <input value={query} onChange={e=>setQuery(e.target.value)}
+                      onKeyDown={e=>{if(e.key==='Enter')tab==='unsplash'?searchUnsplash(query):searchGiphy(query);}}
+                      placeholder={tab==='unsplash'?'Search photos… (e.g. sunrise, calm)':'Search GIFs… (e.g. good morning)'}
+                      style={{flex:1,padding:'8px 10px',borderRadius:'var(--r-sm)',border:'1px solid var(--border)',fontSize:12,background:'var(--bg)',outline:'none'}}/>
+                    <button onClick={()=>tab==='unsplash'?searchUnsplash(query):searchGiphy(query)}
+                      style={{padding:'8px 14px',borderRadius:'var(--r-sm)',background:'var(--blue)',color:'#fff',fontSize:12,fontWeight:700}}>
+                      Search
+                    </button>
+                  </div>
+                  {results.length===0&&!loading&&(
+                    <div style={{display:'flex',gap:6,flexWrap:'wrap',marginBottom:10}}>
+                      {(tab==='unsplash'?['sunrise','aesthetic','calm','motivation','nature','cozy']:['good morning','motivation','aesthetic','happy','focus','chill']).map(s=>(
+                        <button key={s} onClick={()=>{setQuery(s);tab==='unsplash'?searchUnsplash(s):searchGiphy(s);}}
+                          style={{padding:'4px 10px',borderRadius:100,background:'var(--bg2)',color:'var(--text2)',fontSize:11,fontWeight:600}}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {loading&&<div style={{textAlign:'center',padding:20,fontSize:13,color:'var(--text3)'}}>Searching…</div>}
+                  {results.length>0&&(
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8}}>
+                      {results.map((url,i)=>(
+                        <div key={i} onClick={()=>pickImage(url)}
+                          style={{borderRadius:'var(--r-sm)',overflow:'hidden',cursor:'pointer',border:'2px solid transparent',transition:'border-color .15s',aspectRatio:'3/2'}}
+                          onMouseOver={e=>e.currentTarget.style.borderColor='var(--blue)'}
+                          onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}>
+                          <img src={url} alt="" style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
+                            onError={e=>{e.currentTarget.parentNode.style.display='none';}}/>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {tab==='unsplash'&&results.length===0&&!loading&&(
+                    <div style={{textAlign:'center',fontSize:10,color:'var(--text4)',marginTop:8}}>Photos from Unsplash</div>
+                  )}
+                  {tab==='gif'&&results.length===0&&!loading&&(
+                    <div style={{textAlign:'center',fontSize:10,color:'var(--text4)',marginTop:8}}>GIFs powered by GIPHY</div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─ Meals ─
+function Meals(){
+  const key=`meals_${todayKey()}`;
+  const def={breakfast:'',lunch:'',dinner:'',snack:''};
+  const [meals,setMeals]=useState(LS.get(key,def));
+  const upd=(f,v)=>{const n={...meals,[f]:v};setMeals(n);LS.set(key,n);};
+  const list=[
+    {key:'breakfast',label:'Breakfast',emoji:'🍳'},
+    {key:'lunch',label:'Lunch',emoji:'🥗'},
+    {key:'dinner',label:'Dinner',emoji:'🍽️'},
+    {key:'snack',label:'Snack',emoji:'🍎'},
+  ];
+  return(
+    <div className="card">
+      <div className="clabel">Meal Tracker</div>
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {list.map(m=>(
+          <div key={m.key} style={{display:'flex',alignItems:'center',gap:8}}>
+            <div style={{width:30,height:30,borderRadius:'var(--r-sm)',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,flexShrink:0,border:'1px solid var(--border2)'}}>
+              {m.emoji}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',letterSpacing:'0.4px',textTransform:'uppercase',marginBottom:2}}>{m.label}</div>
+              <input value={meals[m.key]} onChange={e=>upd(m.key,e.target.value)} placeholder="What did you eat?"
+                style={{width:'100%',padding:'5px 8px',borderRadius:'var(--r-sm)',border:`1px solid ${meals[m.key]?'var(--blue)':'var(--border)'}`,fontSize:12,color:'var(--text)',background:meals[m.key]?'var(--blue-light)':'var(--bg)',outline:'none',transition:'all 0.2s'}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─ Water ─
+function Water({water,setWater}){
+  return(
+    <div className="card">
+      <div className="clabel">Water Tracker</div>
+      <div style={{display:'flex',alignItems:'center',gap:3,flexWrap:'wrap',marginBottom:8}}>
+        {Array.from({length:8},(_,i)=>(
+          <button key={i} onClick={()=>setWater(i<water?i:i+1)}
+            style={{width:28,height:34,padding:0,border:'none',background:'none',cursor:'pointer',transition:'transform 0.15s',transform:i<water?'scale(1.1)':'scale(1)'}}>
+            <svg viewBox="0 0 20 28" width="28" height="34">
+              <path d="M4 9 L3 25 Q3 27 5 27 L15 27 Q17 27 17 25 L16 9 Q13 4 10 2 Q7 4 4 9Z"
+                fill={i<water?'#1A5FA8':'#E8EFF8'} stroke={i<water?'#0F3D6E':'#D4E0EE'} strokeWidth="0.6"/>
+              {i<water&&<path d="M7 20 Q10 18 13 20" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.2" strokeLinecap="round"/>}
+            </svg>
+          </button>
+        ))}
+        <span style={{fontSize:12,color:'var(--text3)',marginLeft:4,fontWeight:600}}>{water}/8</span>
+      </div>
+      <Bar pct={water/8*100} color='var(--blue)' h={5}/>
+    </div>
+  );
+}
+
+// ─ Goals + Habits (left) ─
+function GoalList({goals,onToggle}){
+  return(
+    <div className="card" style={{flex:1}}>
+      <div className="clabel">Goals & Today's Tasks</div>
+      <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        {goals.map(g=>{
+          const c=CMAP[g.color]||CMAP.blue;
+          const done=g.habits.filter(h=>h.done).length;
+          return(
+            <div key={g.id}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                <div style={{width:26,height:26,borderRadius:'var(--r-sm)',background:c.bg,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}}>{g.emoji}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:700,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.name}</div>
+                  <div style={{fontSize:10,color:'var(--text3)'}}>{done}/{g.habits.length} today</div>
+                </div>
+              </div>
+              <div style={{paddingLeft:8,borderLeft:`2px solid ${c.border}`,display:'flex',flexDirection:'column',gap:4}}>
+                {g.habits.map(h=>(
+                  <div key={h.id} onClick={()=>onToggle(g.id,h.id)}
+                    style={{display:'flex',alignItems:'center',gap:7,padding:'6px 8px',borderRadius:'var(--r-sm)',background:h.done?'var(--bg2)':c.bg,cursor:'pointer',transition:'all 0.2s'}}>
+                    <div style={{width:17,height:17,borderRadius:5,border:`2px solid ${h.done?c.accent:'var(--border)'}`,background:h.done?c.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.2s'}}>
+                      {h.done&&<svg width="9" height="7" viewBox="0 0 9 7"><path d="M1 3.5l2.5 2.5L8 1" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{flex:1,fontSize:12,color:h.done?'var(--text3)':'var(--text)',textDecoration:h.done?'line-through':'none',transition:'all 0.2s'}}>{h.name}</span>
+                    <span style={{fontSize:10,color:'var(--text4)',background:'var(--white)',padding:'1px 6px',borderRadius:100,fontWeight:500,flexShrink:0,border:'1px solid var(--border2)'}}>
+                      {parseInt(h.time)<12?`${parseInt(h.time)}am`:parseInt(h.time)===12?'12pm':`${parseInt(h.time)-12}pm`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─ Hour Calendar (center) — driven by Calendar page data ─
+// Type colors matching calendar page
+const CAL_TYPE_COLORS={
+  goal:{bg:'#ECFEFF',border:'#0891B2',text:'#0E7490',icon:'🎯'},
+  routine:{bg:'#FFF7ED',border:'#F97316',text:'#C2410C',icon:'🌅'},
+  work:{bg:'#F5F3FF',border:'#7C3AED',text:'#6D28D9',icon:'💼'},
+  lifeadmin:{bg:'#ECFDF5',border:'#059669',text:'#065F46',icon:'🏠'},
+  manual:{bg:'#F8FAFC',border:'#64748B',text:'#475569',icon:'📌'},
+};
+
+function getCalendarEvents(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayStr=today.toDateString();
+  const evs=[];
+
+  // 1. Manual events
+  const manualEvs=LS.get('cal_manual_events',[]);
+  manualEvs.forEach(e=>{
+    const d=new Date(e.date);if(isNaN(d))return;
+    if(d.toDateString()!==todayStr)return;
+    if(!e.time)return;
+    evs.push({id:'m_'+e.id,type:'manual',title:e.title,time:e.time,dur:e.dur||e.duration||60,color:e.color||'#64748B',srcId:e.id,checkKey:'manual_'+e.id,page:'peakly-calendar.html'});
+  });
+
+  // 2. Goal tasks
+  const goals=LS.get('peakly_goals',[]);
+  const PLANNING_DAYS=[1,8,16,24,32,40,48,56,64,72,80,88];
+  const CHECKIN_DAYS=[30,60,90];
+  goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
+    const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
+    const dayNum=Math.floor((today-sd)/86400000)+1;
+    if(dayNum<1||dayNum>90)return;
+    const tasks=[
+      {id:'d_steps',text:'8,000 steps',defTime:'19:00'},
+      {id:'d_water',text:'Drink 8–12 cups water',defTime:'08:00'},
+      {id:'d_calories',text:'Calorie deficit',defTime:'12:00'},
+      {id:'d_workout',text:'Workout / active rest',defTime:'07:00'},
+      {id:'d_sleep',text:'Sleep 7–9 hours',defTime:'22:00'},
+    ];
+    if([21,42,63,84].includes(dayNum))tasks.push({id:'d_maint',text:'Maintenance calories',defTime:'12:00'});
+    if(PLANNING_DAYS.includes(dayNum)){
+      tasks.push({id:'p_workouts',text:'Plan workouts for week',defTime:'08:00'});
+      tasks.push({id:'p_meals',text:'Plan meals & meal prep',defTime:'09:00'});
+    }
+    if(CHECKIN_DAYS.includes(dayNum)){
+      tasks.push({id:'c_metrics',text:'Weight & measurements',defTime:'07:00'});
+      tasks.push({id:'c_reward',text:'Plan your reward',defTime:'18:00'});
+    }
+    tasks.forEach(t=>{
+      const savedTime=LS.get('time_'+g.id+'_'+t.id,'');
+      const time=savedTime||t.defTime;
+      if(!time)return;
+      const evId='g_'+g.id+'_d'+dayNum+'_'+t.id;
+      const checkKey='daily_'+g.id+'_'+t.id+'_'+todayStr;
+      evs.push({id:evId,type:'goal',title:g.name+': '+t.text,time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:t.id,page:'peakly-goals.html'});
+    });
+  });
+
+  // 3. Routines
+  ['Morning_routine','Night_routine'].forEach(rk=>{
+    const cfg=LS.get('routine_'+rk+'_cal',null);
+    if(!cfg||!cfg.synced||!cfg.time)return;
+    const dow=['sun','mon','tue','wed','thu','fri','sat'][today.getDay()];
+    if(cfg.days&&cfg.days[dow]===false)return;
+    const isNight=rk.includes('Night');
+    const evId='r_'+rk+'_'+todayStr;
+    evs.push({id:evId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',time:cfg.time,dur:LS.get('cal_dur_'+evId,parseInt(cfg.duration)||30),color:'#F97316',checkKey:'routine_done_'+rk+'_'+todayStr,page:'peakly-second-brain-1.html'});
+  });
+
+  // 4. Work shifts
+  const shifts=LS.get('work_shifts',{});
+  const tk=`${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+  if(shifts[tk]){
+    const sh=shifts[tk];
+    const evId='w_'+tk;
+    evs.push({id:evId,type:'work',title:(sh.jobName||'Work')+(sh.location?' @ '+sh.location:''),time:sh.start||'09:00',dur:LS.get('cal_dur_'+evId,480),color:sh.color||'#7C3AED',checkKey:'work_done_'+tk,page:'peakly-second-brain-2.html'});
+  }
+
+  // 5. Life Admin cal events
+  const calEvs=LS.get('cal_events',[]);
+  calEvs.forEach((e,i)=>{
+    if(!e.time||!e.date)return;
+    const d=new Date(e.date);if(isNaN(d))return;
+    if(d.toDateString()!==todayStr)return;
+    const evId='la_'+i;
+    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time:e.time,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:'peakly-second-brain-1.html'});
+  });
+
+  return evs.sort((a,b)=>{
+    const [ah,am]=a.time.split(':').map(Number);
+    const [bh,bm]=b.time.split(':').map(Number);
+    return(ah*60+am)-(bh*60+bm);
+  });
+}
+
+function HourCal(){
+  const calRef=useRef(null);
+  const now=new Date();
+  const curH=now.getHours();
+  const curM=now.getMinutes();
+  const [events,setEvents]=useState(()=>getCalendarEvents());
+  const [doneMap,setDoneMap]=useState(()=>{
+    const m={};
+    getCalendarEvents().forEach(e=>{m[e.checkKey]=LS.get(e.checkKey,false);});
+    return m;
+  });
+
+  // Refresh every 60s to pick up any changes
+  useEffect(()=>{
+    if(calRef.current){calRef.current.scrollTop=Math.max(0,(curH-2)*60);}
+    const interval=setInterval(()=>{
+      setEvents(getCalendarEvents());
+    },60000);
+    return()=>clearInterval(interval);
+  },[]);
+
+  const toggleDone=(ev)=>{
+    const newVal=!doneMap[ev.checkKey];
+    const newMap={...doneMap,[ev.checkKey]:newVal};
+    setDoneMap(newMap);
+    LS.set(ev.checkKey,newVal);
+    // Sync back to goal page if it's a goal task
+    if(ev.type==='goal'&&ev.goalId&&ev.taskId){
+      LS.set('daily_'+ev.goalId+'_'+ev.taskId+'_'+now.toDateString(),newVal);
+    }
+  };
+
+  // Group events by hour
+  const byHour={};
+  events.forEach(e=>{
+    const hr=parseInt(e.time.split(':')[0]);
+    if(!byHour[hr])byHour[hr]=[];
+    byHour[hr].push(e);
+  });
+
+  const doneCount=events.filter(e=>doneMap[e.checkKey]).length;
+
+  return(
+    <div className="card" style={{padding:0,overflow:'hidden',display:'flex',flexDirection:'column',height:'calc(100vh - 104px)',minHeight:600,position:'sticky',top:72}}>
+      <div style={{padding:'13px 16px',borderBottom:'1px solid var(--border2)',flexShrink:0,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700,color:'var(--text)'}}>{now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>
+          <div style={{fontSize:11,color:'var(--text3)'}}>
+            {events.length>0?`${doneCount}/${events.length} done today`:'No events scheduled — add them on the Calendar page'}
+          </div>
+        </div>
+        <div style={{display:'flex',gap:6,alignItems:'center'}}>
+          <span style={{fontSize:11,background:'var(--blue-light)',color:'var(--blue)',padding:'3px 10px',borderRadius:100,fontWeight:700}}>
+            {doneCount}/{events.length}
+          </span>
+          <a href="peakly-calendar.html" style={{fontSize:11,padding:'3px 10px',borderRadius:100,background:'#ECFEFF',color:'#0891B2',fontWeight:700,textDecoration:'none',border:'1px solid #A5F3FC'}}>
+            📅 Calendar
+          </a>
+        </div>
+      </div>
+      <div ref={calRef} style={{flex:1,overflowY:'auto'}}>
+        {HOURS.map(hr=>{
+          const isNow=hr===curH;
+          const isPast=hr<curH;
+          const evs=byHour[hr]||[];
+          return(
+            <div key={hr} style={{display:'flex',minHeight:60,borderBottom:'1px solid var(--border2)',position:'relative',background:isNow?'rgba(8,145,178,0.025)':isPast?'rgba(0,0,0,0.012)':'transparent'}}>
+              <div style={{width:60,flexShrink:0,paddingTop:8,paddingRight:10,textAlign:'right',fontSize:11,fontWeight:isNow?700:400,color:isNow?'#0891B2':'var(--text4)',borderRight:'1px solid var(--border2)',userSelect:'none'}}>
+                {fmtHour(hr)}
+              </div>
+              {isNow&&(
+                <div style={{position:'absolute',left:60,right:0,top:`${curM/60*100}%`,height:'2px',background:'var(--orange)',zIndex:3,pointerEvents:'none'}}>
+                  <div style={{width:9,height:9,borderRadius:'50%',background:'var(--orange)',marginLeft:-4,marginTop:-3.5}}/>
+                </div>
+              )}
+              <div style={{flex:1,padding:'4px 8px',display:'flex',flexDirection:'column',gap:3}}>
+                {evs.map(ev=>{
+                  const tc=CAL_TYPE_COLORS[ev.type]||CAL_TYPE_COLORS.manual;
+                  const done=doneMap[ev.checkKey]||false;
+                  const dur=ev.dur||30;
+                  return(
+                    <div key={ev.id}
+                      style={{display:'flex',alignItems:'center',gap:7,padding:'5px 8px',borderRadius:'var(--r-sm)',background:done?'var(--bg2)':tc.bg,borderLeft:`3px solid ${done?'var(--border)':ev.color||tc.border}`,cursor:'pointer',transition:'all 0.2s',opacity:done?0.55:1}}
+                      onClick={()=>toggleDone(ev)}>
+                      <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${done?'var(--border)':ev.color||tc.border}`,background:done?ev.color||tc.border:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.2s'}}>
+                        {done&&<svg width="8" height="6" viewBox="0 0 8 6"><path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{flex:1,fontSize:11,fontWeight:600,color:done?'var(--text3)':tc.text,textDecoration:done?'line-through':'none'}}>{ev.title}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:4,flexShrink:0}}>
+                        <span style={{fontSize:9,color:'var(--text4)'}}>{dur}m</span>
+                        <span style={{fontSize:9,padding:'1px 5px',borderRadius:100,background:ev.color||tc.border+'22',color:ev.color||tc.border,fontWeight:700}}>{tc.icon}</span>
+                        {ev.page&&<a href={ev.page} onClick={e=>e.stopPropagation()} style={{fontSize:9,color:'var(--text4)',textDecoration:'none',padding:'1px 4px',borderRadius:4,background:'var(--bg2)'}}>↗</a>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─ Pomodoro ─
+function Pomo(){
+  const W=25*60,B=5*60;
+  const [time,setTime]=useState(LS.get('pt',W));
+  const [run,setRun]=useState(false);
+  const [brk,setBrk]=useState(false);
+  const [rnd,setRnd]=useState(LS.get('pr',1));
+  const ref=useRef(null);
+  useEffect(()=>{
+    if(!run){clearInterval(ref.current);return;}
+    ref.current=setInterval(()=>{
+      setTime(t=>{
+        if(t<=1){clearInterval(ref.current);setRun(false);
+          if(!brk){setBrk(true);setRnd(r=>{const n=r+1;LS.set('pr',n);return n;});return B;}
+          else{setBrk(false);return W;}
+        }
+        const n=t-1;LS.set('pt',n);return n;
+      });
+    },1000);
+    return()=>clearInterval(ref.current);
+  },[run,brk]);
+  const total=brk?B:W;
+  const C=2*Math.PI*32;
+  const off=C*(1-time/total);
+  const reset=()=>{setRun(false);setTime(W);setBrk(false);setRnd(1);LS.set('pt',W);LS.set('pr',1);};
+  return(
+    <div className="card">
+      <div className="clabel">Pomodoro Timer</div>
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div style={{position:'relative',width:74,height:74,flexShrink:0}}>
+          <svg width="74" height="74" viewBox="0 0 74 74" style={{transform:'rotate(-90deg)'}}>
+            <circle cx="37" cy="37" r="32" fill="none" stroke="var(--bg2)" strokeWidth="6"/>
+            <circle cx="37" cy="37" r="32" fill="none" stroke={brk?'var(--orange)':'var(--blue)'} strokeWidth="6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={off} style={{transition:'stroke-dashoffset 0.85s ease'}}/>
+          </svg>
+          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+            <span style={{fontFamily:'var(--font-display)',fontSize:15,fontWeight:700,color:'var(--text)'}}>{`${pad(Math.floor(time/60))}:${pad(time%60)}`}</span>
+            <span style={{fontSize:8,color:'var(--text3)',letterSpacing:'0.5px',textTransform:'uppercase'}}>{brk?'break':'focus'}</span>
+          </div>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:8}}>Round <strong style={{color:'var(--text)'}}>{rnd}</strong> of 4</div>
+          <div style={{display:'flex',gap:6}}>
+            <button onClick={reset} style={{flex:1,padding:'6px 0',borderRadius:'var(--r-md)',border:'1px solid var(--border)',color:'var(--text2)',fontSize:11,fontWeight:500}}>Reset</button>
+            <button onClick={()=>setRun(r=>!r)} style={{flex:1,padding:'6px 0',borderRadius:'var(--r-md)',background:run?'var(--orange-light)':'var(--blue)',color:run?'var(--orange-dark)':'#fff',fontSize:11,fontWeight:600,border:'none'}}>
+              {run?'Pause':'Start'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─ Move ─
+function Move(){
+  const [count,setCount]=useState(10);
+  const [active,setActive]=useState(false);
+  const [done,setDone]=useState(false);
+  const ref=useRef(null);
+  const start=()=>{
+    if(active)return;
+    setActive(true);setDone(false);setCount(10);
+    ref.current=setInterval(()=>{
+      setCount(c=>{if(c<=1){clearInterval(ref.current);setActive(false);setDone(true);return 0;}return c-1;});
+    },1000);
+  };
+  return(
+    <div className="card">
+      <div className="clabel">Get Moving</div>
+      <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div style={{fontFamily:'var(--font-display)',fontSize:46,fontWeight:700,color:done?'var(--orange)':active?'var(--blue)':'var(--text)',lineHeight:1,minWidth:56,textAlign:'center',transition:'color 0.3s'}}>
+          {done?'🎉':count}
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,color:'var(--text2)',marginBottom:8}}>{done?'Stand up — go!':active?'seconds to stand…':'tap to start'}</div>
+          <button onClick={start} disabled={active} style={{width:'100%',padding:'7px',borderRadius:'var(--r-md)',background:active?'var(--bg2)':'var(--orange)',color:active?'var(--text3)':'#fff',fontSize:12,fontWeight:600,border:'none',transition:'all 0.2s'}}>
+            {active?'counting…':done?'Again?':'Start countdown'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─ Brain Dump ─
+function Brain(){
+  const [text,setText]=useState(LS.get('bdt',''));
+  const [items,setItems]=useState(LS.get('bdi',[]));
+  const save=v=>{setText(v);LS.set('bdt',v);};
+  const capture=()=>{
+    const lines=text.split('\n').filter(l=>l.trim());
+    if(!lines.length)return;
+    const ni=lines.map(l=>({id:Date.now()+Math.random(),text:l.trim(),t:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'})}));
+    const all=[...items,...ni];setItems(all);LS.set('bdi',all);setText('');LS.set('bdt','');
+  };
+  const remove=id=>{const a=items.filter(i=>i.id!==id);setItems(a);LS.set('bdi',a);};
+  return(
+    <div className="card">
+      <div className="clabel">Quick Notes / Brain Dump</div>
+      <textarea value={text} onChange={e=>save(e.target.value)} rows={3}
+        placeholder="Capture it fast — ideas, tasks, worries…"
+        style={{width:'100%',padding:'9px 11px',borderRadius:'var(--r-md)',border:'1px solid var(--border)',fontSize:12,color:'var(--text)',background:'var(--bg)',lineHeight:1.6,outline:'none'}}
+        onKeyDown={e=>{if(e.key==='Enter'&&e.metaKey)capture();}}/>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
+        <span style={{fontSize:10,color:'var(--text4)'}}>⌘+Enter to capture</span>
+        <button onClick={capture} style={{fontSize:11,padding:'4px 12px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontWeight:600,border:'none'}}>Capture</button>
+      </div>
+      {items.length>0&&(
+        <div style={{marginTop:8,display:'flex',flexDirection:'column',gap:3}}>
+          {items.map(item=>(
+            <div key={item.id} style={{display:'flex',alignItems:'flex-start',gap:7,padding:'5px 8px',background:'var(--bg)',borderRadius:'var(--r-sm)'}}>
+              <div style={{width:5,height:5,borderRadius:'50%',background:'var(--orange)',marginTop:5,flexShrink:0}}/>
+              <span style={{flex:1,fontSize:11,color:'var(--text2)',lineHeight:1.5}}>{item.text}</span>
+              <span style={{fontSize:10,color:'var(--text4)',flexShrink:0,whiteSpace:'nowrap'}}>{item.t}</span>
+              <button onClick={()=>remove(item.id)} style={{color:'var(--text4)',fontSize:14,flexShrink:0}}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─ Reflection ─
+function Reflect(){
+  const key=`rf_${todayKey()}`;
+  const def={mood:-1,sleep:'7',grats:['','',''],win:'',setback:'',overcome:''};
+  const [d,setD]=useState(LS.get(key,def));
+  const upd=(f,v)=>{const n={...d,[f]:v};setD(n);LS.set(key,n);};
+  const updG=(i,v)=>{const g=[...d.grats];g[i]=v;upd('grats',g);};
+  const inp={width:'100%',padding:'7px 9px',borderRadius:'var(--r-sm)',border:'1px solid var(--border)',fontSize:12,color:'var(--text)',background:'var(--bg)',outline:'none',lineHeight:1.5};
+  return(
+    <div className="card">
+      <div className="clabel">Daily Reflection</div>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div>
+          <div style={{fontSize:11,color:'var(--text2)',fontWeight:600,marginBottom:6}}>How are you feeling?</div>
+          <div style={{display:'flex',gap:5}}>
+            {MOODS.map((m,i)=>(
+              <button key={i} onClick={()=>upd('mood',i)}
+                style={{flex:1,height:34,borderRadius:'var(--r-sm)',border:`2px solid ${d.mood===i?'var(--orange)':'var(--border)'}`,background:d.mood===i?'var(--orange-light)':'var(--bg)',fontSize:17,transition:'all 0.2s',transform:d.mood===i?'scale(1.15)':'scale(1)'}}>
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <span style={{fontSize:11,color:'var(--text2)',fontWeight:600,whiteSpace:'nowrap'}}>Hours slept</span>
+          <input type="number" min="0" max="12" step="0.5" value={d.sleep} onChange={e=>upd('sleep',e.target.value)}
+            style={{width:58,padding:'5px 8px',borderRadius:'var(--r-sm)',border:'1px solid var(--border)',fontSize:12,textAlign:'center',outline:'none',background:'var(--bg)',color:'var(--text)'}}/>
+          <span style={{fontSize:11,color:'var(--text3)'}}>hrs</span>
+        </div>
+        <div>
+          <div style={{fontSize:11,color:'var(--text2)',fontWeight:600,marginBottom:6}}>3 gratitudes</div>
+          {d.grats.map((g,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:7,marginBottom:5}}>
+              <div style={{width:5,height:5,borderRadius:'50%',background:'var(--orange)',flexShrink:0}}/>
+              <input value={g} onChange={e=>updG(i,e.target.value)} placeholder="I'm grateful for…" style={inp}/>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div style={{fontSize:11,color:'var(--text2)',fontWeight:600,marginBottom:5}}>Today's win 🏆</div>
+          <input value={d.win} onChange={e=>upd('win',e.target.value)} placeholder="What went well today?" style={inp}/>
+        </div>
+        <div>
+          <div style={{fontSize:11,color:'var(--text2)',fontWeight:600,marginBottom:5}}>Setback + how to overcome</div>
+          <input value={d.setback} onChange={e=>upd('setback',e.target.value)} placeholder="What was hard?" style={{...inp,marginBottom:5}}/>
+          <input value={d.overcome} onChange={e=>upd('overcome',e.target.value)} placeholder="How to handle it next time…" style={inp}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─ App ─
+function App(){
+  const [goals,setGoals]=useState(()=>LS.get(`goals_${todayKey()}`,null)||SEED_GOALS);
+  const [water,setWater]=useState(()=>LS.get(`water_${todayKey()}`,0));
+  const [confetti,setConfetti]=useState(false);
+  const [congrats,setCongrats]=useState(null);
+  const [sickModal,setSickModal]=useState(false);
+  const prevRef=useRef(goals.flatMap(g=>g.habits).filter(h=>h.done).length);
+
+  const saveGoals=g=>{setGoals(g);LS.set(`goals_${todayKey()}`,g);};
+  const saveWater=w=>{setWater(w);LS.set(`water_${todayKey()}`,w);};
+
+  const toggleHabit=(goalId,habitId)=>{
+    const upd=goals.map(g=>g.id===goalId?{...g,habits:g.habits.map(h=>h.id===habitId?{...h,done:!h.done}:h)}:g);
+    saveGoals(upd);
+    const all=upd.flatMap(g=>g.habits);
+    const done=all.filter(h=>h.done).length;
+    if(done===all.length&&done>prevRef.current){
+      setConfetti(true);
+      setCongrats("You completed every task today — that's your peak! 🏔️ Keep this streak alive.");
+    }
+    prevRef.current=done;
+  };
+
+  const sickDay=()=>{
+    setSickModal(false);
+    saveGoals(goals.map(g=>({...g,habits:g.habits.map(h=>({...h,done:false}))})));
+    saveWater(0);
+    setCongrats('All tasks pushed to tomorrow. Rest today — recovery is part of every great climb. 🌿');
+  };
+
+  const allHabits=goals.flatMap(g=>g.habits);
+  const done=allHabits.filter(h=>h.done).length;
+  const total=allHabits.length;
+  const pct=total?Math.round(done/total*100):0;
+
+  return(
+    <div style={{minHeight:'100vh',background:'var(--bg)'}}>
+      <Confetti active={confetti} onDone={()=>setConfetti(false)}/>
+      {congrats&&<CongratsModal msg={congrats} onClose={()=>setCongrats(null)}/>}
+      {sickModal&&<SickModal onConfirm={sickDay} onCancel={()=>setSickModal(false)}/>}
+
+      {/* Nav */}
+      <nav style={{background:'var(--white)',borderBottom:'1px solid var(--border2)',padding:'0 20px',display:'flex',alignItems:'center',justifyContent:'space-between',height:54,position:'sticky',top:0,zIndex:100,boxShadow:'0 1px 8px rgba(15,28,46,0.06)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <Logo size={32}/>
+          <div>
+            <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,letterSpacing:'-0.3px',lineHeight:1,color:'var(--text)'}}>Peakly</div>
+            <div style={{fontSize:9,color:'var(--text4)',letterSpacing:'0.8px',textTransform:'uppercase',lineHeight:1}}>Lock in your goals</div>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:2}}>
+          {['Home','Goals','Second Brain','Calendar'].map((p,i)=>(
+            <button key={p} style={{padding:'6px 14px',borderRadius:'var(--r-md)',fontSize:13,color:i===0?'#fff':'var(--text2)',background:i===0?'var(--blue)':'transparent',fontWeight:i===0?600:400,border:'none',transition:'all 0.15s'}}>
+              {p}
+            </button>
+          ))}
+        </div>
+        <div style={{width:32,height:32,borderRadius:'50%',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',cursor:'pointer'}} onClick={()=>window.location.href='peakly-profile.html'} title="My account">JD</div>
+      </nav>
+
+      {/* 3-col grid */}
+      <main style={{display:'grid',gridTemplateColumns:'272px 1fr 288px',gap:14,padding:'14px 18px',maxWidth:1380,margin:'0 auto',alignItems:'start'}}>
+
+        {/* LEFT */}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <DateCard/>
+          <Meals/>
+          <Water water={water} setWater={saveWater}/>
+          <GoalList goals={goals} onToggle={toggleHabit}/>
+        </div>
+
+        {/* CENTER */}
+        <div>
+          <HourCal/>
+        </div>
+
+        {/* RIGHT */}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <button onClick={()=>setSickModal(true)}
+            style={{width:'100%',padding:'13px',borderRadius:'var(--r-lg)',background:'var(--red-light)',color:'var(--red)',fontSize:13,fontWeight:700,border:'1px solid #FCA5A5',display:'flex',alignItems:'center',justifyContent:'center',gap:8,boxShadow:'var(--shadow)'}}>
+            <span style={{fontSize:19}}>🤒</span> Sick Day — Push Everything
+          </button>
+          <div className="card">
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div className="clabel" style={{marginBottom:0}}>Today's Progress</div>
+              <span style={{fontSize:14,fontWeight:700,color:pct===100?'var(--orange)':'var(--blue)'}}>{pct}%</span>
+            </div>
+            <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+              <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
+              {pct===100&&<span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>}
+            </div>
+          </div>
+          <Pomo/>
+          <Move/>
+          <Brain/>
+          <Reflect/>
+        </div>
+
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

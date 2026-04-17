@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account — Peakly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;--blue-mid:#3B82F6;
+  --orange:#F97316;--orange-light:#FFF7ED;--orange-dark:#C2410C;
+  --green:#059669;--green-light:#ECFDF5;--green-dark:#065F46;
+  --red:#DC2626;--red-light:#FEF2F2;
+  --bg:#F0F4FA;--bg2:#E8EFF8;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;--text4:#A8BDD1;
+  --border:#D4E0EE;--border2:#EAF0F8;
+  --display:'Playfair Display',Georgia,serif;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r:10px;--rm:14px;--rl:20px;
+  --shadow:0 1px 4px rgba(15,28,46,0.07),0 0 0 1px rgba(15,28,46,0.04);
+  --shadow-lg:0 8px 32px rgba(15,28,46,0.12);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── NAV ─────────────────────────────────────────────────── */
+.topnav{
+  background:var(--white);border-bottom:1px solid var(--border2);
+  padding:0 24px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.nav-logo{
+  display:flex;align-items:center;gap:8px;text-decoration:none;
+}
+.nav-logo-icon{
+  width:32px;height:32px;background:var(--blue);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+.nav-logo-text{font-family:var(--display);font-size:18px;font-weight:700;color:var(--text);}
+.nav-back{
+  display:flex;align-items:center;gap:6px;
+  font-size:13px;font-weight:600;color:var(--text3);
+  text-decoration:none;padding:7px 14px;border-radius:var(--r);
+  transition:all .15s;
+}
+.nav-back:hover{background:var(--bg2);color:var(--text);}
+
+/* ── LAYOUT ───────────────────────────────────────────────── */
+.page{max-width:900px;margin:0 auto;padding:32px 20px 80px;}
+
+/* ── PROFILE HEADER ───────────────────────────────────────── */
+.profile-header{
+  background:linear-gradient(135deg,var(--blue-dark) 0%,var(--blue) 60%,#2d6bb5 100%);
+  border-radius:var(--rl);padding:32px;margin-bottom:24px;
+  display:flex;align-items:center;gap:24px;
+  position:relative;overflow:hidden;
+}
+.profile-header::before{
+  content:'🏔️';position:absolute;right:24px;top:50%;transform:translateY(-50%);
+  font-size:80px;opacity:0.08;pointer-events:none;
+}
+.avatar{
+  width:72px;height:72px;border-radius:50%;
+  background:rgba(255,255,255,0.2);border:3px solid rgba(255,255,255,0.4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;flex-shrink:0;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.avatar:hover{background:rgba(255,255,255,0.3);}
+.avatar-edit{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(0,0,0,0.4);
+  font-size:10px;color:#fff;text-align:center;padding:3px 0;
+  opacity:0;transition:opacity .2s;
+}
+.avatar:hover .avatar-edit{opacity:1;}
+.profile-info{flex:1;}
+.profile-name{
+  font-family:var(--display);font-size:24px;font-weight:700;
+  color:#fff;margin-bottom:4px;
+}
+.profile-email{font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:12px;}
+.profile-badges{display:flex;gap:8px;flex-wrap:wrap;}
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 12px;border-radius:100px;
+  font-size:11px;font-weight:700;letter-spacing:.3px;
+}
+.badge-pro{background:rgba(249,115,22,0.9);color:#fff;}
+.badge-free{background:rgba(255,255,255,0.2);color:#fff;}
+.badge-trial{background:rgba(252,211,77,0.9);color:#92400e;}
+.badge-streak{background:rgba(255,255,255,0.15);color:#fff;}
+
+/* ── STATS ROW ────────────────────────────────────────────── */
+.stats-row{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  margin-bottom:24px;
+}
+@media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr;}}
+.stat-card{
+  background:var(--white);border-radius:var(--rm);
+  padding:16px;box-shadow:var(--shadow);text-align:center;
+}
+.stat-card-num{
+  font-family:var(--display);font-size:28px;font-weight:900;
+  color:var(--blue);line-height:1;margin-bottom:4px;
+}
+.stat-card-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+
+/* ── SECTION CARDS ────────────────────────────────────────── */
+.section{
+  background:var(--white);border-radius:var(--rl);
+  box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;
+}
+.section-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 20px;border-bottom:1px solid var(--border2);
+  cursor:pointer;user-select:none;
+}
+.section-header-left{display:flex;align-items:center;gap:10px;}
+.section-icon{
+  width:34px;height:34px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  flex-shrink:0;
+}
+.si-blue{background:var(--blue-light);}
+.si-orange{background:var(--orange-light);}
+.si-green{background:var(--green-light);}
+.si-red{background:var(--red-light);}
+.si-purple{background:#f5f3ff;}
+.si-gray{background:var(--bg2);}
+.section-title{font-size:15px;font-weight:700;color:var(--text);}
+.section-sub{font-size:12px;color:var(--text3);margin-top:1px;}
+.section-chevron{
+  font-size:18px;color:var(--text4);
+  transition:transform .2s;font-weight:300;
+}
+.section-chevron.open{transform:rotate(180deg);}
+.section-body{
+  padding:20px;
+  display:none;
+}
+.section-body.open{display:block;}
+
+/* ── FORM ELEMENTS ────────────────────────────────────────── */
+.field{margin-bottom:14px;}
+.field label{
+  display:block;font-size:12px;font-weight:700;
+  color:var(--text3);text-transform:uppercase;letter-spacing:.5px;
+  margin-bottom:5px;
+}
+.inp{
+  width:100%;padding:10px 12px;
+  border:1.5px solid var(--border);border-radius:var(--r);
+  font-size:14px;color:var(--text);background:var(--white);
+  font-family:var(--font);outline:none;transition:border-color .15s;
+}
+.inp:focus{border-color:var(--blue);}
+.inp:disabled{background:var(--bg);color:var(--text3);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:480px){.field-row{grid-template-columns:1fr;}}
+
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:10px 20px;border-radius:var(--rm);
+  font-size:13px;font-weight:700;cursor:pointer;
+  border:none;font-family:var(--font);transition:all .15s;
+}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-primary:hover{background:var(--blue-dark);}
+.btn-secondary{background:var(--bg2);color:var(--text2);border:1.5px solid var(--border);}
+.btn-secondary:hover{background:var(--border);}
+.btn-danger{background:var(--red-light);color:var(--red);border:1.5px solid #fca5a5;}
+.btn-danger:hover{background:#fee2e2;}
+.btn-success{background:var(--green-light);color:var(--green-dark);border:1.5px solid #6ee7b7;}
+.btn-orange{background:linear-gradient(135deg,var(--orange),var(--orange-dark));color:#fff;}
+.btn-orange:hover{opacity:0.9;}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+
+/* ── SUBSCRIPTION CARD ────────────────────────────────────── */
+.sub-status{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px;background:var(--bg);border-radius:var(--rm);
+  margin-bottom:16px;flex-wrap:wrap;gap:12px;
+}
+.sub-info{flex:1;}
+.sub-plan-name{font-size:16px;font-weight:700;color:var(--text);}
+.sub-plan-detail{font-size:13px;color:var(--text3);margin-top:3px;}
+.sub-plan-badge{
+  display:inline-block;padding:3px 10px;border-radius:100px;
+  font-size:11px;font-weight:700;margin-bottom:4px;
+}
+.spb-pro{background:linear-gradient(135deg,var(--orange),var(--orange-dark));color:#fff;}
+.spb-free{background:var(--bg2);color:var(--text3);}
+.spb-trial{background:#fef3c7;color:#92400e;}
+
+.upgrade-banner{
+  background:linear-gradient(135deg,#0F3D6E,var(--blue));
+  border-radius:var(--rm);padding:20px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex-wrap:wrap;
+}
+.upgrade-banner-text{color:#fff;}
+.upgrade-banner-title{font-size:16px;font-weight:700;margin-bottom:4px;}
+.upgrade-banner-sub{font-size:13px;color:rgba(255,255,255,0.7);}
+
+/* ── GOALS LIST ───────────────────────────────────────────── */
+.goals-list{display:flex;flex-direction:column;gap:10px;}
+.goal-row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px;background:var(--bg);border-radius:var(--rm);
+}
+.goal-emoji{font-size:22px;flex-shrink:0;}
+.goal-info{flex:1;min-width:0;}
+.goal-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px;}
+.goal-meta{font-size:12px;color:var(--text3);}
+.goal-pct{
+  font-size:13px;font-weight:700;flex-shrink:0;
+}
+.goal-bar-mini{
+  width:60px;height:4px;background:var(--border);
+  border-radius:100px;overflow:hidden;flex-shrink:0;
+}
+.goal-bar-fill{height:100%;border-radius:100px;}
+.goal-completed-badge{
+  font-size:10px;font-weight:700;padding:2px 8px;border-radius:100px;
+  background:var(--green-light);color:var(--green-dark);
+  flex-shrink:0;
+}
+
+/* ── NOTES LIST ───────────────────────────────────────────── */
+.notes-list{display:flex;flex-direction:column;gap:8px;}
+.note-row{
+  padding:12px;background:var(--bg);border-radius:var(--r);
+  display:flex;gap:10px;align-items:flex-start;
+}
+.note-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.note-text{font-size:13px;color:var(--text2);line-height:1.5;flex:1;}
+.note-source{font-size:11px;color:var(--text4);margin-top:3px;}
+
+/* ── DANGER ZONE ──────────────────────────────────────────── */
+.danger-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px;border:1.5px solid #fca5a5;border-radius:var(--rm);
+  background:var(--red-light);margin-bottom:10px;flex-wrap:wrap;gap:10px;
+}
+.danger-item:last-child{margin-bottom:0;}
+.danger-info{flex:1;}
+.danger-title{font-size:14px;font-weight:700;color:var(--red);}
+.danger-desc{font-size:12px;color:#ef4444;margin-top:2px;}
+
+/* ── EMPTY STATE ──────────────────────────────────────────── */
+.empty{text-align:center;padding:32px 20px;color:var(--text3);}
+.empty-icon{font-size:32px;margin-bottom:10px;}
+.empty-text{font-size:14px;font-weight:500;}
+
+/* ── TOAST ────────────────────────────────────────────────── */
+#toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:#0F1C2E;color:#fff;padding:12px 24px;
+  border-radius:100px;font-size:13px;font-weight:600;
+  display:none;z-index:999;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,0.2);
+}
+
+/* ── MODAL ────────────────────────────────────────────────── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.45);
+  z-index:200;display:none;align-items:center;justify-content:center;
+  padding:20px;
+}
+.modal-overlay.open{display:flex;}
+.modal{
+  background:var(--white);border-radius:var(--rl);
+  padding:28px;width:100%;max-width:400px;
+  box-shadow:var(--shadow-lg);
+}
+.modal h3{font-family:var(--display);font-size:20px;font-weight:700;margin-bottom:8px;}
+.modal p{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:20px;}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;}
+
+/* ── SCROLLBAR ────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="topnav">
+  <a href="peakly.html" class="nav-logo">
+    <div class="nav-logo-icon">🏔️</div>
+    <span class="nav-logo-text">Peakly</span>
+  </a>
+  <a href="peakly.html" class="nav-back">← Back to app</a>
+</nav>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h3 id="modalTitle">Are you sure?</h3>
+    <p id="modalDesc">This action cannot be undone.</p>
+    <div class="modal-btns">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="modalConfirmBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- PROFILE HEADER -->
+  <div class="profile-header" id="profileHeader">
+    <div class="avatar" onclick="changeAvatar()" title="Change photo">
+      <span id="avatarEmoji">😊</span>
+      <div class="avatar-edit">Edit</div>
+    </div>
+    <div class="profile-info">
+      <div class="profile-name" id="displayName">Jane Peakly</div>
+      <div class="profile-email" id="displayEmail">jane@example.com</div>
+      <div class="profile-badges">
+        <span class="badge badge-pro" id="planBadge">⭐ Pro</span>
+        <span class="badge badge-streak" id="streakBadge">🔥 14 day streak</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-card-num" id="statGoalsCompleted">0</div>
+      <div class="stat-card-label">Goals completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-num" id="statGoalsActive">0</div>
+      <div class="stat-card-label">Active goals</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-num" id="statDaysLogged">0</div>
+      <div class="stat-card-label">Days logged</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-card-num" id="statStreak">0</div>
+      <div class="stat-card-label">Current streak</div>
+    </div>
+  </div>
+
+  <!-- ACCOUNT SETTINGS -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('account')">
+      <div class="section-header-left">
+        <div class="section-icon si-blue">👤</div>
+        <div>
+          <div class="section-title">Account Settings</div>
+          <div class="section-sub">Name, email, password</div>
+        </div>
+      </div>
+      <span class="section-chevron open" id="chevron-account">▼</span>
+    </div>
+    <div class="section-body open" id="body-account">
+      <div class="field-row">
+        <div class="field">
+          <label>First name</label>
+          <input class="inp" id="firstName" placeholder="Jane" value="">
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input class="inp" id="lastName" placeholder="Peakly" value="">
+        </div>
+      </div>
+      <div class="field">
+        <label>Email address</label>
+        <input class="inp" id="emailField" type="email" placeholder="jane@example.com" value="">
+      </div>
+      <div class="field">
+        <label>New password</label>
+        <input class="inp" id="passwordField" type="password" placeholder="Leave blank to keep current">
+      </div>
+      <div class="field">
+        <label>Confirm new password</label>
+        <input class="inp" id="passwordConfirm" type="password" placeholder="Confirm new password">
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveAccount()">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBSCRIPTION -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('subscription')">
+      <div class="section-header-left">
+        <div class="section-icon si-orange">💳</div>
+        <div>
+          <div class="section-title">Subscription</div>
+          <div class="section-sub" id="subHeaderSub">Manage your plan</div>
+        </div>
+      </div>
+      <span class="section-chevron" id="chevron-subscription">▼</span>
+    </div>
+    <div class="section-body" id="body-subscription">
+      <div class="sub-status">
+        <div class="sub-info">
+          <span class="sub-plan-badge spb-pro" id="subBadge">⭐ Pro</span>
+          <div class="sub-plan-name" id="subPlanName">Peakly Pro</div>
+          <div class="sub-plan-detail" id="subPlanDetail">$6.00/month · Renews Jan 15, 2026</div>
+        </div>
+        <button class="btn btn-secondary" onclick="manageBilling()">Manage billing</button>
+      </div>
+
+      <!-- Pro users see this -->
+      <div id="proSection">
+        <div style="font-size:13px;color:var(--text3);line-height:1.6;margin-bottom:14px;">
+          You have access to all Pro features — unlimited goals, all 9 Life Admin sections, calendar sync, and the ability to sell your own templates.
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-danger" onclick="confirmCancel()">Cancel subscription</button>
+        </div>
+      </div>
+
+      <!-- Free users see upgrade banner -->
+      <div id="freeSection" style="display:none;">
+        <div class="upgrade-banner">
+          <div class="upgrade-banner-text">
+            <div class="upgrade-banner-title">Upgrade to Pro</div>
+            <div class="upgrade-banner-sub">Unlimited goals · All Life Admin sections · Calendar sync</div>
+          </div>
+          <button class="btn btn-orange" onclick="upgradeToPro()">Upgrade — $6/mo →</button>
+        </div>
+        <p style="font-size:12px;color:var(--text3);margin-top:12px;text-align:center;">Or save 17% with annual billing — $60/year</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MY GOALS -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('goals')">
+      <div class="section-header-left">
+        <div class="section-icon si-blue">🏔️</div>
+        <div>
+          <div class="section-title">My Goals</div>
+          <div class="section-sub" id="goalsHeaderSub">Active & completed</div>
+        </div>
+      </div>
+      <span class="section-chevron" id="chevron-goals">▼</span>
+    </div>
+    <div class="section-body" id="body-goals">
+      <!-- Active -->
+      <div style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Active</div>
+      <div class="goals-list" id="activeGoalsList">
+        <div class="empty">
+          <div class="empty-icon">🎯</div>
+          <div class="empty-text">No active goals yet</div>
+        </div>
+      </div>
+      <!-- Completed -->
+      <div style="font-size:11px;font-weight:700;color:var(--text4);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px;">Completed 🏆</div>
+      <div class="goals-list" id="completedGoalsList">
+        <div class="empty">
+          <div class="empty-icon">🏅</div>
+          <div class="empty-text">No completed goals yet — keep going!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVED NOTES -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('notes')">
+      <div class="section-header-left">
+        <div class="section-icon si-purple">📝</div>
+        <div>
+          <div class="section-title">Saved Notes</div>
+          <div class="section-sub">Notes from your Life Admin</div>
+        </div>
+      </div>
+      <span class="section-chevron" id="chevron-notes">▼</span>
+    </div>
+    <div class="section-body" id="body-notes">
+      <div class="notes-list" id="notesList">
+        <div class="empty">
+          <div class="empty-icon">📝</div>
+          <div class="empty-text">Notes you save across Life Admin will appear here</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCOMPLISHMENTS -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('accomplishments')">
+      <div class="section-header-left">
+        <div class="section-icon si-green">🏆</div>
+        <div>
+          <div class="section-title">Accomplishments</div>
+          <div class="section-sub">Milestones & peaks reached</div>
+        </div>
+      </div>
+      <span class="section-chevron" id="chevron-accomplishments">▼</span>
+    </div>
+    <div class="section-body" id="body-accomplishments">
+      <div id="accomplishmentsList">
+        <div class="empty">
+          <div class="empty-icon">🌟</div>
+          <div class="empty-text">Milestones you reach will be celebrated here</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('settings')">
+      <div class="section-header-left">
+        <div class="section-icon si-gray">⚙️</div>
+        <div>
+          <div class="section-title">Settings</div>
+          <div class="section-sub">Preferences & notifications</div>
+        </div>
+      </div>
+      <span class="section-chevron" id="chevron-settings">▼</span>
+    </div>
+    <div class="section-body" id="body-settings">
+      <div class="field">
+        <label>Daily reminder time</label>
+        <input class="inp" type="time" id="reminderTime" value="08:00" style="max-width:180px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <input type="checkbox" id="emailReminders" style="accent-color:var(--blue);width:16px;height:16px;" checked>
+        <label for="emailReminders" style="font-size:14px;color:var(--text2);cursor:pointer;">Email reminders for upcoming appointments & bill due dates</label>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <input type="checkbox" id="weeklyDigest" style="accent-color:var(--blue);width:16px;height:16px;" checked>
+        <label for="weeklyDigest" style="font-size:14px;color:var(--text2);cursor:pointer;">Weekly progress digest email</label>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <input type="checkbox" id="milestoneAlerts" style="accent-color:var(--blue);width:16px;height:16px;" checked>
+        <label for="milestoneAlerts" style="font-size:14px;color:var(--text2);cursor:pointer;">Milestone celebration alerts</label>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
+        <button class="btn btn-secondary" onclick="exportData()">📥 Export my data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DANGER ZONE -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('danger')">
+      <div class="section-header-left">
+        <div class="section-icon si-red">⚠️</div>
+        <div>
+          <div class="section-title">Danger Zone</div>
+          <div class="section-sub">Irreversible actions</div>
+        </div>
+      </div>
+      <span class="section-chevron" id="chevron-danger">▼</span>
+    </div>
+    <div class="section-body" id="body-danger">
+      <div class="danger-item">
+        <div class="danger-info">
+          <div class="danger-title">Reset all data</div>
+          <div class="danger-desc">Clears all your goals, Life Admin data, and settings. Cannot be undone.</div>
+        </div>
+        <button class="btn btn-danger" onclick="confirmReset()">Reset data</button>
+      </div>
+      <div class="danger-item">
+        <div class="danger-info">
+          <div class="danger-title">Delete account</div>
+          <div class="danger-desc">Permanently deletes your account and all data. Cancels any active subscription.</div>
+        </div>
+        <button class="btn btn-danger" onclick="confirmDelete()">Delete account</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const LS = {
+  get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+};
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.display='block';
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>t.style.display='none',2800);
+}
+
+// ── Section toggles ─────────────────────────────────────────
+function toggleSection(id){
+  const body=document.getElementById('body-'+id);
+  const chevron=document.getElementById('chevron-'+id);
+  const open=body.classList.contains('open');
+  body.classList.toggle('open',!open);
+  body.style.display=open?'none':'block';
+  chevron.classList.toggle('open',!open);
+}
+// Init: make sure only account is open by default, others closed
+document.querySelectorAll('.section-body').forEach(b=>{
+  if(!b.classList.contains('open'))b.style.display='none';
+});
+
+// ── Load data from localStorage ─────────────────────────────
+function loadProfile(){
+  const profile=LS.get('peakly_profile',{
+    firstName:'',lastName:'',email:'',avatar:'😊'
+  });
+
+  // Name
+  const firstName=profile.firstName||'';
+  const lastName=profile.lastName||'';
+  const fullName=(firstName+' '+lastName).trim()||'Your Name';
+  document.getElementById('displayName').textContent=fullName;
+  document.getElementById('displayEmail').textContent=profile.email||'your@email.com';
+  document.getElementById('firstName').value=firstName;
+  document.getElementById('lastName').value=lastName;
+  document.getElementById('emailField').value=profile.email||'';
+  document.getElementById('avatarEmoji').textContent=profile.avatar||'😊';
+
+  // Goals
+  const goals=LS.get('peakly_goals',[]);
+  const active=goals.filter(g=>!g.completed);
+  const completed=goals.filter(g=>g.completed);
+
+  document.getElementById('statGoalsActive').textContent=active.length;
+  document.getElementById('statGoalsCompleted').textContent=completed.length;
+  document.getElementById('goalsHeaderSub').textContent=
+    active.length+' active · '+completed.length+' completed';
+
+  // Active goals list
+  const activeEl=document.getElementById('activeGoalsList');
+  if(active.length>0){
+    activeEl.innerHTML='';
+    active.forEach(g=>{
+      const pct=g.pct||0;
+      const row=document.createElement('div');
+      row.className='goal-row';
+      row.innerHTML=`
+        <div class="goal-emoji">${g.emoji||'🎯'}</div>
+        <div class="goal-info">
+          <div class="goal-name">${g.name}</div>
+          <div class="goal-meta">Day ${g.startedDate?Math.min(Math.floor((Date.now()-new Date(g.startedDate))/(1000*60*60*24))+1,g.totalDays||90):1} of ${g.totalDays||90} · ${pct}% complete</div>
+        </div>
+        <div class="goal-bar-mini"><div class="goal-bar-fill" style="width:${pct}%;background:${g.color||'var(--blue)'};"></div></div>
+        <div class="goal-pct" style="color:${g.color||'var(--blue)'};">${pct}%</div>
+      `;
+      activeEl.appendChild(row);
+    });
+  }
+
+  // Completed goals
+  const completedEl=document.getElementById('completedGoalsList');
+  if(completed.length>0){
+    completedEl.innerHTML='';
+    completed.forEach(g=>{
+      const row=document.createElement('div');
+      row.className='goal-row';
+      row.innerHTML=`
+        <div class="goal-emoji">${g.emoji||'🎯'}</div>
+        <div class="goal-info">
+          <div class="goal-name">${g.name}</div>
+          <div class="goal-meta">Completed ${g.completedDate?new Date(g.completedDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'}</div>
+        </div>
+        <span class="goal-completed-badge">✓ Complete</span>
+      `;
+      completedEl.appendChild(row);
+    });
+  }
+
+  // Days logged (count unique dates with any task done)
+  const allKeys=Object.keys(localStorage).filter(k=>k.startsWith('daily_'));
+  const uniqueDates=new Set(allKeys.map(k=>k.split('_').pop()));
+  document.getElementById('statDaysLogged').textContent=uniqueDates.size;
+
+  // Streak (rough — count from localStorage)
+  const streak=LS.get('peakly_streak',0);
+  document.getElementById('statStreak').textContent=streak;
+  document.getElementById('streakBadge').textContent='🔥 '+streak+' day streak';
+
+  // Subscription status
+  const isPro=LS.get('peakly_pro',false);
+  const isTrial=LS.get('peakly_trial',false);
+  const trialDays=LS.get('peakly_trial_days',14);
+
+  if(isTrial){
+    document.getElementById('planBadge').textContent='⏳ Trial';
+    document.getElementById('planBadge').className='badge badge-trial';
+    document.getElementById('subBadge').textContent='⏳ Free Trial';
+    document.getElementById('subBadge').className='sub-plan-badge spb-trial';
+    document.getElementById('subPlanName').textContent='14-Day Free Trial';
+    document.getElementById('subPlanDetail').textContent=trialDays+' days remaining · No card required';
+    document.getElementById('subHeaderSub').textContent=trialDays+' trial days remaining';
+    document.getElementById('proSection').style.display='none';
+    document.getElementById('freeSection').style.display='block';
+  } else if(isPro){
+    document.getElementById('planBadge').textContent='⭐ Pro';
+    document.getElementById('planBadge').className='badge badge-pro';
+  } else {
+    document.getElementById('planBadge').textContent='Free';
+    document.getElementById('planBadge').className='badge badge-free';
+    document.getElementById('subBadge').textContent='Free';
+    document.getElementById('subBadge').className='sub-plan-badge spb-free';
+    document.getElementById('subPlanName').textContent='Free Plan';
+    document.getElementById('subPlanDetail').textContent='5 goals · 5 Life Admin sections';
+    document.getElementById('subHeaderSub').textContent='Free plan — upgrade to unlock everything';
+    document.getElementById('proSection').style.display='none';
+    document.getElementById('freeSection').style.display='block';
+  }
+
+  // Accomplishments - milestones reached
+  const allGoals=LS.get('peakly_goals',[]);
+  const accomplishments=[];
+  allGoals.forEach(g=>{
+    (g.milestones||[]).forEach(m=>{
+      if(m.reached){
+        accomplishments.push({
+          emoji:g.emoji||'🎯',
+          goalName:g.name,
+          milestoneName:m.name,
+          color:g.color||'var(--blue)'
+        });
+      }
+    });
+  });
+
+  if(accomplishments.length>0){
+    const el=document.getElementById('accomplishmentsList');
+    el.innerHTML='';
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;';
+    accomplishments.forEach(a=>{
+      const card=document.createElement('div');
+      card.style.cssText=`padding:14px;background:var(--bg);border-radius:var(--rm);border-left:3px solid ${a.color};`;
+      card.innerHTML=`
+        <div style="font-size:20px;margin-bottom:6px;">${a.emoji} 🏅</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${a.milestoneName}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${a.goalName}</div>
+      `;
+      grid.appendChild(card);
+    });
+    el.appendChild(grid);
+  }
+
+  // Settings
+  const settings=LS.get('peakly_settings',{
+    reminderTime:'08:00',emailReminders:true,weeklyDigest:true,milestoneAlerts:true
+  });
+  document.getElementById('reminderTime').value=settings.reminderTime||'08:00';
+  document.getElementById('emailReminders').checked=settings.emailReminders!==false;
+  document.getElementById('weeklyDigest').checked=settings.weeklyDigest!==false;
+  document.getElementById('milestoneAlerts').checked=settings.milestoneAlerts!==false;
+}
+
+// ── Avatar picker ────────────────────────────────────────────
+const avatarOptions=['😊','😎','🧗','🏔️','🌟','💪','🦋','🌿','🔥','⚡','🎯','🚀'];
+let avatarIdx=0;
+function changeAvatar(){
+  avatarIdx=(avatarIdx+1)%avatarOptions.length;
+  const emoji=avatarOptions[avatarIdx];
+  document.getElementById('avatarEmoji').textContent=emoji;
+  const profile=LS.get('peakly_profile',{});
+  profile.avatar=emoji;
+  LS.set('peakly_profile',profile);
+  toast('Avatar updated!');
+}
+
+// ── Save account ─────────────────────────────────────────────
+function saveAccount(){
+  const firstName=document.getElementById('firstName').value.trim();
+  const lastName=document.getElementById('lastName').value.trim();
+  const email=document.getElementById('emailField').value.trim();
+  const pwd=document.getElementById('passwordField').value;
+  const pwdConfirm=document.getElementById('passwordConfirm').value;
+
+  if(pwd && pwd!==pwdConfirm){
+    toast('Passwords do not match'); return;
+  }
+  if(!email){toast('Email is required'); return;}
+
+  const profile=LS.get('peakly_profile',{});
+  profile.firstName=firstName;
+  profile.lastName=lastName;
+  profile.email=email;
+  LS.set('peakly_profile',profile);
+
+  document.getElementById('displayName').textContent=(firstName+' '+lastName).trim()||'Your Name';
+  document.getElementById('displayEmail').textContent=email;
+  document.getElementById('passwordField').value='';
+  document.getElementById('passwordConfirm').value='';
+
+  toast('Account updated ✓');
+}
+
+// ── Subscription actions ─────────────────────────────────────
+function upgradeToPro(){
+  // Will connect to Stripe when Supabase is integrated
+  toast('Redirecting to checkout… (coming soon)');
+}
+function manageBilling(){
+  toast('Billing portal coming soon');
+}
+function confirmCancel(){
+  showModal(
+    'Cancel subscription?',
+    'You will lose access to Pro features at the end of your current billing period. Your data will be kept.',
+    ()=>{
+      LS.set('peakly_pro',false);
+      toast('Subscription cancelled. You have access until end of billing period.');
+      loadProfile();
+    }
+  );
+}
+
+// ── Settings ─────────────────────────────────────────────────
+function saveSettings(){
+  const settings={
+    reminderTime:document.getElementById('reminderTime').value,
+    emailReminders:document.getElementById('emailReminders').checked,
+    weeklyDigest:document.getElementById('weeklyDigest').checked,
+    milestoneAlerts:document.getElementById('milestoneAlerts').checked,
+  };
+  LS.set('peakly_settings',settings);
+  toast('Settings saved ✓');
+}
+
+function exportData(){
+  const data={
+    profile:LS.get('peakly_profile',{}),
+    goals:LS.get('peakly_goals',[]),
+    settings:LS.get('peakly_settings',{}),
+    exported:new Date().toISOString()
+  };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='peakly-data-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();URL.revokeObjectURL(url);
+  toast('Data exported ✓');
+}
+
+// ── Danger zone ──────────────────────────────────────────────
+function confirmReset(){
+  showModal(
+    'Reset all data?',
+    'This will permanently delete all your goals, Life Admin data, templates, and settings. This cannot be undone.',
+    ()=>{
+      localStorage.clear();
+      toast('All data has been reset');
+      setTimeout(()=>loadProfile(), 500);
+    }
+  );
+}
+function confirmDelete(){
+  showModal(
+    'Delete your account?',
+    'This permanently deletes your Peakly account and all your data. Your subscription will be cancelled immediately. This cannot be undone.',
+    ()=>{
+      localStorage.clear();
+      toast('Account deleted. Redirecting…');
+      setTimeout(()=>window.location.href='peakly-landing.html', 2000);
+    }
+  );
+}
+
+// ── Modal helpers ─────────────────────────────────────────────
+let modalCallback=null;
+function showModal(title,desc,onConfirm){
+  document.getElementById('modalTitle').textContent=title;
+  document.getElementById('modalDesc').textContent=desc;
+  modalCallback=onConfirm;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeModal(){
+  document.getElementById('confirmModal').classList.remove('open');
+  modalCallback=null;
+}
+document.getElementById('modalConfirmBtn').addEventListener('click',()=>{
+  if(modalCallback)modalCallback();
+  closeModal();
+});
+document.getElementById('confirmModal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('confirmModal'))closeModal();
+});
+
+// ── Init ─────────────────────────────────────────────────────
+loadProfile();
+</script>
+</body>
+</html>

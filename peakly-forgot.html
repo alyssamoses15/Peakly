@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset Password — Peakly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;
+  --green:#059669;--green-light:#ECFDF5;
+  --red:#DC2626;--red-light:#FEF2F2;
+  --bg:#F0F4FA;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;
+  --border:#D4E0EE;
+  --display:'Playfair Display',Georgia,serif;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r:10px;--rm:14px;
+}
+body{
+  font-family:var(--font);background:var(--bg);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:20px;
+}
+.card{
+  background:var(--white);border-radius:24px;
+  padding:40px 36px;width:100%;max-width:420px;
+  box-shadow:0 8px 40px rgba(15,28,46,0.1);
+}
+.logo{
+  display:flex;align-items:center;gap:8px;
+  text-decoration:none;margin-bottom:32px;
+}
+.logo-icon{
+  width:36px;height:36px;background:var(--blue);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:700;color:var(--text);}
+h1{font-family:var(--display);font-size:24px;font-weight:700;color:var(--text);margin-bottom:8px;}
+p{font-size:14px;color:var(--text3);margin-bottom:24px;line-height:1.6;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.inp{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:var(--r);font-size:14px;color:var(--text);background:var(--white);font-family:var(--font);outline:none;transition:border-color .15s;}
+.inp:focus{border-color:var(--blue);}
+.btn{width:100%;padding:13px;border-radius:var(--rm);background:linear-gradient(135deg,var(--blue),var(--blue-dark));color:#fff;font-size:15px;font-weight:700;border:none;cursor:pointer;font-family:var(--font);transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.btn:hover{opacity:0.92;}
+.btn:disabled{opacity:0.6;cursor:not-allowed;}
+.alert{padding:12px 14px;border-radius:var(--r);font-size:13px;font-weight:500;margin-bottom:16px;display:none;line-height:1.5;}
+.alert.show{display:block;}
+.alert-error{background:var(--red-light);color:var(--red);border:1px solid #fca5a5;}
+.alert-success{background:var(--green-light);color:var(--green);border:1px solid #6ee7b7;}
+.back-link{display:block;text-align:center;margin-top:20px;font-size:13px;color:var(--text3);text-decoration:none;}
+.back-link span{color:var(--blue);font-weight:600;}
+.back-link:hover span{text-decoration:underline;}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="card">
+  <a href="peakly-auth.html" class="logo">
+    <div class="logo-icon">🏔️</div>
+    <span class="logo-text">Peakly</span>
+  </a>
+  <h1>Reset your password</h1>
+  <p>Enter your email and we'll send you a link to reset your password.</p>
+
+  <div class="alert" id="alertBox"></div>
+
+  <div id="resetForm">
+    <div class="field">
+      <label>Email address</label>
+      <input class="inp" id="resetEmail" type="email" placeholder="jane@example.com">
+    </div>
+    <button class="btn" id="resetBtn" onclick="handleReset()">
+      <span id="resetBtnText">Send reset link</span>
+      <div class="spinner" id="resetSpinner"></div>
+    </button>
+  </div>
+
+  <a href="peakly-auth.html?mode=login" class="back-link">← Back to <span>log in</span></a>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://rofnthczzpsswdtlpahk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function handleReset(){
+  const email = document.getElementById('resetEmail').value.trim();
+  if(!email){ showAlert('Please enter your email address'); return; }
+
+  document.getElementById('resetBtn').disabled = true;
+  document.getElementById('resetBtnText').style.display = 'none';
+  document.getElementById('resetSpinner').style.display = 'block';
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/peakly-auth.html?mode=reset'
+  });
+
+  document.getElementById('resetBtn').disabled = false;
+  document.getElementById('resetBtnText').style.display = 'inline';
+  document.getElementById('resetSpinner').style.display = 'none';
+
+  if(error){
+    showAlert(error.message);
+  } else {
+    document.getElementById('resetForm').style.display = 'none';
+    showAlert('Check your email for a password reset link! It may take a minute to arrive. 📬', 'success');
+  }
+}
+
+function showAlert(msg, type='error'){
+  const el = document.getElementById('alertBox');
+  el.textContent = msg;
+  el.className = 'alert show alert-' + type;
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Enter') handleReset();
+});
+</script>
+</body>
+</html>

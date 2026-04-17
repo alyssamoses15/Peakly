@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign up — Peakly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;
+  --orange:#F97316;--orange-dark:#C2410C;
+  --green:#059669;--green-light:#ECFDF5;
+  --red:#DC2626;--red-light:#FEF2F2;
+  --bg:#F0F4FA;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;
+  --border:#D4E0EE;
+  --display:'Playfair Display',Georgia,serif;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r:10px;--rm:14px;--rl:20px;
+}
+body{
+  font-family:var(--font);
+  min-height:100vh;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+}
+@media(max-width:768px){
+  body{grid-template-columns:1fr;}
+  .hero-panel{display:none;}
+}
+
+/* ── LEFT - MOUNTAIN PANEL ─────────────────────────────── */
+.hero-panel{
+  position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#b8d4f0 0%,#ddedf8 25%,#f0e4d0 45%,#f9c87a 65%,#f5a535 80%,#c8a870 100%);
+}
+.hp-sky-glow{
+  position:absolute;bottom:30%;left:50%;transform:translateX(-50%);
+  width:300px;height:300px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,220,100,0.4) 0%,transparent 70%);
+}
+.hp-content{
+  position:absolute;bottom:0;left:0;right:0;top:0;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  padding:48px;
+}
+.hp-tagline{
+  font-family:var(--display);
+  font-size:36px;font-weight:900;
+  color:#1a2a1a;line-height:1.15;
+  margin-bottom:16px;
+  position:relative;z-index:2;
+}
+.hp-tagline em{font-style:italic;color:#b85c00;}
+.hp-sub{
+  font-size:15px;color:rgba(26,42,26,0.65);
+  line-height:1.6;position:relative;z-index:2;
+  max-width:320px;
+}
+.hp-logo{
+  position:absolute;top:32px;left:32px;
+  display:flex;align-items:center;gap:8px;
+  text-decoration:none;
+}
+.hp-logo-icon{
+  width:36px;height:36px;background:var(--blue);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.hp-logo-text{font-family:var(--display);font-size:20px;font-weight:700;color:var(--text);}
+
+/* Mountains SVG */
+.hp-mountains{position:absolute;bottom:0;left:0;right:0;height:55%;}
+
+/* ── RIGHT - FORM PANEL ────────────────────────────────── */
+.form-panel{
+  display:flex;align-items:center;justify-content:center;
+  background:var(--white);padding:40px 32px;
+  overflow-y:auto;
+}
+.form-wrap{width:100%;max-width:400px;}
+
+/* Mobile logo */
+.mobile-logo{
+  display:none;align-items:center;gap:8px;
+  margin-bottom:32px;text-decoration:none;
+}
+@media(max-width:768px){.mobile-logo{display:flex;}}
+.mobile-logo-icon{
+  width:36px;height:36px;background:var(--blue);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.mobile-logo-text{font-family:var(--display);font-size:20px;font-weight:700;color:var(--text);}
+
+/* Tab switcher */
+.auth-tabs{
+  display:flex;background:var(--bg);border-radius:var(--rm);padding:4px;
+  margin-bottom:28px;gap:4px;
+}
+.auth-tab{
+  flex:1;padding:10px;border-radius:var(--r);
+  font-size:14px;font-weight:600;cursor:pointer;
+  border:none;background:transparent;color:var(--text3);
+  font-family:var(--font);transition:all .15s;
+}
+.auth-tab.active{background:var(--white);color:var(--text);box-shadow:0 1px 4px rgba(15,28,46,0.08);}
+
+.form-heading{
+  font-family:var(--display);font-size:26px;font-weight:700;
+  color:var(--text);margin-bottom:6px;
+}
+.form-subheading{
+  font-size:14px;color:var(--text3);margin-bottom:28px;line-height:1.5;
+}
+
+/* Google button */
+.btn-google{
+  width:100%;padding:12px;border-radius:var(--rm);
+  border:1.5px solid var(--border);background:var(--white);
+  font-size:14px;font-weight:600;color:var(--text);
+  cursor:pointer;font-family:var(--font);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all .15s;margin-bottom:20px;
+}
+.btn-google:hover{background:var(--bg);border-color:var(--text3);}
+.google-icon{
+  width:18px;height:18px;flex-shrink:0;
+}
+
+.divider{
+  display:flex;align-items:center;gap:12px;margin-bottom:20px;
+}
+.divider-line{flex:1;height:1px;background:var(--border);}
+.divider-text{font-size:12px;color:var(--text3);font-weight:500;white-space:nowrap;}
+
+/* Form fields */
+.field{margin-bottom:14px;}
+.field label{
+  display:block;font-size:12px;font-weight:700;
+  color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;
+}
+.inp{
+  width:100%;padding:11px 13px;
+  border:1.5px solid var(--border);border-radius:var(--r);
+  font-size:14px;color:var(--text);background:var(--white);
+  font-family:var(--font);outline:none;transition:border-color .15s;
+}
+.inp:focus{border-color:var(--blue);}
+.inp.error{border-color:var(--red);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.error-msg{
+  font-size:12px;color:var(--red);margin-top:4px;display:none;
+}
+.error-msg.show{display:block;}
+
+/* Submit button */
+.btn-submit{
+  width:100%;padding:13px;border-radius:var(--rm);
+  background:linear-gradient(135deg,var(--blue),var(--blue-dark));
+  color:#fff;font-size:15px;font-weight:700;
+  border:none;cursor:pointer;font-family:var(--font);
+  transition:all .15s;margin-top:4px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  position:relative;
+}
+.btn-submit:hover{opacity:0.92;transform:translateY(-1px);}
+.btn-submit:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+
+.spinner{
+  width:16px;height:16px;border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;border-radius:50%;
+  animation:spin .7s linear infinite;display:none;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.form-note{
+  font-size:12px;color:var(--text3);text-align:center;
+  margin-top:16px;line-height:1.5;
+}
+.form-note a{color:var(--blue);font-weight:600;text-decoration:none;}
+.form-note a:hover{text-decoration:underline;}
+
+/* Password strength */
+.pw-strength{margin-top:6px;display:none;}
+.pw-strength.show{display:block;}
+.pw-bars{display:flex;gap:4px;margin-bottom:4px;}
+.pw-bar{height:3px;flex:1;border-radius:100px;background:var(--border);transition:background .2s;}
+.pw-label{font-size:11px;color:var(--text3);}
+
+/* Alert */
+.alert{
+  padding:12px 14px;border-radius:var(--r);
+  font-size:13px;font-weight:500;margin-bottom:16px;
+  display:none;line-height:1.5;
+}
+.alert.show{display:block;}
+.alert-error{background:var(--red-light);color:var(--red);border:1px solid #fca5a5;}
+.alert-success{background:var(--green-light);color:var(--green);border:1px solid #6ee7b7;}
+
+/* Trial badge */
+.trial-badge{
+  display:flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,#fff7ed,#ffedd5);
+  border:1px solid #fed7aa;border-radius:var(--r);
+  padding:10px 14px;margin-bottom:20px;
+}
+.trial-badge-icon{font-size:18px;}
+.trial-badge-text{font-size:13px;color:#c2410c;font-weight:600;line-height:1.4;}
+
+/* Forgot password */
+.forgot-link{
+  font-size:12px;color:var(--blue);font-weight:600;
+  text-decoration:none;float:right;margin-top:-18px;margin-bottom:14px;
+  display:block;
+}
+.forgot-link:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<!-- LEFT PANEL -->
+<div class="hero-panel">
+  <a href="index.html" class="hp-logo">
+    <div class="hp-logo-icon">🏔️</div>
+    <span class="hp-logo-text">Peakly</span>
+  </a>
+  <div class="hp-sky-glow"></div>
+  <!-- Mountains -->
+  <svg class="hp-mountains" viewBox="0 0 800 400" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#c8b8a0" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="#b8a888" stop-opacity="0.7"/>
+      </linearGradient>
+      <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8fa8c0" stop-opacity="0.8"/>
+        <stop offset="100%" stop-color="#5a7890"/>
+      </linearGradient>
+      <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4a6858"/>
+        <stop offset="100%" stop-color="#2d4535"/>
+      </linearGradient>
+    </defs>
+    <!-- Far -->
+    <path d="M0,400 L0,280 L100,200 L200,260 L300,160 L400,220 L500,140 L600,200 L700,170 L800,210 L800,400 Z" fill="url(#far)"/>
+    <!-- Mid -->
+    <path d="M0,400 L0,300 L80,230 L180,280 L280,180 L380,250 L450,140 L520,190 L600,160 L700,210 L800,180 L800,400 Z" fill="url(#mid)"/>
+    <!-- Snow caps -->
+    <path d="M447,148 L452,136 L457,148 L454,153 L452,145 L450,153 Z" fill="rgba(255,250,245,0.95)"/>
+    <path d="M277,188 L282,176 L287,188 L284,193 L282,185 L280,193 Z" fill="rgba(255,248,240,0.9)"/>
+    <!-- Near -->
+    <path d="M0,400 L0,330 L60,270 L140,310 L220,240 L300,290 L380,220 L440,260 L500,230 L560,270 L640,240 L720,280 L800,250 L800,400 Z" fill="url(#near)"/>
+    <!-- Trees -->
+    <g fill="#1a2e1e">
+      <polygon points="20,330 12,355 28,355"/>
+      <polygon points="20,318 8,348 32,348"/>
+      <polygon points="50,325 42,350 58,350"/>
+      <polygon points="50,313 38,343 62,343"/>
+      <polygon points="80,328 72,353 88,353"/>
+      <polygon points="80,316 68,346 92,346"/>
+      <polygon points="680,250 672,275 688,275"/>
+      <polygon points="680,238 668,268 692,268"/>
+      <polygon points="710,253 702,278 718,278"/>
+      <polygon points="710,241 698,271 722,271"/>
+      <polygon points="740,248 732,273 748,273"/>
+      <polygon points="740,236 728,266 752,266"/>
+      <polygon points="770,252 762,277 778,277"/>
+      <polygon points="770,240 758,270 782,270"/>
+    </g>
+    <!-- Foreground -->
+    <path d="M0,400 L0,370 Q100,355 200,365 Q300,352 400,362 Q500,350 600,360 Q700,350 800,355 L800,400 Z" fill="#1a2e1e"/>
+  </svg>
+  <div class="hp-content">
+    <h2 class="hp-tagline">Life Managed.<br><em>Peaks Reached.</em></h2>
+    <p class="hp-sub">Your goals and your entire life — tracked, organized, and moving forward. All in one place.</p>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="form-panel">
+  <div class="form-wrap">
+
+    <!-- Mobile logo -->
+    <a href="index.html" class="mobile-logo">
+      <div class="mobile-logo-icon">🏔️</div>
+      <span class="mobile-logo-text">Peakly</span>
+    </a>
+
+    <!-- Tab switcher -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-signup" onclick="switchTab('signup')">Create account</button>
+      <button class="auth-tab" id="tab-login" onclick="switchTab('login')">Log in</button>
+    </div>
+
+    <!-- Alert -->
+    <div class="alert" id="alertBox"></div>
+
+    <!-- ── SIGN UP FORM ───────────────────────────── -->
+    <div id="signupForm">
+      <h1 class="form-heading">Start your journey 🏔️</h1>
+      <p class="form-subheading">14-day free trial. No credit card required.</p>
+
+      <div class="trial-badge">
+        <span class="trial-badge-icon">🎉</span>
+        <span class="trial-badge-text">You get 14 days of Peakly Pro — completely free. No card needed.</span>
+      </div>
+
+      <!-- Google -->
+      <button class="btn-google" onclick="signInWithGoogle()">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">or sign up with email</span>
+        <div class="divider-line"></div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>First name</label>
+          <input class="inp" id="su-firstName" placeholder="Jane" type="text">
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input class="inp" id="su-lastName" placeholder="Doe" type="text">
+        </div>
+      </div>
+      <div class="field">
+        <label>Email address</label>
+        <input class="inp" id="su-email" placeholder="jane@example.com" type="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input class="inp" id="su-password" placeholder="At least 8 characters" type="password" oninput="checkPwStrength(this.value)">
+        <div class="pw-strength" id="pwStrength">
+          <div class="pw-bars">
+            <div class="pw-bar" id="pwBar1"></div>
+            <div class="pw-bar" id="pwBar2"></div>
+            <div class="pw-bar" id="pwBar3"></div>
+            <div class="pw-bar" id="pwBar4"></div>
+          </div>
+          <div class="pw-label" id="pwLabel">Too short</div>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="signupBtn" onclick="handleSignup()">
+        <span id="signupBtnText">Create free account →</span>
+        <div class="spinner" id="signupSpinner"></div>
+      </button>
+
+      <p class="form-note">
+        By signing up you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+      </p>
+    </div>
+
+    <!-- ── LOGIN FORM ─────────────────────────────── -->
+    <div id="loginForm" style="display:none;">
+      <h1 class="form-heading">Welcome back 👋</h1>
+      <p class="form-subheading">Log in to continue your journey.</p>
+
+      <!-- Google -->
+      <button class="btn-google" onclick="signInWithGoogle()">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-text">or log in with email</span>
+        <div class="divider-line"></div>
+      </div>
+
+      <div class="field">
+        <label>Email address</label>
+        <input class="inp" id="li-email" placeholder="jane@example.com" type="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input class="inp" id="li-password" placeholder="Your password" type="password">
+      </div>
+      <a href="peakly-forgot.html" class="forgot-link">Forgot password?</a>
+
+      <button class="btn-submit" id="loginBtn" onclick="handleLogin()">
+        <span id="loginBtnText">Log in →</span>
+        <div class="spinner" id="loginSpinner"></div>
+      </button>
+
+      <p class="form-note">
+        Don't have an account? <a href="#" onclick="switchTab('signup');return false;">Sign up free</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Supabase init ─────────────────────────────────────────────
+const SUPABASE_URL = 'https://rofnthczzpsswdtlpahk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Check if already logged in
+(async()=>{
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session) window.location.href = 'peakly.html';
+})();
+
+// ── Tab switching ─────────────────────────────────────────────
+function switchTab(tab){
+  const isSignup = tab === 'signup';
+  document.getElementById('signupForm').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('loginForm').style.display = isSignup ? 'none' : 'block';
+  document.getElementById('tab-signup').classList.toggle('active', isSignup);
+  document.getElementById('tab-login').classList.toggle('active', !isSignup);
+  hideAlert();
+  document.title = isSignup ? 'Sign up — Peakly' : 'Log in — Peakly';
+}
+
+// Check URL for ?mode=login
+if(window.location.search.includes('mode=login')) switchTab('login');
+
+// ── Alert helpers ─────────────────────────────────────────────
+function showAlert(msg, type='error'){
+  const el = document.getElementById('alertBox');
+  el.textContent = msg;
+  el.className = 'alert show alert-' + type;
+}
+function hideAlert(){
+  document.getElementById('alertBox').className = 'alert';
+}
+
+// ── Password strength ─────────────────────────────────────────
+function checkPwStrength(pw){
+  const el = document.getElementById('pwStrength');
+  el.classList.toggle('show', pw.length > 0);
+  if(!pw.length) return;
+  let score = 0;
+  if(pw.length >= 8) score++;
+  if(pw.length >= 12) score++;
+  if(/[A-Z]/.test(pw) && /[0-9]/.test(pw)) score++;
+  if(/[^A-Za-z0-9]/.test(pw)) score++;
+  const colors = ['#DC2626','#F97316','#EAB308','#059669'];
+  const labels = ['Too short','Weak','Good','Strong'];
+  const bars = [1,2,3,4];
+  bars.forEach(i=>{
+    const bar = document.getElementById('pwBar'+i);
+    bar.style.background = i <= score ? colors[score-1] : 'var(--border)';
+  });
+  document.getElementById('pwLabel').textContent = labels[score-1] || 'Too short';
+  document.getElementById('pwLabel').style.color = colors[score-1] || 'var(--text3)';
+}
+
+// ── Sign up ───────────────────────────────────────────────────
+async function handleSignup(){
+  const firstName = document.getElementById('su-firstName').value.trim();
+  const lastName = document.getElementById('su-lastName').value.trim();
+  const email = document.getElementById('su-email').value.trim();
+  const password = document.getElementById('su-password').value;
+
+  if(!email || !password){ showAlert('Please fill in all fields'); return; }
+  if(password.length < 8){ showAlert('Password must be at least 8 characters'); return; }
+
+  setLoading('signup', true);
+  hideAlert();
+
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password,
+    options:{
+      data:{ first_name: firstName, last_name: lastName },
+      emailRedirectTo: window.location.origin + '/peakly.html'
+    }
+  });
+
+  setLoading('signup', false);
+
+  if(error){
+    showAlert(error.message);
+    return;
+  }
+
+  if(data.user && !data.session){
+    // Email confirmation required
+    showAlert('Check your email to confirm your account, then come back to log in! 📬', 'success');
+    return;
+  }
+
+  // Auto-confirmed (local dev) or session exists
+  if(data.session){
+    // Save name to profile
+    await sb.from('profiles').update({
+      first_name: firstName,
+      last_name: lastName,
+      email: email
+    }).eq('id', data.user.id);
+
+    window.location.href = 'peakly.html';
+  }
+}
+
+// ── Log in ────────────────────────────────────────────────────
+async function handleLogin(){
+  const email = document.getElementById('li-email').value.trim();
+  const password = document.getElementById('li-password').value;
+
+  if(!email || !password){ showAlert('Please enter your email and password'); return; }
+
+  setLoading('login', true);
+  hideAlert();
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  setLoading('login', false);
+
+  if(error){
+    if(error.message.includes('Email not confirmed')){
+      showAlert('Please confirm your email first. Check your inbox for the confirmation link.');
+    } else if(error.message.includes('Invalid login')){
+      showAlert('Incorrect email or password. Please try again.');
+    } else {
+      showAlert(error.message);
+    }
+    return;
+  }
+
+  window.location.href = 'peakly.html';
+}
+
+// ── Google OAuth ──────────────────────────────────────────────
+async function signInWithGoogle(){
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options:{ redirectTo: window.location.origin + '/peakly.html' }
+  });
+  if(error) showAlert(error.message);
+}
+
+// ── Loading state ─────────────────────────────────────────────
+function setLoading(form, loading){
+  const btn = document.getElementById(form+'Btn');
+  const txt = document.getElementById(form+'BtnText');
+  const spinner = document.getElementById(form+'Spinner');
+  btn.disabled = loading;
+  txt.style.display = loading ? 'none' : 'inline';
+  spinner.style.display = loading ? 'block' : 'none';
+}
+
+// ── Enter key support ─────────────────────────────────────────
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Enter') return;
+  if(document.getElementById('signupForm').style.display !== 'none'){
+    handleSignup();
+  } else {
+    handleLogin();
+  }
+});
+</script>
+</body>
+</html>
