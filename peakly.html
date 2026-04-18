@@ -42,7 +42,11 @@ textarea{resize:none;}
 </head>
 <body>
 <div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="text/babel">
+const SUPABASE_URL='https://rofnthczzpsswdtlpahk.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
+let sb=null;try{sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);window.sb=sb;}catch(e){}
 const {useState,useEffect,useRef}=React;
 const todayKey=()=>new Date().toDateString();
 const pad=n=>String(n).padStart(2,'0');
@@ -176,10 +180,18 @@ function DateCard(){
 
   const searchUnsplash=async(q)=>{
     setLoading(true);
-    const terms=(q||UNSPLASH_DEFAULTS[Math.floor(Math.random()*UNSPLASH_DEFAULTS.length)]).replace(/ /,'+');
-    // Use picsum with search terms as seed for variety
-    const imgs=Array.from({length:6},(_,i)=>`https://source.unsplash.com/300x200/?${encodeURIComponent(q||'morning,vibe,aesthetic')}&sig=${Date.now()+i}`);
-    setResults(imgs);setLoading(false);
+    try{
+      // Use Unsplash API via lorem picsum as fallback for variety
+      // Generate themed images based on search term
+      const seeds = Array.from({length:8},(_,i)=>Math.floor(Math.random()*1000)+i*37);
+      const imgs = seeds.map(seed=>`https://picsum.photos/seed/${q?encodeURIComponent(q)+seed:seed}/400/300`);
+      setResults(imgs);
+    }catch(e){
+      // Fallback to solid color placeholders
+      const colors=['#1A5FA8','#F97316','#059669','#7C3AED','#DC2626','#0891B2','#D97706','#9333EA'];
+      setResults(colors.map(c=>`https://via.placeholder.com/400x300/${c.replace('#','')}/fff?text=${encodeURIComponent(q||'photo')}`));
+    }
+    setLoading(false);
   };
 
   const searchGiphy=async(q)=>{
@@ -406,7 +418,9 @@ function GoalList({goals,onToggle}){
           return(
             <div key={g.id}>
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                <div style={{width:26,height:26,borderRadius:'var(--r-sm)',background:c.bg,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0}}>{g.emoji}</div>
+                <div style={{width:26,height:26,borderRadius:'var(--r-sm)',background:c.bg,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0,overflow:'hidden'}}>
+                {g.img?<img src={g.img} style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>:g.emoji}
+                </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:700,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.name}</div>
                   <div style={{fontSize:10,color:'var(--text3)'}}>{done}/{g.habits.length} today</div>
@@ -810,8 +824,61 @@ function Reflect(){
 }
 
 // ─ App ─
+// UserAvatar - shows user initials from Supabase auth
+function UserAvatar(){
+  const [initials,setInitials]=React.useState('JD');
+  React.useEffect(()=>{
+    // Only check auth on real domain, not local files
+    if(!window.sb||window.location.protocol==='file:')return;
+    sb.auth.getSession().then(({data:{session}})=>{
+      if(!session&&window.location.protocol!=='file:'){window.location.href='peakly-auth.html';return;}
+      if(!session)return;
+      const user=session.user;
+      const meta=user.user_metadata||{};
+      const first=(meta.first_name||meta.full_name||user.email||'').trim();
+      const last=(meta.last_name||'').trim();
+      let ini='?';
+      if(first&&last) ini=(first[0]+last[0]).toUpperCase();
+      else if(first) ini=first.slice(0,2).toUpperCase();
+      setInitials(ini);
+      // Save to localStorage for profile page
+      LS.set('peakly_profile',{
+        firstName:meta.first_name||meta.full_name?.split(' ')[0]||'',
+        lastName:meta.last_name||meta.full_name?.split(' ')[1]||'',
+        email:user.email,
+        avatar:LS.get('peakly_profile',{}).avatar||'😊'
+      });
+    });
+  },[]);
+  return(
+    <div style={{width:32,height:32,borderRadius:'50%',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',cursor:'pointer'}}
+      onClick={()=>window.location.href='peakly-profile.html'} title="My account">
+      {initials}
+    </div>
+  );
+}
+
 function App(){
-  const [goals,setGoals]=useState(()=>LS.get(`goals_${todayKey()}`,null)||SEED_GOALS);
+  const [goals,setGoals]=useState(()=>{
+    // Read from peakly_goals (set by goals page) and map to home format
+    const pg=LS.get('peakly_goals',[]);
+    if(pg&&pg.length>0){
+      return pg.map(g=>({
+        id:g.id,
+        name:g.name,
+        emoji:g.emoji||'🎯',
+        color:g.color||'blue',
+        img:g.img||null,
+        habits:(g.todayTasks||g.tasks||[]).slice(0,4).map((t,ti)=>({
+          id:g.id*100+ti,
+          name:t.task||t.name||t,
+          time:t.time||'',
+          done:LS.get('task_done_'+g.id+'_'+ti,false)
+        }))
+      }));
+    }
+    return LS.get(`goals_${todayKey()}`,null)||SEED_GOALS;
+  });
   const [water,setWater]=useState(()=>LS.get(`water_${todayKey()}`,0));
   const [confetti,setConfetti]=useState(false);
   const [congrats,setCongrats]=useState(null);
@@ -861,13 +928,16 @@ function App(){
           </div>
         </div>
         <div style={{display:'flex',gap:2}}>
-          {['Home','Goals','Second Brain','Calendar'].map((p,i)=>(
-            <button key={p} style={{padding:'6px 14px',borderRadius:'var(--r-md)',fontSize:13,color:i===0?'#fff':'var(--text2)',background:i===0?'var(--blue)':'transparent',fontWeight:i===0?600:400,border:'none',transition:'all 0.15s'}}>
+          {['Home','Goals','Life Admin','Calendar'].map((p,i)=>(
+            <button key={p} onClick={()=>{
+              const pages=['peakly.html','peakly-goals.html','peakly-second-brain-1.html','peakly-calendar.html'];
+              if(i!==0)window.location.href=pages[i];
+            }} style={{padding:'6px 14px',borderRadius:'var(--r-md)',fontSize:13,color:i===0?'#fff':'var(--text2)',background:i===0?'var(--blue)':'transparent',fontWeight:i===0?600:400,border:'none',transition:'all 0.15s',cursor:'pointer'}}>
               {p}
             </button>
           ))}
         </div>
-        <div style={{width:32,height:32,borderRadius:'50%',background:'var(--blue)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',cursor:'pointer'}} onClick={()=>window.location.href='peakly-profile.html'} title="My account">JD</div>
+        <UserAvatar/>
       </nav>
 
       {/* 3-col grid */}

@@ -234,6 +234,9 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
   .mobile-view-tabs{display:none;}
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+
+</script>
 </head>
 <body>
 
@@ -246,12 +249,12 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
   <div class="nav-links">
     <button onclick="window.location='peakly.html'">Home</button>
     <button onclick="window.location='peakly-goals.html'">Goals</button>
-    <button onclick="window.location='peakly-personal-assistant-1.html'">Life Admin</button>
+    <button onclick="window.location='peakly-second-brain-1.html'">Life Admin</button>
     <button class="active">Calendar</button>
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button onclick="openAddEvent()" class="add-btn" style="display:none;" id="navAddBtn">+ Add</button>
-    <div style="width:30px;height:30px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;">JD</div>
+    <div id="navAvatar" onclick="window.location.href='peakly-profile.html'" title="My account" style="width:30px;height:30px;border-radius:50%;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;cursor:pointer;">JD</div>
   </div>
 </nav>
 
@@ -335,7 +338,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
   <button onclick="window.location='peakly.html'"><span>🏠</span>Home</button>
   <button onclick="window.location='peakly-goals.html'"><span>🏔️</span>Goals</button>
   <button class="active"><span>📅</span>Calendar</button>
-  <button onclick="window.location='peakly-personal-assistant-1.html'"><span>🤖</span>Life Admin</button>
+  <button onclick="window.location='peakly-second-brain-1.html'"><span>🤖</span>Life Admin</button>
   <button onclick="toggleMobileSidebar()"><span>☰</span>Menu</button>
 </div>
 
@@ -417,9 +420,9 @@ let touchStartX=0;
 // ── Type meta ─────────────────────────────────────────────────────────────
 const TYPE={
   goal:{color:'#0891B2',label:'Goal',icon:'🎯',page:'peakly-goals.html'},
-  routine:{color:'#F97316',label:'Routine',icon:'🌅',page:'peakly-personal-assistant-1.html'},
+  routine:{color:'#F97316',label:'Routine',icon:'🌅',page:'peakly-second-brain-1.html'},
   work:{color:'#7C3AED',label:'Work',icon:'💼',page:'peakly-personal-assistant-2.html'},
-  lifeadmin:{color:'#059669',label:'Life Admin',icon:'🏠',page:'peakly-personal-assistant-1.html'},
+  lifeadmin:{color:'#059669',label:'Life Admin',icon:'🏠',page:'peakly-second-brain-1.html'},
   manual:{color:'#64748B',label:'Event',icon:'📌',page:null},
 };
 
@@ -492,7 +495,7 @@ function getAllEvents(){
       const d=new Date(today);d.setDate(today.getDate()+i);
       const dow=['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
       if(cfg.days&&cfg.days[dow]===false)continue;
-      const rEvId='r_'+rk+'_'+dk(d);const rDur=LS.get('cal_dur_'+rEvId,parseInt(cfg.duration)||30);evs.push({id:rEvId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',date:new Date(d),time:cfg.time||'07:00',dur:rDur,color:TYPE.routine.color,routineKey:rk,scheduled:true,sourcePage:'peakly-personal-assistant-1.html'});
+      const rEvId='r_'+rk+'_'+dk(d);const rDur=LS.get('cal_dur_'+rEvId,parseInt(cfg.duration)||30);evs.push({id:rEvId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',date:new Date(d),time:cfg.time||'07:00',dur:rDur,color:TYPE.routine.color,routineKey:rk,scheduled:true,sourcePage:'peakly-second-brain-1.html'});
     }
   });
   // Work shifts
@@ -508,7 +511,7 @@ function getAllEvents(){
   const calevs=LS.get('cal_events',[]);
   calevs.forEach((e,i)=>{
     if(!e.date)return;const d=new Date(e.date);if(isNaN(d))return;
-    const laEvId='la_'+i;const laDur=LS.get('cal_dur_'+laEvId,e.duration||30);evs.push({id:laEvId,type:'lifeadmin',title:e.title||'Life Admin',date:d,time:e.time||'',dur:laDur,color:TYPE.lifeadmin.color,scheduled:!!(e.time),sourcePage:'peakly-personal-assistant-1.html'});
+    const laEvId='la_'+i;const laDur=LS.get('cal_dur_'+laEvId,e.duration||30);evs.push({id:laEvId,type:'lifeadmin',title:e.title||'Life Admin',date:d,time:e.time||'',dur:laDur,color:TYPE.lifeadmin.color,scheduled:!!(e.time),sourcePage:'peakly-second-brain-1.html'});
   });
   return evs;
 }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Peakly — Second Brain (Part 2)</title>
+<title>Peakly — Life Admin (Part 2)</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -84,6 +84,28 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .cal-day.today .dn{color:var(--blue);}
 .cal-day .shift-label{font-size:9px;color:var(--orange-dark);font-weight:600;margin-top:2px;}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+// ── Supabase auth + avatar ────────────────────────────────────
+(function(){
+  const SURL='https://rofnthczzpsswdtlpahk.supabase.co';
+  const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
+  if(typeof supabase==='undefined')return;
+  const sb=supabase.createClient(SURL,SKEY);
+  sb.auth.getSession().then(({data:{session}})=>{
+    if(!session){window.location.href='peakly-auth.html';return;}
+    const user=session.user;
+    const meta=user.user_metadata||{};
+    const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email||'';
+    const last=meta.last_name||meta.full_name?.split(' ')[1]||'';
+    let ini='?';
+    if(first&&last)ini=(first[0]+last[0]).toUpperCase();
+    else if(first)ini=first.slice(0,2).toUpperCase();
+    const av=document.getElementById('navAvatar');
+    if(av)av.textContent=ini;
+  });
+})();
+
+</script>
 </head>
 <body>
 <nav>
@@ -92,18 +114,21 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
     <div><div style="font-family:var(--display);font-size:18px;font-weight:700;color:var(--text);">Peakly</div><div style="font-size:9px;color:var(--text4);letter-spacing:.8px;text-transform:uppercase;">Lock in your goals</div></div>
   </div>
   <div class="nav-links">
-    <button>Home</button><button>Goals</button><button class="active">Second Brain</button><button>Calendar</button>
+    <button onclick="window.location.href='peakly.html'">Home</button>
+    <button onclick="window.location.href='peakly-goals.html'">Goals</button>
+    <button class="active">Life Admin</button>
+    <button onclick="window.location.href='peakly-calendar.html'">Calendar</button>
   </div>
-  <div class="avatar">JD</div>
+  <div class="avatar" onclick="window.location.href='peakly-profile.html'" title="My account" style="cursor:pointer;" id="navAvatar">JD</div>
 </nav>
-<div class="ph"><h1 style="font-family:var(--display);font-size:24px;font-weight:700;">🧠 Second Brain</h1><p style="font-size:13px;color:var(--text3);">Your life command center — everything in one place</p></div>
+<div class="ph"><h1 style="font-family:var(--display);font-size:24px;font-weight:700;">🧠 Life Admin</h1><p style="font-size:13px;color:var(--text3);">Your life command center — everything in one place</p></div>
 <div class="body">
   <div class="sidebar">
     <div class="snav" id="snav"></div>
-    <div style="padding:14px;background:var(--orange-light);border-radius:var(--rl);border:1px solid var(--orange-muted);text-align:center;margin-bottom:10px;">
+    <div id="upgradeBox2" style="padding:14px;background:var(--orange-light);border-radius:var(--rl);border:1px solid var(--orange-muted);text-align:center;margin-bottom:10px;">
       <h4 style="font-size:12px;font-weight:700;color:var(--orange-dark);margin-bottom:4px;">⭐ Upgrade to Pro</h4>
-      <p style="font-size:11px;color:var(--text3);margin-bottom:10px;">File uploads, calendar sync, custom sections & more</p>
-      <button style="width:100%;padding:8px;border-radius:var(--rm);background:var(--orange);color:#fff;font-size:12px;font-weight:700;">Upgrade — $9/mo</button>
+      <p style="font-size:11px;color:var(--text3);margin-bottom:10px;">Unlimited sections, calendar sync & more</p>
+      <button onclick="window.location.href='peakly-auth.html?plan=pro'" style="width:100%;padding:8px;border-radius:var(--rm);background:var(--orange);color:#fff;font-size:12px;font-weight:700;">Upgrade — $6/mo</button>
     </div>
     <div style="padding:10px 12px;background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);font-size:11px;color:var(--text3);text-align:center;">
       Part 2 of 2 · <a href="peakly-second-brain-1.html" style="color:var(--blue);font-weight:600;text-decoration:none;">← Back to Part 1</a>
@@ -163,6 +188,12 @@ function getNav(){
   const custom=customTabs.map(t=>({id:'custom_'+t.id,label:t.name,icon:t.icon,deletable:true,isCustom:true,tabData:t}));
   return [...CORE_NAV.filter(n=>!hiddenTabs.includes(n.id)),...custom,{id:'part1',label:'← Part 1 (Health, Vehicle…)',icon:'📂',deletable:false}];
 }
+// Free plan: allow professional + finances (2 from part2, 3 from part1 = 5 total)
+const FREE_SECTIONS_P2=['professional','finances'];
+function isSectionLocked(sectionId){
+  if(window.hasProAccess)return false;
+  return!FREE_SECTIONS_P2.includes(sectionId)&&sectionId!=='part1';
+}
 
 let menuOpen=null;
 function closeMenu(){if(menuOpen){menuOpen.remove();menuOpen=null;}}
@@ -184,8 +215,16 @@ function buildNav(){
     b.innerHTML=`<span style="font-size:16px;flex-shrink:0;">${item.icon}</span><span style="font-size:13px;color:${item.id===cur?'var(--blue)':'var(--text2)'};font-weight:${item.id===cur?700:400};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${item.label}</span>`;
     b.addEventListener('click',()=>{
       if(item.id==='part1'){window.location.href='peakly-second-brain-1.html';return;}
+      if(isSectionLocked(item.id)){
+        window.location.href='peakly-auth.html?plan=pro';return;
+      }
       closeMenu();loadPage(item.id);
     });
+    // Add lock icon for free users
+    if(isSectionLocked(item.id)){
+      const lockSpan=mk('span');lockSpan.style.cssText='position:absolute;right:40px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text4);pointer-events:none;';lockSpan.textContent='🔒';
+      wrap.appendChild(lockSpan);
+    }
     wrap.appendChild(b);
     // ⋯ menu button — separate button, never overlaps the tab
     if(item.id!=='part1'){
@@ -2579,7 +2618,7 @@ function buildCustom(wrap){
     {name:'Trip planner',icon:'🗺️',cat:'Planning',rich:true,build:'buildTripPlanner'},
   ];
   wrap.appendChild(sblock('Template Library','📚',b=>{
-    b.appendChild(infoBox('Preview any template below. Click <strong>+ Add</strong> to add it as its own tab in your Second Brain sidebar. Hover any tab in the sidebar to hide or delete it.','blue'));
+    b.appendChild(infoBox('Preview any template below. Click <strong>+ Add</strong> to add it as its own tab in your Life Admin sidebar. Hover any tab in the sidebar to hide or delete it.','blue'));
     // Category filter
     const cats=['All',...new Set(TEMPLATES.map(t=>t.cat||'Other'))];
     let activeCat='All';
@@ -2641,8 +2680,24 @@ function buildCustom(wrap){
 }
 
 const PAGES={professional:buildProfessional,finances:buildFinances,family:buildFamily,pets:buildPets,community:buildCommunity,custom:buildCustom};
+// Pro/free gating for Life Admin 2
+(function(){
+  const isPro=JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  const isTrial=JSON.parse(localStorage.getItem('peakly_trial')||'false');
+  window.hasProAccess=isPro||isTrial;
+})();
 buildNav();
 loadPage('professional');
+
+// Hide upgrade box for pro/trial users
+(function(){
+  const isPro = JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  const isTrial = JSON.parse(localStorage.getItem('peakly_trial')||'false');
+  if(isPro || isTrial){
+    const box = document.getElementById('upgradeBox2');
+    if(box) box.style.display = 'none';
+  }
+})();
 </script>
 </body>
 </html>

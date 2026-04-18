@@ -419,7 +419,9 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Check if already logged in
 (async()=>{
   const { data:{ session } } = await sb.auth.getSession();
-  if(session) window.location.href = 'peakly.html';
+  if(session){
+    window.location.href='peakly.html';
+  }
 })();
 
 // ── Tab switching ─────────────────────────────────────────────
@@ -435,6 +437,10 @@ function switchTab(tab){
 
 // Check URL for ?mode=login
 if(window.location.search.includes('mode=login')) switchTab('login');
+// If coming from pro plan button, store intent
+if(window.location.search.includes('plan=pro')){
+  localStorage.setItem('peakly_plan_intent','pro');
+}
 
 // ── Alert helpers ─────────────────────────────────────────────
 function showAlert(msg, type='error'){
@@ -498,7 +504,9 @@ async function handleSignup(){
 
   if(data.user && !data.session){
     // Email confirmation required
-    showAlert('Check your email to confirm your account, then come back to log in! 📬', 'success');
+    showAlert('Almost there! We sent a confirmation email to ' + email + '. Click the link in the email to activate your account, then log in here. Check your spam folder if you do not see it!', 'success');
+    // Switch to login tab after 3 seconds
+    setTimeout(()=>switchTab('login'), 4000);
     return;
   }
 
@@ -511,6 +519,15 @@ async function handleSignup(){
       email: email
     }).eq('id', data.user.id);
 
+    // Set plan based on what button they clicked
+    const intent = localStorage.getItem('peakly_plan_intent');
+    if(intent === 'pro'){
+      localStorage.setItem('peakly_trial', JSON.stringify(true));
+      localStorage.setItem('peakly_trial_days', JSON.stringify(14));
+    } else {
+      localStorage.setItem('peakly_trial', JSON.stringify(false));
+    }
+    localStorage.removeItem('peakly_plan_intent');
     window.location.href = 'peakly.html';
   }
 }

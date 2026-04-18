@@ -551,6 +551,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
+  <!-- LOGOUT -->
+  <div style="text-align:center;margin-bottom:16px;">
+    <button class="btn btn-secondary" onclick="handleLogout()" style="width:100%;padding:13px;font-size:15px;justify-content:center;">
+      🚪 Log out
+    </button>
+  </div>
+
   <!-- DANGER ZONE -->
   <div class="section">
     <div class="section-header" onclick="toggleSection('danger')">
@@ -891,6 +898,35 @@ document.getElementById('modalConfirmBtn').addEventListener('click',()=>{
 document.getElementById('confirmModal').addEventListener('click',e=>{
   if(e.target===document.getElementById('confirmModal'))closeModal();
 });
+
+// ── Logout ────────────────────────────────────────────────────
+async function handleLogout(){
+  try{
+    const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    await sb.auth.signOut();
+  }catch(e){}
+  localStorage.clear();
+  window.location.href='peakly-auth.html';
+}
+
+// ── Auth check & sync ──────────────────────────────────────────
+(async function(){
+  try{
+    const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const {data:{session}}=await sb.auth.getSession();
+    if(session){
+      const user=session.user;
+      const meta=user.user_metadata||{};
+      const p=LS.get('peakly_profile',{});
+      if(!p.email){
+        p.firstName=p.firstName||meta.first_name||meta.full_name?.split(' ')[0]||'';
+        p.lastName=p.lastName||meta.last_name||meta.full_name?.split(' ')[1]||'';
+        p.email=user.email;
+        LS.set('peakly_profile',p);
+      }
+    }
+  }catch(e){}
+})();
 
 // ── Init ─────────────────────────────────────────────────────
 loadProfile();
