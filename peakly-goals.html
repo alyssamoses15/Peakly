@@ -65,8 +65,9 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .bar-wrap{background:var(--bg2);border-radius:100px;overflow:hidden;}
 .bar-fill{height:100%;border-radius:100px;transition:width .7s ease;}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-// ── Supabase auth + avatar ────────────────────────────────────
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ── Supabase auth + avatar ─────────────────────────────────────
 (function(){
   const SURL='https://rofnthczzpsswdtlpahk.supabase.co';
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
@@ -76,16 +77,33 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
     if(!session){window.location.href='peakly-auth.html';return;}
     const user=session.user;
     const meta=user.user_metadata||{};
-    const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email||'';
+    const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'';
     const last=meta.last_name||meta.full_name?.split(' ')[1]||'';
     let ini='?';
     if(first&&last)ini=(first[0]+last[0]).toUpperCase();
     else if(first)ini=first.slice(0,2).toUpperCase();
+    // Store name for other pages to use
+    if(first)localStorage.setItem('peakly_user_name',first+(last?' '+last:''));
+    // Photo priority: uploaded > Google/OAuth > initials
+    const uploadedPhoto=localStorage.getItem('peakly_profile_photo');
+    const googlePhoto=meta.avatar_url||meta.picture||null;
+    const photoUrl=uploadedPhoto||googlePhoto||null;
     const av=document.getElementById('navAvatar');
-    if(av)av.textContent=ini;
+    if(av){
+      if(photoUrl){
+        av.innerHTML='';
+        av.style.cssText=av.style.cssText.replace(/font-size:[^;]+;/,'');
+        const img=document.createElement('img');
+        img.src=photoUrl;
+        img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        img.onerror=()=>{av.innerHTML=ini;av.style.fontSize='11px';};
+        av.appendChild(img);
+      } else {
+        av.textContent=ini;
+      }
+    }
   });
 })();
-
 </script>
 </head>
 <body>
@@ -307,6 +325,15 @@ function getDayNum(g){
   return Math.floor((today-start)/86400000)+1;
 }
 function dateKey(){return new Date().toDateString();}
+// Get the actual calendar date string for a specific goal day number
+function getDayDateStr(g,dayNum){
+  if(!g.startedDate||!dayNum)return dateKey();
+  const start=new Date(g.startedDate);
+  start.setHours(0,0,0,0);
+  const d=new Date(start);
+  d.setDate(start.getDate()+(dayNum-1));
+  return d.toDateString();
+}
 function getWeekNum(g){
   if(!g.startedDate)return 1;
   const dayNum=getDayNum(g)||1;
@@ -328,21 +355,28 @@ function getTasksForDay(g,dayNum){
   const daily=(def.daily(dayNum)||[]).map(t=>({...t}));
   const isPlanDay=def.planningDays.includes(dayNum);
   const isCheckinDay=def.checkinDays.includes(dayNum);
-  const planning=isPlanDay?(def.planning(dayNum)||[]).map(t=>({...t})):[];
+  // Always call planning/checkin — let the function decide what to return for each day
+  const planning=(def.planning(dayNum)||[]).map(t=>({...t}));
   const checkin=isCheckinDay?(def.checkin(dayNum)||[]).map(t=>({...t})):[];
   return{daily,planning,checkin};
 }
 
 function isTaskDone(g,taskId,taskType,dayNum){
-  if(taskType==='daily'||!taskType){return LS.get('daily_'+g.id+'_'+taskId+'_'+dateKey(),false)===true;}
-  if(taskType==='planning'){const wk=getWeekNum(g);return LS.get('plan_'+g.id+'_'+taskId+'_w'+wk,false)===true;}
-  if(taskType==='checkin'){const ms=CHECKIN_DAYS.indexOf(dayNum);return LS.get('checkin_'+g.id+'_'+taskId+'_ms'+ms,false)===true;}
+  if(taskType==='daily'||!taskType){
+    const dayDate=getDayDateStr(g,dayNum);
+    return LS.get('daily_'+g.id+'_'+taskId+'_'+dayDate,false)===true;
+  }
+  if(taskType==='planning'){return LS.get('plan_'+g.id+'_'+taskId+'_d'+dayNum,false)===true;}
+  if(taskType==='checkin'){return LS.get('checkin_'+g.id+'_'+taskId+'_d'+dayNum,false)===true;}
   return false;
 }
 function setTaskDone(g,taskId,taskType,dayNum,val){
-  if(taskType==='daily'||!taskType){LS.set('daily_'+g.id+'_'+taskId+'_'+dateKey(),val);}
-  else if(taskType==='planning'){const wk=getWeekNum(g);LS.set('plan_'+g.id+'_'+taskId+'_w'+wk,val);}
-  else if(taskType==='checkin'){const ms=CHECKIN_DAYS.indexOf(dayNum);LS.set('checkin_'+g.id+'_'+taskId+'_ms'+ms,val);}
+  if(taskType==='daily'||!taskType){
+    const dayDate=getDayDateStr(g,dayNum);
+    LS.set('daily_'+g.id+'_'+taskId+'_'+dayDate,val);
+  }
+  else if(taskType==='planning'){LS.set('plan_'+g.id+'_'+taskId+'_d'+dayNum,val);}
+  else if(taskType==='checkin'){LS.set('checkin_'+g.id+'_'+taskId+'_d'+dayNum,val);}
 }
 function getGoalTaskDef(g){
   if(g.taskDefKey&&GOAL_TASK_DEFS[g.taskDefKey])return GOAL_TASK_DEFS[g.taskDefKey];
@@ -404,6 +438,27 @@ function getGoalTaskDef(g){
   return GOAL_TASK_DEFS.lose20lbs;
 }
 
+// ── Overall progress helper ─────────────────────────────────────────────────
+// numerator = tasks DONE from days 1..dayNum (elapsed only)
+// denominator = ALL tasks across the FULL plan (1..totalDays)
+// This prevents Day 1 fully done showing 100%
+function calcOverallPct(g,dayNum){
+  const def=getGoalTaskDef(g);
+  const totalD=def.totalDays||g.totalDays||90;
+  if(!g.startedDate||!dayNum)return 0;
+  let done=0,planTotal=0;
+  for(let d=1;d<=totalD;d++){
+    const{daily,planning,checkin}=getTasksForDay(g,d);
+    const tasks=[...daily,...planning,...checkin];
+    planTotal+=tasks.length;
+    if(d<=dayNum){
+      done+=tasks.filter(t=>isTaskDone(g,t.id,t.type,d)).length;
+    }
+  }
+  return planTotal>0?Math.round(done/planTotal*100):0;
+}
+
+
 // ── buildSmartRow ──────────────────────────────────────────────────────────
 function buildSmartRow(g,task,dayNum){
   const done=isTaskDone(g,task.id,task.type,dayNum);
@@ -421,7 +476,6 @@ function buildSmartRow(g,task,dayNum){
     lbl.style.textDecoration=newDone?'line-through':'none';
     lbl.style.color=newDone?'var(--text3)':'var(--text)';
     // Sync to home + calendar
-    LS.set('daily_'+g.id+'_'+task.id+'_'+dateKey(),newDone);
     const savedT=getTimePref(g,task.id)||task.time||'';
     if(savedT){const calEvs=LS.get('cal_events',[]);const ei=calEvs.findIndex(e=>e.taskId===task.id&&e.goalId===g.id&&e.date===dateKey());const entry={title:g.name+': '+task.text,time:savedT,date:dateKey(),type:'goal_task',goalId:g.id,taskId:task.id,done:newDone};if(ei>-1)calEvs[ei]=entry;else calEvs.push(entry);LS.set('cal_events',calEvs);}
     // Update progress bar live
@@ -430,8 +484,34 @@ function buildSmartRow(g,task,dayNum){
     const allT=[...daily,...planning,...checkin];
     const doneT=allT.filter(t=>isTaskDone(g,t.id,t.type,dayNum)).length;
     const pct=allT.length>0?Math.round(doneT/allT.length*100):0;
-    document.querySelectorAll('.bar-fill').forEach(el=>{el.style.width=pct+'%';});
+    // Update today bar
+    const todayBarEl=document.getElementById('todayBar');
+    if(todayBarEl)todayBarEl.style.width=pct+'%';
+    // Update today header pct
     const hdrPct=document.querySelector('[data-pct]');if(hdrPct)hdrPct.textContent=pct+'%';
+    // Update task count in sidebar
+    const taskCountEl=document.getElementById('todayTaskCount');
+    if(taskCountEl)taskCountEl.textContent=doneT+' / '+allT.length+' tasks';
+    // Update overall progress bar — done tasks / FULL plan tasks
+    (function(){
+      const overallLive=calcOverallPct(g,dayNum);
+      const overallBarEl=document.getElementById('overallBar');
+      if(overallBarEl)overallBarEl.style.width=overallLive+'%';
+      const overallPctEl=document.getElementById('overallPct');
+      if(overallPctEl)overallPctEl.textContent=overallLive+'%';
+      g.pct=overallLive;saveGoals();
+    })();
+    // Also update today header bar
+    document.querySelectorAll('.bar-fill:not(#overallBar):not(#todayBar)').forEach(el=>{el.style.width=pct+'%';});
+    // Update todayTasks on goal so home page stays in sync
+    const pg2=LS.get('peakly_goals',[]);
+    const goalInPg=pg2.find(x=>x.id===g.id);
+    if(goalInPg&&goalInPg.todayTasks){
+      goalInPg.todayTasks.forEach((t,ti)=>{
+        if(t.homeKey)LS.set(t.homeKey, isTaskDone(g,allT[ti]?.id||'',allT[ti]?.type||'daily',dayNum));
+      });
+      LS.set('peakly_goals',pg2);
+    }
     // Celebration check
     checkDayComplete(g,dayNum);
   });
@@ -899,7 +979,7 @@ function renderTodayView(g,panel){
   const doneCount=allTasks.filter(t=>isTaskDone(g,t.id,t.type,dayNum)).length;
   const pct=allTasks.length?Math.round(doneCount/allTasks.length*100):0;
   const hdr=document.createElement('div');hdr.style.cssText='padding:14px 16px;border-bottom:1px solid var(--border2);';
-  hdr.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><div><div style="font-size:14px;font-weight:700;color:var(--text);">Day '+dayNum+' of '+totalD+'</div><div style="font-size:11px;color:var(--text3);">'+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+'</div></div><div style="font-size:18px;font-weight:700;" data-pct>'+pct+'%</div></div><div class="bar-wrap" style="height:7px;"><div class="bar-fill" style="width:'+pct+'%;background:'+g.color+';"></div></div>';
+  hdr.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:14px;font-weight:700;color:var(--text);">Day '+dayNum+' of '+totalD+'</div><div style="font-size:11px;color:var(--text3);">'+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+'</div></div><div style="font-size:12px;color:var(--text3);" id="todayTaskCountHdr">'+doneCount+'/'+allTasks.length+' tasks</div></div>';
   panel.appendChild(hdr);
   if(g.sickDayDate===dateKey()){panel.innerHTML+='<div style="padding:16px;text-align:center;"><div style="font-size:20px;">🤒</div><div style="font-size:13px;font-weight:600;color:var(--red);margin-top:4px;">Sick day — rest up. Fresh start tomorrow.</div></div>';return;}
   const list=document.createElement('div');list.style.cssText='padding:8px 16px 4px;';
@@ -1220,15 +1300,23 @@ function renderGoalDetail(){
     allTasks=[...daily,...planning,...checkin].map(t=>({...t,done:isTaskDone(g,t.id,t.type,dayNum0)}));
     const doneTasks=allTasks.filter(t=>t.done).length;
     pct=allTasks.length>0?Math.round(doneTasks/allTasks.length*100):0;
+    // Write today's tasks onto goal object so home page can read them
+    // Each task gets a unique homeKey so home page can check done state independently
+    g.todayTasks=allTasks.map(t=>({
+      task:t.task||t.name||t.text||'',
+      time:t.time||t.defTime||'09:00',
+      taskId:t.id,
+      taskType:t.type||'daily',
+      homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
+    }));
+    saveGoals();
   } else {
     allTasks=g.milestones.flatMap(m=>m.tasks);
     pct=allTasks.length?Math.round(allTasks.filter(t=>t.done).length/allTasks.length*100):0;
   }
-  // Overall plan progress = days elapsed / total days
-  const overallPct=g.startedDate&&dayNum0&&totalDaysForGoal>0
-    ?Math.round(((dayNum0-1)/totalDaysForGoal)*100)
-    :pct;
-  g.pct=overallPct;saveGoals();
+  // Overall progress: done tasks / FULL plan tasks (not just elapsed)
+  const overallPct=calcOverallPct(g,dayNum0);
+  if(!g.completed){g.pct=overallPct;saveGoals();}
 
   // ── HEADER BAR ──────────────────────────────────────────────────────────
   const startedDate=g.startedDate?new Date(g.startedDate):null;
@@ -1241,8 +1329,7 @@ function renderGoalDetail(){
     +'</div>'
     +(!g.startedDate
       ?'<button onclick="startGoal('+g.id+')" style="padding:10px 18px;border-radius:var(--rm);background:'+g.color+';color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;">🚀 Start — Day 1</button>'
-      :'<div style="padding:5px 12px;border-radius:100px;background:'+g.color+'22;color:'+g.color+';font-size:12px;font-weight:700;flex-shrink:0;" data-pct>'+pct+'%</div>')
-    +'<div class="bar-wrap" style="width:130px;height:8px;flex-shrink:0;"><div class="bar-fill" style="width:'+pct+'%;background:'+g.color+';"></div></div>';
+      :'');
   el.appendChild(hdrBar);
 
   const main=document.createElement('div');
@@ -1258,7 +1345,13 @@ function renderGoalDetail(){
     const coverImg=document.createElement('img');
     coverImg.src=g.img;
     coverImg.style.cssText='width:100%;height:100%;object-fit:cover;';
-    coverImg.onerror=()=>coverWrap.remove();
+    coverImg.onerror=()=>{
+      coverImg.style.display='none';
+      const fallback=document.createElement('div');
+      fallback.style.cssText='width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:64px;background:linear-gradient(135deg,'+g.color+'33,'+g.color+'11);';
+      fallback.textContent=g.emoji;
+      coverWrap.insertBefore(fallback,coverOverlay);
+    };
     // Gradient overlay at bottom
     const coverOverlay=document.createElement('div');
     coverOverlay.style.cssText='position:absolute;inset:0;background:linear-gradient(to top,rgba(15,28,46,0.6) 0%,transparent 50%);';
@@ -1302,10 +1395,8 @@ function renderGoalDetail(){
   const pbRow=document.createElement('div');pbRow.style.cssText='background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;';
   const startedD=g.startedDate?new Date(g.startedDate):null;
   const dayNumPb=startedD?getDayNum(g):null;
-  // Full plan progress: days completed / total days
-  const fullPlanPct=g.startedDate&&dayNumPb&&totalDaysForGoal>0
-    ?Math.round(((dayNumPb-1)/totalDaysForGoal)*100)
-    :0;
+  // Overall progress: done tasks / FULL plan tasks (not just elapsed)
+  const fullPlanPct=calcOverallPct(g,dayNumPb);
   // Today progress: tasks done today (no % shown, just fills bar)
   const todayBarWidth=pct;
   pbRow.innerHTML=
@@ -1313,18 +1404,18 @@ function renderGoalDetail(){
     '<div style="margin-bottom:14px;">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
     +'<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Overall Progress</span>'
-    +'<span style="font-size:14px;font-weight:800;color:'+g.color+';">'+fullPlanPct+'%</span>'
+    +'<span id="overallPct" style="font-size:14px;font-weight:800;color:'+g.color+';">'+fullPlanPct+'%</span>'
     +'</div>'
-    +'<div class="bar-wrap" style="height:10px;"><div class="bar-fill" style="width:'+fullPlanPct+'%;background:'+g.color+';"></div></div>'
+    +'<div class="bar-wrap" style="height:10px;"><div class="bar-fill" id="overallBar" style="width:'+fullPlanPct+'%;background:'+g.color+';"></div></div>'
     +'<div style="font-size:11px;color:var(--text3);margin-top:5px;">'+(g.startedDate&&dayNumPb?'Day '+dayNumPb+' of '+totalDaysForGoal:'Not started yet')+'</div>'
     +'</div>'
     // Today's tasks bar (no % label)
     +'<div>'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
     +'<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Today</span>'
-    +'<span style="font-size:11px;color:var(--text3);">'+allTasks.filter(t=>t.done).length+' / '+allTasks.length+' tasks</span>'
+    +'<span style="font-size:11px;color:var(--text3);" id="todayTaskCount">'+allTasks.filter(t=>t.done).length+' / '+allTasks.length+' tasks</span>'
     +'</div>'
-    +'<div class="bar-wrap" style="height:10px;"><div class="bar-fill" style="width:'+todayBarWidth+'%;background:'+g.color+';"></div></div>'
+    +'<div class="bar-wrap" style="height:10px;"><div class="bar-fill" id="todayBar" style="width:'+todayBarWidth+'%;background:'+g.color+';"></div></div>'
     +'</div>'
     // Milestones count
     +'<div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);">'
@@ -1479,11 +1570,83 @@ function syncToCalendar(task,g){
 
 function openImgPicker(goalId){
   const g=goals.find(x=>x.id===goalId);if(!g)return;
+  // Free Unsplash images organised by category
+  const IMG_CATS={
+    '🏃 Fitness':['photo-1571019613454-1cb2f99b2d8b','photo-1526506118085-60ce8714f8c5','photo-1518611012118-696072aa579a','photo-1534438327276-14e5300c3a48','photo-1517836357463-d25dfeac3438','photo-1574680178050-55c6a6a96e0a','photo-1548690312-e3b507d8c110','photo-1576678927484-cc907957088c','photo-1541534741688-6078c6bfb5c5'],
+    '🧘 Wellness':['photo-1506905925346-21bda4d32df4','photo-1544367567-0f2fcb009e0b','photo-1520206183501-b80df61043c2','photo-1545389336-cf090694435e','photo-1573590330099-d6c7355ec595','photo-1470777639313-60af88918203','photo-1518241353330-0f7941c2d9b5','photo-1502139214982-d0ad755818d8'],
+    '✨ Beauty':['photo-1522338242992-e1a54906a8da','photo-1487412947147-5cebf100ffc2','photo-1596755094514-f87e34085b2c','photo-1512290923902-8a9f81dc236c','photo-1519415510236-718bdfcd89c8','photo-1560750133-c80e7e641fe5','photo-1469334031218-e382a71b716b'],
+    '🌅 Morning':['photo-1506905925346-21bda4d32df4','photo-1447752875215-b2761acb3c5d','photo-1502209524164-acea936639a2','photo-1484627147104-f5197bcd6651','photo-1470252649378-9c29740c9fa8','photo-1491555103944-7c647fd857e6'],
+    '🏠 Home':['photo-1558618666-fcd25c85cd64','photo-1586023492125-27b2c045efd7','photo-1484101403633-562f891dc89a','photo-1556909114-f6e7ad7d3136','photo-1522708323590-d24dbb6b0267','photo-1493809842364-78817add7ffb','photo-1565538810643-b5bdb714032a'],
+    '📚 Learning':['photo-1512820790803-83ca734da794','photo-1456513080510-7bf3a84b82f8','photo-1434030216411-0b793f4b6f80','photo-1507842217343-583bb7270b66','photo-1546410531-bb4caa6b424d','photo-1519389950473-47ba0277781c'],
+    '💰 Finance':['photo-1579621970563-ebec7560ff3e','photo-1611974789855-9c2a0a7236a3','photo-1560472355-536de3962603','photo-1454165804606-c3d57bc86b40','photo-1559526324-593bc073d938'],
+    '🎵 Creative':['photo-1510915361894-db8b60106cb1','photo-1511671782779-c97d3d27a1d4','photo-1513364776144-60967b0f800f','photo-1507003211169-0a1dd7228f2d','photo-1461749280684-dccba630e2f6','photo-1520523839897-bd0b52f945a0'],
+    '🌿 Nature':['photo-1501854140801-50d01698950b','photo-1441974231531-c6227db76b6e','photo-1454496522488-7a8e488e8606','photo-1469474968028-56623f02e42e','photo-1447752875215-b2761acb3c5d','photo-1426604966848-d7adac402bff'],
+    '🏙️ City':['photo-1477959858617-67f85cf4f1df','photo-1486325212027-8081e485255e','photo-1444723121867-7a241cacace9','photo-1449824913935-59a10b8d2000','photo-1496442226666-8d4d0e62e6e9'],
+  };
+  let activeCat=Object.keys(IMG_CATS)[0];
+
   const modal=document.createElement('div');modal.className='modal-bg';modal.id='imgPickerModal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(15,28,46,.5);display:flex;align-items:center;justify-content:center;z-index:600;backdrop-filter:blur(3px);';
-  const imgs=['photo-1571019613454-1cb2f99b2d8b','photo-1512820790803-83ca734da794','photo-1579621970563-ebec7560ff3e','photo-1510915361894-db8b60106cb1','photo-1506905925346-21bda4d32df4','photo-1507003211169-0a1dd7228f2d','photo-1461749280684-dccba630e2f6','photo-1558618666-fcd25c85cd64','photo-1571019613454-1cb2f99b2d8b'];
-  const inner=document.createElement('div');inner.className='modal';inner.style.maxWidth='620px';
-  inner.innerHTML='<div class="mhdr"><div><div style="font-family:var(--display);font-size:17px;font-weight:700;">📷 Choose cover image</div></div><button onclick="document.getElementById(\'imgPickerModal\').remove()" style="font-size:22px;color:var(--text4);padding:4px 8px;">×</button></div><div class="mbody"><div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Upload your own</div><input type="file" accept="image/*" onchange="handleImgUpload(event,'+goalId+')" style="font-size:12px;color:var(--text2);"/></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;" id="imgGrid">'+imgs.map(id=>'<div style="height:90px;border-radius:var(--rm);overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s;" onclick="selectImg(\'https://images.unsplash.com/'+id+'?w=400&q=80\','+goalId+')" onmouseover="this.style.borderColor=\'var(--blue)\'" onmouseout="this.style.borderColor=\'transparent\'"><img src="https://images.unsplash.com/'+id+'?w=200&q=60" style="width:100%;height:100%;object-fit:cover;"/></div>').join('')+'</div></div>';
+
+  const inner=document.createElement('div');inner.className='modal';
+  inner.style.cssText='max-width:680px;width:96%;max-height:85vh;display:flex;flex-direction:column;';
+
+  function buildPicker(){
+    inner.innerHTML='';
+    // Header
+    const hdr=document.createElement('div');hdr.className='mhdr';
+    hdr.innerHTML='<div style="font-family:var(--display);font-size:17px;font-weight:700;">📷 Choose cover image</div>'
+      +'<button onclick="document.getElementById(\'imgPickerModal\').remove()" style="font-size:22px;color:var(--text4);padding:4px 8px;background:none;border:none;cursor:pointer;">×</button>';
+    inner.appendChild(hdr);
+
+    const body=document.createElement('div');body.className='mbody';body.style.cssText='overflow-y:auto;flex:1;';
+
+    // Upload + URL row
+    const uploadRow=document.createElement('div');uploadRow.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;';
+    uploadRow.innerHTML='<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;">📁 Upload your own</div>'
+      +'<input type="file" accept="image/*" onchange="handleImgUpload(event,'+goalId+')" style="font-size:11px;color:var(--text2);width:100%;"></div>'
+      +'<div><div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:5px;">🔗 Paste image URL</div>'
+      +'<div style="display:flex;gap:6px;"><input id="imgUrlInput" class="inp" placeholder="https://..." style="font-size:12px;flex:1;">'
+      +'<button onclick="const u=document.getElementById(\'imgUrlInput\').value.trim();if(u){selectImg(u,'+goalId+')}" style="padding:6px 12px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;">Use</button></div></div>';
+    body.appendChild(uploadRow);
+
+    // Category tabs
+    const tabs=document.createElement('div');tabs.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
+    Object.keys(IMG_CATS).forEach(cat=>{
+      const tb=document.createElement('button');
+      tb.textContent=cat;
+      tb.style.cssText='font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;white-space:nowrap;transition:all .15s;'
+        +(cat===activeCat?'background:var(--blue);color:#fff;border-color:var(--blue);':'background:var(--bg);color:var(--text2);');
+      tb.onclick=()=>{activeCat=cat;buildPicker();};
+      tabs.appendChild(tb);
+    });
+    body.appendChild(tabs);
+
+    // Image grid
+    const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;';
+    IMG_CATS[activeCat].forEach(photoId=>{
+      const url='https://images.unsplash.com/'+photoId+'?w=400&q=80';
+      const thumb='https://images.unsplash.com/'+photoId+'?w=220&q=60';
+      const cell=document.createElement('div');
+      cell.style.cssText='height:90px;border-radius:var(--rm);overflow:hidden;cursor:pointer;border:2px solid '+(g.img===url?'var(--blue)':'transparent')+';transition:border-color .15s;position:relative;';
+      cell.innerHTML='<img src="'+thumb+'" style="width:100%;height:100%;object-fit:cover;" loading="lazy">'
+        +(g.img===url?'<div style="position:absolute;top:4px;right:4px;background:var(--blue);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;"><svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>':'');
+      cell.onmouseover=()=>{if(g.img!==url)cell.style.borderColor='var(--blue-muted)';};
+      cell.onmouseout=()=>{if(g.img!==url)cell.style.borderColor='transparent';};
+      cell.onclick=()=>selectImg(url,goalId);
+      grid.appendChild(cell);
+    });
+    body.appendChild(grid);
+
+    // Credit
+    const credit=document.createElement('div');credit.style.cssText='font-size:10px;color:var(--text4);margin-top:10px;text-align:center;';
+    credit.textContent='Free photos from Unsplash';
+    body.appendChild(credit);
+
+    inner.appendChild(body);
+  }
+
+  buildPicker();
   modal.appendChild(inner);document.body.appendChild(modal);
 }
 function selectImg(url,goalId){const g=goals.find(x=>x.id===goalId);if(g){g.img=url;saveGoals();}document.getElementById('imgPickerModal')?.remove();renderGoalDetail();toast('Image updated!');}
@@ -1525,7 +1688,7 @@ const GOAL_TASK_DEFS = {
   },
 
   // ── Become More Attractive ────────────────────────────────────────────────
-  attractive:{totalDays:102,planningDays:[1,8,15,22,29,36,43,50,57,64,71,78,85,92,99],checkinDays:[34,68,102],
+  attractive:{totalDays:102,planningDays:[1, 2, 3, 4, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 22, 23, 24, 25, 28, 29, 30, 31, 32, 36, 37, 38, 39, 43, 44, 45, 46, 48, 50, 51, 52, 53, 57, 58, 59, 60, 64, 65, 66, 67, 71, 72, 73, 74, 78, 79, 80, 81, 82, 85, 86, 87, 88, 92, 93, 94, 95, 99, 100, 101, 102],checkinDays:[34,68,102],
     day21msg:"21 days of showing up for yourself. Your skin, your energy, your confidence — all quietly shifting.",
     suggestedNext:['Consistent Morning & Night Routine','Do Yoga Regularly','Find Your Style','Daily Gratitude'],
     daily:(d)=>[
@@ -3498,9 +3661,9 @@ const GOAL_TEMPLATES=[
   // ── FITNESS & PHYSICAL ──────────────────────────────────────────────────────
   {name:'75 Hard',emoji:'💪',color:'#DC2626',taskDefKey:'seventyfivehard',img:'https://images.unsplash.com/photo-1526506118085-60ce8714f8c5?w=400&q=80',totalDays:75,category:'Fitness',
    milestones:[{id:1,name:'Locking In',days:'Day 1–25',pct:33,reached:false,tasks:[]},{id:2,name:'No Turning Back',days:'Day 26–50',pct:67,reached:false,tasks:[]},{id:3,name:'Unstoppable 🏔️',days:'Day 51–75',pct:100,reached:false,tasks:[]}]},
-  {name:'75 Soft',emoji:'🌱',color:'#059669',taskDefKey:'seventyfivesoft',img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',totalDays:75,category:'Fitness',
+  {name:'75 Soft',emoji:'🌱',color:'#059669',taskDefKey:'seventyfivesoft',img:'https://picsum.photos/seed/fitness/800/400',totalDays:75,category:'Fitness',
    milestones:[{id:1,name:'Building Habits',days:'Day 1–25',pct:33,reached:false,tasks:[]},{id:2,name:'Finding Rhythm',days:'Day 26–50',pct:67,reached:false,tasks:[]},{id:3,name:'New Lifestyle 🏔️',days:'Day 51–75',pct:100,reached:false,tasks:[]}]},
-  {name:'Lose 20 lbs',emoji:'🏃',color:'#1A5FA8',taskDefKey:'lose20lbs',img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',totalDays:90,category:'Fitness',
+  {name:'Lose 20 lbs',emoji:'🏃',color:'#1A5FA8',taskDefKey:'lose20lbs',img:'https://picsum.photos/seed/fitness/800/400',totalDays:90,category:'Fitness',
    milestones:[{id:1,name:'Lose 7 lbs',days:'Day 1–30',pct:33,reached:false,tasks:[]},{id:2,name:'Lose 14 lbs',days:'Day 31–60',pct:67,reached:false,tasks:[]},{id:3,name:'Lose 20 lbs 🏔️',days:'Day 61–90',pct:100,reached:false,tasks:[]}]},
   {name:'Do Pilates Regularly',emoji:'🧘',color:'#DB2777',taskDefKey:'pilates',img:'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=400&q=80',totalDays:60,category:'Fitness',
    milestones:[{id:1,name:'Building the Habit',days:'Day 1–30',pct:50,reached:false,tasks:[]},{id:2,name:'Solidifying the Routine 🏔️',days:'Day 31–60',pct:100,reached:false,tasks:[]}]},
@@ -4008,7 +4171,7 @@ function renderCreateStep(){
 
 // ── Seed goals ────────────────────────────────────────────────────────────
 const SEED_GOALS=[
-  {id:1,name:'Lose 20 lbs',emoji:'🏃',color:'#1A5FA8',taskDefKey:'lose20lbs',img:'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80',target:'2025-12-31',pct:0,completed:false,totalDays:90,startedDate:new Date().toISOString(),sickDayDate:null,
+  {id:1,name:'Lose 20 lbs',emoji:'🏃',color:'#1A5FA8',taskDefKey:'lose20lbs',img:'https://picsum.photos/seed/fitness/800/400',target:'2025-12-31',pct:0,completed:false,totalDays:90,startedDate:new Date().toISOString(),sickDayDate:null,
    milestones:[
      {id:1,name:'Lose 7 lbs',days:'Day 1–30',pct:33,reached:false,tasks:[]},
      {id:2,name:'Lose 14 lbs',days:'Day 31–60',pct:66,reached:false,tasks:[]},
@@ -4023,6 +4186,68 @@ const SEED_GOALS=[
 ];
 
 let goals=LS.get('peakly_goals',null)||SEED_GOALS;
+// ── Repair missing taskDefKeys on existing saved goals ─────────────────────
+// Maps goal names → taskDefKey for goals created before taskDefKey was added
+const TASKDEF_NAME_MAP={
+  'Become More Attractive':'attractive',
+  'Consistent Morning & Night Routine':'morningnightroutine',
+  'Consistent Cleaning':'cleaning',
+  'Couch to 5K':'c25k','Half Marathon':'halfmarathon','Marathon':'halfmarathon',
+  'Sprint Triathlon':'c25k','Olympic Triathlon':'halfmarathon',
+  'Half Ironman (70.3)':'halfmarathon','Full Ironman':'halfmarathon',
+  '75 Hard':'seventyfivehard','75 Soft':'seventyfivesoft',
+  'Lose 20 lbs':'lose20lbs',
+  'Do Pilates Regularly':'pilates','Do Yoga Regularly':'yoga',
+  'Hike a 14er':'hike14er','Complete a Long Distance Hike':'hike14er',
+  'Start Gymnastics':'dailypractice','Get a Back Flip':'dailypractice','Do the Splits':'dailypractice',
+  'Become a Blue Belt in Martial Arts':'dailypractice',
+  'Get Good Grades (Full-Time, 15-Week)':'schoolfull15','Get Good Grades (Part-Time, 15-Week)':'schoolpart15',
+  'Get Good Grades (Full-Time, 7.5-Week)':'schoolfull15','Get Good Grades (Part-Time, 7.5-Week)':'schoolpart15',
+  'Get 1,000 Followers':'socialmedia','Get 10,000 Followers':'socialmedia',
+  'Make Money on Social Media':'socialmedia','Start YouTube & Get 5,000 Subscribers':'socialmedia',
+  'Save an Emergency Fund':'savings','Save for a Down Payment':'savings','Pay Off Debt':'savings',
+  'Pay Off Your Car':'savings','Buy a House':'savings','Start Investing':'savings',
+  'Build a Budget':'savings','Track Spending for 30 Days':'savings',
+  'Negotiate a Bill':'savings','Max Retirement Contributions':'savings',
+  'Read 12 Books a Year':'read12books','Learn a Language':'language','Learn to Code':'code',
+  'Daily Journaling':'journaling','Start Meditation':'meditation','Daily Gratitude Practice':'gratitude',
+  'Eat Whole Foods':'eatwholefoods','Meal Prep Weekly':'mealprep','Cut Sugar for 30 Days':'eatwholefoods',
+  'Track Your Macros':'eatwholefoods','Cook at Home Every Day':'mealprep','Drink More Water':'drinkwater',
+  'Get a Promotion':'getpromotion','Get a New Job':'getpromotion','Get a Raise':'getpromotion',
+  'Pass a Certification':'code','Build a Portfolio':'dailypractice','Start a Side Hustle':'smallbusiness',
+  'Start a Small Business':'smallbusiness','Build a Large Business with Investors':'smallbusiness',
+  'Declutter Your Home (KonMari)':'konmari','Go Minimal':'konmari','Create a Peaceful Bedroom':'konmari',
+  'Daily Prayer Habit':'prayer','Practice Mindfulness Daily':'mindfulness',
+  'Weekend Digital Detox Habit':'mindfulness',
+  'Read to Your Kids Every Night':'readtokids','Phone-Free Family Time':'readtokids',
+  'Weekly Game Night':'readtokids','Be More Present with Kids':'readtokids',
+};
+let _repaired=false;
+goals.forEach(g=>{
+  if(!g.taskDefKey||!GOAL_TASK_DEFS[g.taskDefKey]){
+    const mapped=TASKDEF_NAME_MAP[g.name];
+    if(mapped){
+      g.taskDefKey=mapped;
+      _repaired=true;
+      // Fix totalDays if it was set from wrong default (e.g. 90 for a 102-day goal)
+      const correctDef=GOAL_TASK_DEFS[mapped];
+      if(correctDef&&correctDef.totalDays&&g.totalDays!==correctDef.totalDays){
+        g.totalDays=correctDef.totalDays;
+      }
+      // Reset pct and completed if goal was incorrectly marked done due to wrong totalDays
+      if(g.completed&&g.startedDate){
+        const start=new Date(g.startedDate);start.setHours(0,0,0,0);
+        const today=new Date();today.setHours(0,0,0,0);
+        const elapsed=Math.floor((today-start)/86400000)+1;
+        if(elapsed<(correctDef?correctDef.totalDays:g.totalDays)){
+          g.completed=false;
+          g.pct=0;
+        }
+      }
+    }
+  }
+});
+if(_repaired){LS.set('peakly_goals',goals);console.log('Peakly: repaired taskDefKeys and totalDays on saved goals');}
 let activeGoalId=null;let createStep=1;let newGoal={};let currentView='today';let currentMilestoneIdx=0;
 function saveGoals(){LS.set('peakly_goals',goals);}
 

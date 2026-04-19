@@ -860,37 +860,43 @@ function UserAvatar(){
 
 function App(){
   const [goals,setGoals]=useState(()=>{
-    // Read from peakly_goals (set by goals page) and map to home format
     const pg=LS.get('peakly_goals',[]);
     if(pg&&pg.length>0){
-      const today=new Date().toDateString();
-      return pg.map(g=>{
-        // Get today's specific tasks for this goal
-        // Goals page stores daily tasks as daily_{goalId}_{taskId}_{date}
-        // Try to get tasks specific to this goal
-        let tasks=[];
-        if(g.startedDate&&g.todayTasks&&g.todayTasks.length>0){
-          tasks=g.todayTasks;
-        } else if(g.tasks&&g.tasks.length>0){
-          tasks=g.tasks;
-        }
-        return {
-          id:g.id,
-          name:g.name,
-          emoji:g.emoji||'🎯',
-          color:g.color||'blue',
-          img:g.img||null,
-          habits:tasks.slice(0,4).map((t,ti)=>({
-            id:g.id*100+ti,
-            name:t.task||t.name||String(t),
-            time:t.time||'',
-            // Check both task_done and daily_ keys
-            done:LS.get('task_done_'+g.id+'_'+ti,false)||
-                 LS.get('daily_'+g.id+'_t_'+ti+'_'+today,false)||
-                 LS.get('daily_'+g.id+'_d0_'+ti+'_'+today,false)
-          }))
-        };
-      });
+      return pg
+        .filter(g=>g.startedDate&&!g.completed)
+        .map(g=>{
+          const tasks=g.todayTasks||[];
+          return {
+            id:g.id,
+            name:g.name,
+            emoji:g.emoji||'🎯',
+            color:g.color||'blue',
+            img:g.img||null,
+            habits:tasks.map((t,ti)=>{
+              // Compute the correct storage key matching goals page
+              const _gid=g.id;
+              const _tid=t.taskId||('t'+ti);
+              const _type=t.taskType||'daily';
+              const _today=new Date().toISOString().slice(0,10);
+              const _sd=g.startedDate?new Date(g.startedDate):new Date();
+              _sd.setHours(0,0,0,0);
+              const _now=new Date();_now.setHours(0,0,0,0);
+              const _dayNum=Math.floor((_now-_sd)/86400000)+1;
+              const _storeKey=_type==='planning'?'plan_'+_gid+'_'+_tid+'_d'+_dayNum
+                :_type==='checkin'?'checkin_'+_gid+'_'+_tid+'_d'+_dayNum
+                :'daily_'+_gid+'_'+_tid+'_'+_today;
+              return {
+                id:g.id+'_'+ti,
+                homeKey:t.homeKey||('home_task_'+g.id+'_'+ti+'_'+new Date().toDateString()),
+                storeKey:_storeKey,
+                name:t.task||t.name||String(t),
+                time:t.time||'',
+                taskType:_type,
+                done:LS.get(_storeKey,false)
+              };
+            })
+          };
+        });
     }
     return LS.get(`goals_${todayKey()}`,null)||SEED_GOALS;
   });
@@ -904,25 +910,36 @@ function App(){
   const saveWater=w=>{setWater(w);LS.set(`water_${todayKey()}`,w);};
 
   const toggleHabit=(goalId,habitId)=>{
-    const upd=goals.map(g=>g.id===goalId?{...g,habits:g.habits.map(h=>h.id===habitId?{...h,done:!h.done}:h)}:g);
-    // Save to today's goals state
+    // Toggle the specific habit
+    const upd=goals.map(g=>g.id===goalId?{
+      ...g,
+      habits:g.habits.map(h=>h.id===habitId?{...h,done:!h.done}:h)
+    }:g);
     setGoals(upd);
-    LS.set(`goals_${todayKey()}`,upd);
-    // ALSO write task_done keys so progress persists correctly
+    // Write to the goals-page storage key so goals page stays in sync
     const goal=upd.find(g=>g.id===goalId);
-    if(goal){
-      goal.habits.forEach((h,ti)=>{
-        LS.set('task_done_'+goalId+'_'+ti, h.done);
-      });
-      // Write daily_ keys that goals page uses (so goals page stays in sync)
-      goal.habits.forEach((h,ti)=>{
-        LS.set('daily_'+goalId+'_t_'+ti+'_'+new Date().toDateString(), h.done);
-      });
+    const habit=goal?.habits.find(h=>h.id===habitId);
+    if(habit?.storeKey){
+      LS.set(habit.storeKey, habit.done);
     }
-    // Update peakly_goals so goals page shows correct state
+    // Also write homeKey for home page UI state
+    if(habit?.homeKey){
+      LS.set(habit.homeKey, habit.done);
+    }
+    // Also update peakly_goals so goals page sees correct state
     const pg=LS.get('peakly_goals',[]);
-    const updPg=pg.map(g=>g.id===goalId?{...g,habits:goal?.habits||g.habits}:g);
-    LS.set('peakly_goals',updPg);
+    if(pg.length>0){
+      const updPg=pg.map(g=>{
+        if(g.id!==goalId)return g;
+        const updTasks=(g.todayTasks||[]).map((t,ti)=>{
+          const matchingHabit=goal?.habits[ti];
+          if(!matchingHabit)return t;
+          return {...t,done:matchingHabit.done};
+        });
+        return {...g,todayTasks:updTasks};
+      });
+      LS.set('peakly_goals',updPg);
+    }
     const all=upd.flatMap(g=>g.habits);
     const done=all.filter(h=>h.done).length;
     if(done===all.length&&done>prevRef.current){

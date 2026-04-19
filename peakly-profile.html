@@ -318,8 +318,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
   <!-- PROFILE HEADER -->
   <div class="profile-header" id="profileHeader">
-    <div class="avatar" onclick="changeAvatar()" title="Change photo">
-      <span id="avatarEmoji">😊</span>
+    <div class="avatar" onclick="openPhotoPicker()" title="Change photo" id="avatarWrap">
+      <span id="avatarEmoji" style="font-size:28px;">😊</span>
       <div class="avatar-edit">Edit</div>
     </div>
     <div class="profile-info">
@@ -632,7 +632,27 @@ function loadProfile(){
   document.getElementById('firstName').value=firstName;
   document.getElementById('lastName').value=lastName;
   document.getElementById('emailField').value=profile.email||'';
-  document.getElementById('avatarEmoji').textContent=profile.avatar||'😊';
+  // Show photo or initials
+  const savedPhoto=localStorage.getItem('peakly_profile_photo');
+  if(savedPhoto){
+    renderAvatarPhoto(savedPhoto);
+  } else {
+    // Check for Google photo from Supabase session
+    try{
+      const sb2=supabase.createClient('https://rofnthczzpsswdtlpahk.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU');
+      sb2.auth.getSession().then(({data:{session}})=>{
+        const googlePhoto=session?.user?.user_metadata?.avatar_url||session?.user?.user_metadata?.picture||null;
+        if(googlePhoto){renderAvatarPhoto(googlePhoto);}
+        else{
+          const ini=(firstName&&lastName)?(firstName[0]+lastName[0]).toUpperCase():firstName?firstName.slice(0,2).toUpperCase():'?';
+          document.getElementById('avatarEmoji').textContent=ini;
+        }
+      });
+    }catch(e){
+      const ini=(firstName&&lastName)?(firstName[0]+lastName[0]).toUpperCase():firstName?firstName.slice(0,2).toUpperCase():'?';
+      document.getElementById('avatarEmoji').textContent=ini;
+    }
+  }
 
   // Goals
   const goals=LS.get('peakly_goals',[]);
@@ -771,14 +791,140 @@ function loadProfile(){
 // ── Avatar picker ────────────────────────────────────────────
 const avatarOptions=['😊','😎','🧗','🏔️','🌟','💪','🦋','🌿','🔥','⚡','🎯','🚀'];
 let avatarIdx=0;
-function changeAvatar(){
-  avatarIdx=(avatarIdx+1)%avatarOptions.length;
-  const emoji=avatarOptions[avatarIdx];
-  document.getElementById('avatarEmoji').textContent=emoji;
+function openPhotoPicker(){
+  // Remove existing picker
+  document.getElementById('photoPickerModal')?.remove();
+
+  // Free photos by category
+  const FREE_PHOTOS={
+    '🌸 Lifestyle':['photo-1506905925346-21bda4d32df4','photo-1499209974431-9dddcece7f88','photo-1502764613149-7f1d229e230f','photo-1529156069898-49953e39b3ac','photo-1488161628813-04466f872be2'],
+    '✨ Beauty':['photo-1522338242992-e1a54906a8da','photo-1487412947147-5cebf100ffc2','photo-1596755094514-f87e34085b2c','photo-1560750133-c80e7e641fe5','photo-1519415510236-718bdfcd89c8'],
+    '🏃 Fitness':['photo-1571019613454-1cb2f99b2d8b','photo-1526506118085-60ce8714f8c5','photo-1518611012118-696072aa579a','photo-1517836357463-d25dfeac3438','photo-1576678927484-cc907957088c'],
+    '🌿 Nature':['photo-1501854140801-50d01698950b','photo-1441974231531-c6227db76b6e','photo-1447752875215-b2761acb3c5d','photo-1426604966848-d7adac402bff','photo-1469474968028-56623f02e42e'],
+    '💫 Minimal':['photo-1507003211169-0a1dd7228f2d','photo-1554080353-a576cf803bda','photo-1478720568477-152d9b164e26','photo-1500648767791-00dcc994a43e','photo-1534528741775-53994a69daeb'],
+  };
+  let activeCat=Object.keys(FREE_PHOTOS)[0];
+
+  const modal=document.createElement('div');modal.id='photoPickerModal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(15,28,46,.55);display:flex;align-items:center;justify-content:center;z-index:900;backdrop-filter:blur(4px);';
+
+  function build(){
+    modal.innerHTML='';
+    const box=document.createElement('div');
+    box.style.cssText='background:var(--white);border-radius:16px;width:94%;max-width:520px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;';
+
+    // Header
+    box.innerHTML='<div style="padding:16px 20px;border-bottom:1px solid var(--border2);display:flex;justify-content:space-between;align-items:center;">'
+      +'<div style="font-family:var(--display);font-size:16px;font-weight:700;">📷 Profile photo</div>'
+      +'<button onclick="closePhotoPicker()" style="font-size:20px;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 6px;">×</button></div>';
+
+    const body=document.createElement('div');body.style.cssText='padding:16px 20px;overflow-y:auto;flex:1;';
+
+    // Current photo display
+    const currentPhoto=localStorage.getItem('peakly_profile_photo');
+    if(currentPhoto){
+      const curRow=document.createElement('div');curRow.style.cssText='display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:12px;background:var(--bg);border-radius:var(--rm);';
+      curRow.innerHTML='<img src="'+currentPhoto+'" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">'
+        +'<div><div style="font-size:13px;font-weight:600;color:var(--text);">Current photo</div>'
+        +'<button onclick="removePhoto()" style="font-size:11px;color:var(--red);background:none;border:none;cursor:pointer;padding:0;">Remove photo</button></div>';
+      body.appendChild(curRow);
+    }
+
+    // Upload row
+    const uploadRow=document.createElement('div');uploadRow.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;';
+    uploadRow.innerHTML='<label style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--blue-light);border:1px dashed var(--blue-muted);border-radius:var(--rm);cursor:pointer;font-size:13px;font-weight:600;color:var(--blue);">'
+      +'📁 Upload photo<input type="file" accept="image/*" style="display:none;" onchange="handleProfileUpload(event)">'
+      +'</label>'
+      +'<div style="display:flex;flex-direction:column;gap:4px;">'
+      +'<div style="font-size:11px;font-weight:600;color:var(--text2);">🔗 Paste URL</div>'
+      +'<div style="display:flex;gap:6px;">'
+      +'<input id="profileUrlInput" class="inp" placeholder="https://..." style="font-size:12px;flex:1;">'
+      +'<button onclick="useProfileUrl()" style="padding:6px 12px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:600;">Use</button>'
+      +'</div></div>';
+    body.appendChild(uploadRow);
+
+    // Category tabs
+    const tabs=document.createElement('div');tabs.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
+    Object.keys(FREE_PHOTOS).forEach(cat=>{
+      const tb=document.createElement('button');
+      tb.textContent=cat;
+      tb.style.cssText='font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--border2);cursor:pointer;white-space:nowrap;'
+        +(cat===activeCat?'background:var(--blue);color:#fff;border-color:var(--blue);':'background:var(--bg);color:var(--text2);');
+      tb.onclick=()=>{activeCat=cat;build();};
+      tabs.appendChild(tb);
+    });
+    body.appendChild(tabs);
+
+    // Photo grid
+    const grid=document.createElement('div');grid.style.cssText='display:grid;grid-template-columns:repeat(5,1fr);gap:8px;';
+    FREE_PHOTOS[activeCat].forEach(photoId=>{
+      const url='https://images.unsplash.com/'+photoId+'?w=200&q=80';
+      const isSelected=currentPhoto===url;
+      const cell=document.createElement('div');
+      cell.style.cssText='width:100%;aspect-ratio:1;border-radius:50%;overflow:hidden;cursor:pointer;border:3px solid '+(isSelected?'var(--blue)':'transparent')+';transition:border-color .15s;';
+      cell.innerHTML='<img src="'+url+'" style="width:100%;height:100%;object-fit:cover;" loading="lazy">';
+      cell.onclick=()=>setProfilePhoto(url);
+      grid.appendChild(cell);
+    });
+    body.appendChild(grid);
+
+    // Credit
+    const credit=document.createElement('div');credit.style.cssText='font-size:10px;color:var(--text4);margin-top:10px;text-align:center;';
+    credit.textContent='Free photos from Unsplash';
+    body.appendChild(credit);
+
+    box.appendChild(body);
+    modal.appendChild(box);
+  }
+
+  build();
+  document.body.appendChild(modal);
+}
+
+function useProfileUrl(){const u=document.getElementById("profileUrlInput")?.value?.trim();if(u)setProfilePhoto(u);}
+function closePhotoPicker(){document.getElementById("photoPickerModal")?.remove();}
+function setProfilePhoto(url){
+  localStorage.setItem('peakly_profile_photo',url);
+  renderAvatarPhoto(url);
+  document.getElementById('photoPickerModal')?.remove();
+  toast('Profile photo updated! ✨');
+}
+
+function removePhoto(){
+  localStorage.removeItem('peakly_profile_photo');
+  // Revert to initials
   const profile=LS.get('peakly_profile',{});
-  profile.avatar=emoji;
-  LS.set('peakly_profile',profile);
-  toast('Avatar updated!');
+  const first=profile.firstName||'';
+  const last=profile.lastName||'';
+  let ini=first&&last?(first[0]+last[0]).toUpperCase():first?first.slice(0,2).toUpperCase():'?';
+  const wrap=document.getElementById('avatarWrap');
+  if(wrap){wrap.innerHTML='<span id="avatarEmoji" style="font-size:28px;">'+ini+'</span><div class="avatar-edit">Edit</div>';}
+  document.getElementById('photoPickerModal')?.remove();
+  toast('Photo removed');
+}
+
+function _avatarFallback(el){
+  const wrap=el.parentElement;if(!wrap)return;
+  wrap.innerHTML='<span id="avatarEmoji" style="font-size:28px;">😊</span><div class="avatar-edit">Edit</div>';
+}
+function renderAvatarPhoto(url){
+  const wrap=document.getElementById('avatarWrap');
+  if(!wrap)return;
+  const img=document.createElement('img');
+  img.src=url;
+  img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%;';
+  img.onerror=function(){_avatarFallback(this);};
+  const editDiv=document.createElement('div');editDiv.className='avatar-edit';editDiv.textContent='Edit';
+  wrap.innerHTML='';
+  wrap.appendChild(img);
+  wrap.appendChild(editDiv);
+}
+
+function handleProfileUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{setProfilePhoto(ev.target.result);};
+  reader.readAsDataURL(file);
 }
 
 // ── Save account ─────────────────────────────────────────────
