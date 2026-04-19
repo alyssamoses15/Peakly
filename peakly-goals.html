@@ -674,11 +674,20 @@ function switchView(v){
   currentView=v;
   const g=goals.find(x=>x.id===activeGoalId);if(!g)return;
   document.querySelectorAll('.vt-btn').forEach(b=>{
-    const map={today:'Today',weekly:'Weekly',milestone:'Milestones',plan:'Full Plan'};
-    b.classList.toggle('on',b.textContent===map[v]);
+    const isActive=b.dataset.view===v||b.textContent==={today:'Today',weekly:'Weekly',milestone:'Milestones',plan:'Full Plan'}[v];
+    b.classList.toggle('on',isActive);
+    // Update inline styles so active state is fully visible
+    b.style.background=isActive?g.color:'var(--white)';
+    b.style.color=isActive?'#fff':'var(--text2)';
+    b.style.borderColor=isActive?g.color:'var(--border)';
+    b.style.fontWeight=isActive?'700':'600';
   });
   const panel=document.getElementById('taskPanel');
-  if(panel){panel.style.animation='none';requestAnimationFrame(()=>{panel.style.animation='slideRight .25s ease';});renderTaskView(g,panel);}
+  if(panel){
+    panel.style.animation='none';
+    requestAnimationFrame(()=>{panel.style.animation='slideRight .25s ease';});
+    renderTaskView(g,panel);
+  }
 }
 function renderTaskView(g,panel){
   panel.innerHTML='';
@@ -1215,7 +1224,11 @@ function renderGoalDetail(){
     allTasks=g.milestones.flatMap(m=>m.tasks);
     pct=allTasks.length?Math.round(allTasks.filter(t=>t.done).length/allTasks.length*100):0;
   }
-  g.pct=pct;saveGoals();
+  // Overall plan progress = days elapsed / total days
+  const overallPct=g.startedDate&&dayNum0&&totalDaysForGoal>0
+    ?Math.round(((dayNum0-1)/totalDaysForGoal)*100)
+    :pct;
+  g.pct=overallPct;saveGoals();
 
   // ── HEADER BAR ──────────────────────────────────────────────────────────
   const startedDate=g.startedDate?new Date(g.startedDate):null;
@@ -1271,7 +1284,7 @@ function renderGoalDetail(){
   // View toggle
   const vtWrap=document.createElement('div');vtWrap.style.cssText='display:flex;gap:6px;margin-bottom:14px;';
   [{label:'Today',v:'today'},{label:'Weekly',v:'weekly'},{label:'Milestones',v:'milestone'},{label:'Full Plan',v:'plan'}].forEach(({label,v})=>{
-    const btn=document.createElement('button');btn.className='vt-btn'+(currentView===v?' on':'');btn.textContent=label;
+    const btn=document.createElement('button');btn.className='vt-btn'+(currentView===v?' on':'');btn.textContent=label;btn.dataset.view=v;
     btn.style.cssText='padding:7px 16px;border-radius:100px;font-size:12px;font-weight:600;border:1.5px solid '+(currentView===v?g.color:'var(--border)')+';background:'+(currentView===v?g.color:'var(--white)')+';color:'+(currentView===v?'#fff':'var(--text2)')+';cursor:pointer;transition:all .2s;';
     btn.onclick=()=>switchView(v);vtWrap.appendChild(btn);
   });
@@ -1289,9 +1302,35 @@ function renderGoalDetail(){
   const pbRow=document.createElement('div');pbRow.style.cssText='background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);box-shadow:var(--shadow);padding:16px;margin-bottom:14px;';
   const startedD=g.startedDate?new Date(g.startedDate):null;
   const dayNumPb=startedD?getDayNum(g):null;
-  pbRow.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span style="font-size:12px;font-weight:600;color:var(--text2);">Today\'s progress</span><span style="font-size:14px;font-weight:700;color:'+g.color+';">'+pct+'%</span></div>'
-    +'<div class="bar-wrap" style="height:12px;"><div class="bar-fill" style="width:'+pct+'%;background:'+g.color+';"></div></div>'
-    +'<div style="display:flex;justify-content:space-between;margin-top:6px;"><span style="font-size:11px;color:var(--text3);">'+(g.startedDate&&dayNumPb?'Day '+dayNumPb+' of '+totalDaysForGoal:'Not started yet')+'</span><span style="font-size:11px;color:var(--text3);">'+g.milestones.filter(m=>m.reached).length+' of '+g.milestones.length+' milestones</span></div>';
+  // Full plan progress: days completed / total days
+  const fullPlanPct=g.startedDate&&dayNumPb&&totalDaysForGoal>0
+    ?Math.round(((dayNumPb-1)/totalDaysForGoal)*100)
+    :0;
+  // Today progress: tasks done today (no % shown, just fills bar)
+  const todayBarWidth=pct;
+  pbRow.innerHTML=
+    // Overall / Full Plan bar
+    '<div style="margin-bottom:14px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+    +'<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Overall Progress</span>'
+    +'<span style="font-size:14px;font-weight:800;color:'+g.color+';">'+fullPlanPct+'%</span>'
+    +'</div>'
+    +'<div class="bar-wrap" style="height:10px;"><div class="bar-fill" style="width:'+fullPlanPct+'%;background:'+g.color+';"></div></div>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:5px;">'+(g.startedDate&&dayNumPb?'Day '+dayNumPb+' of '+totalDaysForGoal:'Not started yet')+'</div>'
+    +'</div>'
+    // Today's tasks bar (no % label)
+    +'<div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
+    +'<span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Today</span>'
+    +'<span style="font-size:11px;color:var(--text3);">'+allTasks.filter(t=>t.done).length+' / '+allTasks.length+' tasks</span>'
+    +'</div>'
+    +'<div class="bar-wrap" style="height:10px;"><div class="bar-fill" style="width:'+todayBarWidth+'%;background:'+g.color+';"></div></div>'
+    +'</div>'
+    // Milestones count
+    +'<div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border2);">'
+    +'<span style="font-size:11px;color:var(--text3);">Milestones reached</span>'
+    +'<span style="font-size:11px;font-weight:700;color:var(--text);">'+g.milestones.filter(m=>m.reached).length+' / '+g.milestones.length+'</span>'
+    +'</div>';
   right.appendChild(pbRow);
 
   // Milestones sidebar

@@ -863,19 +863,34 @@ function App(){
     // Read from peakly_goals (set by goals page) and map to home format
     const pg=LS.get('peakly_goals',[]);
     if(pg&&pg.length>0){
-      return pg.map(g=>({
-        id:g.id,
-        name:g.name,
-        emoji:g.emoji||'🎯',
-        color:g.color||'blue',
-        img:g.img||null,
-        habits:(g.todayTasks||g.tasks||[]).slice(0,4).map((t,ti)=>({
-          id:g.id*100+ti,
-          name:t.task||t.name||t,
-          time:t.time||'',
-          done:LS.get('task_done_'+g.id+'_'+ti,false)
-        }))
-      }));
+      const today=new Date().toDateString();
+      return pg.map(g=>{
+        // Get today's specific tasks for this goal
+        // Goals page stores daily tasks as daily_{goalId}_{taskId}_{date}
+        // Try to get tasks specific to this goal
+        let tasks=[];
+        if(g.startedDate&&g.todayTasks&&g.todayTasks.length>0){
+          tasks=g.todayTasks;
+        } else if(g.tasks&&g.tasks.length>0){
+          tasks=g.tasks;
+        }
+        return {
+          id:g.id,
+          name:g.name,
+          emoji:g.emoji||'🎯',
+          color:g.color||'blue',
+          img:g.img||null,
+          habits:tasks.slice(0,4).map((t,ti)=>({
+            id:g.id*100+ti,
+            name:t.task||t.name||String(t),
+            time:t.time||'',
+            // Check both task_done and daily_ keys
+            done:LS.get('task_done_'+g.id+'_'+ti,false)||
+                 LS.get('daily_'+g.id+'_t_'+ti+'_'+today,false)||
+                 LS.get('daily_'+g.id+'_d0_'+ti+'_'+today,false)
+          }))
+        };
+      });
     }
     return LS.get(`goals_${todayKey()}`,null)||SEED_GOALS;
   });
@@ -890,7 +905,24 @@ function App(){
 
   const toggleHabit=(goalId,habitId)=>{
     const upd=goals.map(g=>g.id===goalId?{...g,habits:g.habits.map(h=>h.id===habitId?{...h,done:!h.done}:h)}:g);
-    saveGoals(upd);
+    // Save to today's goals state
+    setGoals(upd);
+    LS.set(`goals_${todayKey()}`,upd);
+    // ALSO write task_done keys so progress persists correctly
+    const goal=upd.find(g=>g.id===goalId);
+    if(goal){
+      goal.habits.forEach((h,ti)=>{
+        LS.set('task_done_'+goalId+'_'+ti, h.done);
+      });
+      // Write daily_ keys that goals page uses (so goals page stays in sync)
+      goal.habits.forEach((h,ti)=>{
+        LS.set('daily_'+goalId+'_t_'+ti+'_'+new Date().toDateString(), h.done);
+      });
+    }
+    // Update peakly_goals so goals page shows correct state
+    const pg=LS.get('peakly_goals',[]);
+    const updPg=pg.map(g=>g.id===goalId?{...g,habits:goal?.habits||g.habits}:g);
+    LS.set('peakly_goals',updPg);
     const all=upd.flatMap(g=>g.habits);
     const done=all.filter(h=>h.done).length;
     if(done===all.length&&done>prevRef.current){
