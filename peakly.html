@@ -55,23 +55,7 @@ const LS={
   set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 };
 
-const SEED_GOALS=[
-  {id:1,name:'Lose 20 lbs',emoji:'🏃',color:'blue',habits:[
-    {id:101,name:'Morning workout',time:'7:00',done:false},
-    {id:102,name:'Evening walk',time:'19:00',done:false},
-    {id:103,name:'Track calories',time:'20:00',done:false},
-  ]},
-  {id:2,name:'Read 24 books',emoji:'📚',color:'orange',habits:[
-    {id:201,name:'Read 20 pages',time:'15:00',done:false},
-  ]},
-  {id:3,name:'Save $10k',emoji:'💰',color:'blue',habits:[
-    {id:301,name:'Review budget',time:'9:00',done:false},
-    {id:302,name:'Log daily spending',time:'21:00',done:false},
-  ]},
-  {id:4,name:'Learn guitar',emoji:'🎸',color:'orange',habits:[
-    {id:401,name:'Practice 30 mins',time:'18:00',done:false},
-  ]},
-];
+// SEED_GOALS removed
 const MOODS=['😔','😕','😐','🙂','😄'];
 const HOURS=Array.from({length:24},(_,i)=>i);
 const fmtHour=h=>{if(h===0)return'12 AM';if(h<12)return`${h} AM`;if(h===12)return'12 PM';return`${h-12} PM`;};
@@ -408,6 +392,19 @@ function Water({water,setWater}){
 
 // ─ Goals + Habits (left) ─
 function GoalList({goals,onToggle}){
+  if(!goals||goals.length===0){
+    return(
+      <div className="card" style={{flex:1}}>
+        <div className="clabel">Goals & Today's Tasks</div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 24px',gap:12,minHeight:200}}>
+          <div style={{fontSize:36}}>🏔️</div>
+          <div style={{fontSize:15,fontWeight:700,color:'var(--text)'}}>No active goals yet</div>
+          <div style={{fontSize:13,color:'var(--text3)',textAlign:'center',lineHeight:1.5}}>Head to the Goals page to start a goal and your daily tasks will appear here.</div>
+          <a href="peakly-goals.html" style={{marginTop:8,padding:'10px 20px',background:'var(--blue)',color:'#fff',borderRadius:100,fontSize:13,fontWeight:700,textDecoration:'none'}}>Go to Goals →</a>
+        </div>
+      </div>
+    );
+  }
   return(
     <div className="card" style={{flex:1}}>
       <div className="clabel">Goals & Today's Tasks</div>
@@ -898,13 +895,48 @@ function App(){
           };
         });
     }
-    return LS.get(`goals_${todayKey()}`,null)||SEED_GOALS;
+    return [];
   });
   const [water,setWater]=useState(()=>LS.get(`water_${todayKey()}`,0));
   const [confetti,setConfetti]=useState(false);
   const [congrats,setCongrats]=useState(null);
   const [sickModal,setSickModal]=useState(false);
   const prevRef=useRef(goals.flatMap(g=>g.habits).filter(h=>h.done).length);
+
+  // Reload goals from localStorage when window gets focus (so goal page changes show here)
+  const {useEffect}=React;
+  useEffect(()=>{
+    const reload=()=>{
+      const pg=LS.get('peakly_goals',[]);
+      if(pg&&pg.length>0){
+        const updated=pg.filter(g=>g.startedDate&&!g.completed).map(g=>{
+          const tasks=g.todayTasks||[];
+          return {
+            id:g.id,name:g.name,emoji:g.emoji||'🎯',color:g.color||'blue',img:g.img||null,
+            habits:tasks.map((t,ti)=>{
+              const _gid=g.id,_tid=t.taskId||('t'+ti),_type=t.taskType||'daily';
+              const _today=new Date().toISOString().slice(0,10);
+              const _sd=g.startedDate?new Date(g.startedDate):new Date();
+              _sd.setHours(0,0,0,0);
+              const _now=new Date();_now.setHours(0,0,0,0);
+              const _dayNum=Math.floor((_now-_sd)/86400000)+1;
+              const _storeKey=_type==='planning'?'plan_'+_gid+'_'+_tid+'_d'+_dayNum
+                :_type==='checkin'?'checkin_'+_gid+'_'+_tid+'_d'+_dayNum
+                :'daily_'+_gid+'_'+_tid+'_'+_today;
+              return {id:g.id+'_'+ti,homeKey:t.homeKey||('home_task_'+g.id+'_'+ti+'_'+new Date().toDateString()),
+                storeKey:_storeKey,name:t.task||t.name||String(t),time:t.time||'',taskType:_type,done:LS.get(_storeKey,false)};
+            })
+          };
+        });
+        setGoals(updated);
+      }
+    };
+    window.addEventListener('focus',reload);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload();});
+    // Poll every 3s so task checks on goals page show here without switching tabs
+    const interval=setInterval(reload,3000);
+    return()=>{window.removeEventListener('focus',reload);clearInterval(interval);};
+  },[]);
 
   const saveGoals=g=>{setGoals(g);LS.set(`goals_${todayKey()}`,g);};
   const saveWater=w=>{setWater(w);LS.set(`water_${todayKey()}`,w);};
@@ -997,12 +1029,11 @@ function App(){
           <DateCard/>
           <Meals/>
           <Water water={water} setWater={saveWater}/>
-          <GoalList goals={goals} onToggle={toggleHabit}/>
         </div>
 
-        {/* CENTER */}
+        {/* CENTER — Goals & Tasks */}
         <div>
-          <HourCal/>
+          <GoalList goals={goals} onToggle={toggleHabit}/>
         </div>
 
         {/* RIGHT */}

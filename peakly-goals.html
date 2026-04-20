@@ -196,7 +196,32 @@ function confetti(){
 
 
 // ── GOALS GRID PAGE ───────────────────────────────────────────────────────
+
+// ── Refresh todayTasks for ALL goals so home page always has current data ──
+function refreshAllTodayTasks(){
+  let changed=false;
+  goals.forEach(g=>{
+    if(!g.startedDate||g.completed)return;
+    const def=getGoalTaskDef(g);
+    const totalDays=def.totalDays||g.totalDays||90;
+    let dayNum=getDayNum(g)||1;
+    if(dayNum>totalDays)dayNum=totalDays;
+    const{daily,planning,checkin}=getTasksForDay(g,dayNum);
+    const allTasks=[...daily,...planning,...checkin];
+    g.todayTasks=allTasks.map(t=>({
+      task:t.task||t.name||t.text||'',
+      time:t.time||t.defTime||'09:00',
+      taskId:t.id,
+      taskType:t.type||'daily',
+      homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
+    }));
+    changed=true;
+  });
+  if(changed)saveGoals();
+}
+
 function renderGoalsPage(){
+  refreshAllTodayTasks(); // Keep home page tasks in sync
   document.getElementById('goalsPage').style.display='block';
   document.getElementById('goalDetailPage').style.display='none';
   const el=document.getElementById('goalsPage');
@@ -1093,6 +1118,54 @@ function renderMilestoneView(g,panel){
   }
   if(!hasContent)list.innerHTML='<div style="text-align:center;padding:24px;"><div style="font-size:28px;">'+(m.reached?'🏔️':'⏳')+'</div><div style="font-size:13px;font-weight:600;color:var(--text);margin-top:8px;">'+(m.reached?'Milestone complete!':'Starting Day '+startDay+'')+'</div></div>';
   panel.appendChild(list);
+
+  // ── Add task to this milestone ────────────────────────────────────────
+  const addTaskBar=document.createElement('div');
+  addTaskBar.style.cssText='padding:10px 16px;border-top:1px solid var(--border2);background:var(--bg);';
+  
+  // Show existing custom milestone tasks
+  const mTaskList=document.createElement('div');mTaskList.id='ms_task_list_'+activeMsIdx;
+  const renderMsTasks=()=>{
+    mTaskList.innerHTML='';
+    const ms=g.milestones[activeMsIdx];
+    if(!ms)return;
+    (ms.tasks||[]).forEach((t,ti)=>{
+      const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:8px 10px;background:var(--white);border-radius:var(--r);border:1px solid var(--border2);';
+      // Checkbox
+      const chk=document.createElement('div');chk.className='chk'+(t.done?' done':'');
+      if(t.done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      chk.addEventListener('click',()=>{t.done=!t.done;saveGoals();renderMsTasks();});
+      // Task name
+      const ni=document.createElement('input');ni.className='inp';ni.value=t.text||'';ni.placeholder='Task name…';ni.style.cssText='flex:1;font-size:12px;';
+      ni.addEventListener('input',e=>{t.text=e.target.value;saveGoals();});
+      // Date input
+      const di=document.createElement('input');di.type='date';di.className='inp';di.value=t.date||'';di.style.cssText='width:130px;font-size:12px;';
+      di.addEventListener('change',e=>{t.date=e.target.value;saveGoals();});
+      // Time input
+      const ti2=document.createElement('input');ti2.type='time';ti2.className='inp';ti2.value=t.time||'';ti2.style.cssText='width:100px;font-size:12px;';
+      ti2.addEventListener('change',e=>{t.time=e.target.value;saveGoals();});
+      // Delete
+      const del=document.createElement('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;cursor:pointer;background:none;border:none;flex-shrink:0;';
+      del.onclick=()=>{g.milestones[activeMsIdx].tasks.splice(ti,1);saveGoals();renderMsTasks();};
+      row.appendChild(chk);row.appendChild(ni);row.appendChild(di);row.appendChild(ti2);row.appendChild(del);
+      mTaskList.appendChild(row);
+    });
+  };
+  renderMsTasks();
+  addTaskBar.appendChild(mTaskList);
+
+  // Add task button
+  const addMsTaskBtn=document.createElement('button');
+  addMsTaskBtn.style.cssText='font-size:12px;font-weight:600;color:var(--blue);background:none;border:1px dashed var(--blue-muted);border-radius:var(--r);padding:7px 14px;cursor:pointer;width:100%;margin-top:2px;';
+  addMsTaskBtn.textContent='+ Add task to milestone';
+  addMsTaskBtn.onclick=()=>{
+    if(!g.milestones[activeMsIdx].tasks)g.milestones[activeMsIdx].tasks=[];
+    g.milestones[activeMsIdx].tasks.push({id:Date.now(),text:'',time:'',date:'',done:false});
+    saveGoals();renderMsTasks();
+  };
+  addTaskBar.appendChild(addMsTaskBtn);
+  panel.appendChild(addTaskBar);
+
   const navBar=document.createElement('div');navBar.style.cssText='padding:8px 16px;border-top:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;gap:8px;';
   const prevBtn=document.createElement('button');prevBtn.style.cssText='padding:6px 12px;border-radius:var(--rm);border:1px solid var(--border);background:var(--bg);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;'+(activeMsIdx===0?'opacity:.4;pointer-events:none;':'');prevBtn.innerHTML='← Prev';prevBtn.onclick=()=>{if(activeMsIdx>0){currentMilestoneIdx=activeMsIdx-1;renderTaskView(g,panel);}};
   const nextBtn=document.createElement('button');nextBtn.style.cssText='padding:6px 12px;border-radius:var(--rm);border:1px solid var(--border);background:var(--bg);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;'+(activeMsIdx===g.milestones.length-1?'opacity:.4;pointer-events:none;':'');nextBtn.innerHTML='Next →';nextBtn.onclick=()=>{if(activeMsIdx<g.milestones.length-1){currentMilestoneIdx=activeMsIdx+1;renderTaskView(g,panel);}};

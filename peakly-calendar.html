@@ -496,29 +496,24 @@ function getAllEvents(){
     evs.push({id:'m_'+e.id,type:'manual',title:e.title,date:d,time:e.time||'',dur:e.dur||e.duration||60,color:e.color||TYPE.manual.color,notes:e.notes||'',srcId:e.id,scheduled:!!(e.time),sourcePage:null});
   });
   // Goal tasks
+  // Load goal tasks from actual goal definitions (not hardcoded)
   const goals=LS.get('peakly_goals',[]);
   goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
     const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
-    for(let d=1;d<=90;d++){
+    const totalDays=g.totalDays||90;
+    for(let d=1;d<=totalDays;d++){
       const dd=new Date(sd);dd.setDate(sd.getDate()+d-1);
-      const tasks=[];
-      [{id:'d_steps',text:'8,000 steps',defTime:'19:00'},{id:'d_water',text:'Drink 8–12 cups water',defTime:'08:00'},
-       {id:'d_calories',text:'Calorie deficit',defTime:'12:00'},{id:'d_workout',text:'Workout / active rest',defTime:'07:00'},
-       {id:'d_sleep',text:'Sleep 7–9 hours',defTime:'22:00'}].forEach(t=>{
-        const savedTime=LS.get('time_'+g.id+'_'+t.id,'');
-        tasks.push({id:t.id,text:t.text,time:savedTime||t.defTime,defTime:t.defTime,hasTime:!!savedTime});
-      });
-      if([21,42,63,84].includes(d))tasks.push({id:'d_maint',text:'Maintenance calories',time:LS.get('time_'+g.id+'_d_maint','12:00'),defTime:'12:00'});
-      if(PLANNING_DAYS.includes(d)){
-        tasks.push({id:'p_workouts',text:'Plan workouts for week',time:LS.get('time_'+g.id+'_p_workouts','08:00'),defTime:'08:00'});
-        tasks.push({id:'p_meals',text:'Plan meals & meal prep',time:LS.get('time_'+g.id+'_p_meals','09:00'),defTime:'09:00'});
-      }
-      if(CHECKIN_DAYS.includes(d)){
-        tasks.push({id:'c_metrics',text:'Weight & measurements check-in',time:LS.get('time_'+g.id+'_c_metrics','07:00'),defTime:'07:00'});
-        tasks.push({id:'c_reward',text:'Plan your milestone reward',time:LS.get('time_'+g.id+'_c_reward','18:00'),defTime:'18:00'});
-      }
-      tasks.forEach(t=>{
-        const gEvId='g_'+g.id+'_d'+d+'_'+t.id;const gDur=LS.get('cal_dur_'+gEvId,30);evs.push({id:gEvId,type:'goal',title:g.name+': '+t.text,date:new Date(dd),time:t.time,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:t.id,goalDay:d,scheduled:true,sourcePage:'peakly-goals.html'});
+      // Use todayTasks if this is today's day, otherwise skip (calendar shows today's tasks)
+      const today=new Date();today.setHours(0,0,0,0);
+      const dayNum=Math.floor((today-sd)/86400000)+1;
+      if(d!==dayNum)continue; // only show today's tasks
+      const todayTasks=g.todayTasks||[];
+      todayTasks.forEach(t=>{
+        const tid=t.taskId||t.id||'task';
+        const gEvId='g_'+g.id+'_d'+d+'_'+tid;
+        const gDur=LS.get('cal_dur_'+gEvId,30);
+        const taskTime=t.time||'09:00';
+        evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(dd),time:taskTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,goalDay:d,scheduled:true,sourcePage:'peakly-goals.html'});
       });
     }
   });
