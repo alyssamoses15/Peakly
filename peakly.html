@@ -1105,10 +1105,27 @@ const toggleHabit = (goalId, habitId) => {
     prevRef.current = doneCount;
   };
   
-  const sickDay=()=>{
+const sickDay = () => {
     setSickModal(false);
-    saveGoals(goals.map(g=>({...g,habits:g.habits.map(h=>({...h,done:false}))})));
-    saveWater(0);
+    
+    // 1. Get the Master List
+    const pg = LS.get('peakly_goals', []);
+    
+    // 2. Wipe all 'done' statuses to false
+    const updatedPg = pg.map(g => ({
+      ...g,
+      todayTasks: (g.todayTasks || []).map(t => ({ ...t, done: false }))
+    }));
+    
+    // 3. Save it back to storage
+    LS.set('peakly_goals', updatedPg);
+    
+    // 4. Update the Home Page UI immediately
+    setGoals(prev => prev.map(g => ({
+      ...g,
+      habits: g.habits.map(h => ({ ...h, done: false }))
+    })));
+    
     setCongrats('All tasks pushed to tomorrow. Rest today — recovery is part of every great climb. 🌿');
   };
 
