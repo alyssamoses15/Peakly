@@ -1063,7 +1063,7 @@ function App(){
   const saveWater=w=>{setWater(w);LS.set(`water_${todayKey()}`,w);};
 
 const toggleHabit = (goalId, habitId) => {
-    // 1. Update the local UI state immediately
+    // 1. Update the local UI state
     const upd = goals.map(g => g.id === goalId ? {
       ...g,
       habits: g.habits.map(h => h.id === habitId ? { ...h, done: !h.done } : h)
@@ -1074,17 +1074,18 @@ const toggleHabit = (goalId, habitId) => {
     const habit = goal?.habits.find(h => h.id === habitId);
 
     if (habit) {
-      // 2. Save checkmark to the Master Storage Key (This fixes the Goal Page sync)
+      // 2. Save the checkmark to the unique Master Storage Key
       if (habit.storeKey) LS.set(habit.storeKey, habit.done);
       if (habit.homeKey) LS.set(habit.homeKey, habit.done);
 
-      // 3. Update the Master Goal List so other components see the change
+      // 3. Update 'peakly_goals' using the unique habitId (not index)
       const pg = LS.get('peakly_goals', []);
       const updatedPg = pg.map(g => {
         if (String(g.id) !== String(goalId)) return g;
         const updTasks = (g.todayTasks || []).map((t, ti) => {
-          // Match the habit based on the unique ID generated in your loading section
-          if ((g.id + '_' + ti) === habitId) {
+          // Recreate the ID using the same logic as the loading section
+          const taskUniqueId = g.id + '_' + ti;
+          if (taskUniqueId === habitId) {
             return { ...t, done: habit.done };
           }
           return t;
@@ -1094,13 +1095,10 @@ const toggleHabit = (goalId, habitId) => {
       LS.set('peakly_goals', updatedPg);
     }
 
-    // 4. Celebration Logic: Trigger confetti when 100% is reached
+    // 4. Confetti Celebration (Now triggers at exactly 100%)
     const all = upd.flatMap(g => g.habits);
     const doneCount = all.filter(h => h.done).length;
-    const totalCount = all.length;
-    
-    // If we just finished the last task, pop the confetti!
-    if (totalCount > 0 && doneCount === totalCount && doneCount > prevRef.current) {
+    if (all.length > 0 && doneCount === all.length && doneCount > prevRef.current) {
       setConfetti(true);
       setCongrats("You completed every task today — that's your peak! 🏔️ Keep this streak alive.");
     }
