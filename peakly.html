@@ -1062,46 +1062,48 @@ function App(){
   const saveGoals=g=>{setGoals(g);LS.set(`goals_${todayKey()}`,g);};
   const saveWater=w=>{setWater(w);LS.set(`water_${todayKey()}`,w);};
 
-  const toggleHabit=(goalId,habitId)=>{
-    // Toggle the specific habit
-    const upd=goals.map(g=>g.id===goalId?{
+const toggleHabit = (goalId, habitId) => {
+    // 1. Update the local UI state
+    const upd = goals.map(g => g.id === goalId ? {
       ...g,
-      habits:g.habits.map(h=>h.id===habitId?{...h,done:!h.done}:h)
-    }:g);
+      habits: g.habits.map(h => h.id === habitId ? { ...h, done: !h.done } : h)
+    } : g);
     setGoals(upd);
-    // Write to the goals-page storage key so goals page stays in sync
-    const goal=upd.find(g=>g.id===goalId);
-    const habit=goal?.habits.find(h=>h.id===habitId);
-    if(habit?.storeKey){
-      LS.set(habit.storeKey, habit.done);
-    }
-    // Also write homeKey for home page UI state
-    if(habit?.homeKey){
-      LS.set(habit.homeKey, habit.done);
-    }
-    // Also update peakly_goals so goals page sees correct state
-    const pg=LS.get('peakly_goals',[]);
-    if(pg.length>0){
-      const updPg=pg.map(g=>{
-        if(g.id!==goalId)return g;
-        const updTasks=(g.todayTasks||[]).map((t,ti)=>{
-          const matchingHabit=goal?.habits[ti];
-          if(!matchingHabit)return t;
-          return {...t,done:matchingHabit.done};
+
+    const goal = upd.find(g => g.id === goalId);
+    const habit = goal?.habits.find(h => h.id === habitId);
+
+    if (habit) {
+      // 2. Save the checkmark to the Master Storage Key (this fixes the sync)
+      if (habit.storeKey) LS.set(habit.storeKey, habit.done);
+      if (habit.homeKey) LS.set(habit.homeKey, habit.done);
+
+      // 3. Update the Master Goal List so other pages see the change
+      const pg = LS.get('peakly_goals', []);
+      const updatedPg = pg.map(g => {
+        if (String(g.id) !== String(goalId)) return g;
+        const updTasks = (g.todayTasks || []).map((t, ti) => {
+          // Matches the habit based on the ID we generated in the loading section
+          if ((g.id + '_' + ti) === habitId) {
+            return { ...t, done: habit.done };
+          }
+          return t;
         });
-        return {...g,todayTasks:updTasks};
+        return { ...g, todayTasks: updTasks };
       });
-      LS.set('peakly_goals',updPg);
+      LS.set('peakly_goals', updatedPg);
     }
-    const all=upd.flatMap(g=>g.habits);
-    const done=all.filter(h=>h.done).length;
-    if(done===all.length&&done>prevRef.current){
+
+    // 4. Handle the "Peak Reached" celebration
+    const all = upd.flatMap(g => g.habits);
+    const doneCount = all.filter(h => h.done).length;
+    if (doneCount > 0 && doneCount === all.length && doneCount > prevRef.current) {
       setConfetti(true);
       setCongrats("You completed every task today — that's your peak! 🏔️ Keep this streak alive.");
     }
-    prevRef.current=done;
+    prevRef.current = doneCount;
   };
-
+  
   const sickDay=()=>{
     setSickModal(false);
     saveGoals(goals.map(g=>({...g,habits:g.habits.map(h=>({...h,done:false}))})));
