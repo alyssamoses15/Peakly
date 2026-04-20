@@ -4435,4 +4435,31 @@ function saveGoals(){LS.set('peakly_goals',goals);}
 })();
 
 renderGoalsPage();
+// ... many lines of code above ...
+    renderGoalsPage();
+// This runs every time the page loads to pull checkmarks from your phone/cloud
+async function syncCheckmarksFromCloud() {
+  if (!window.supabaseClient) return;
+  
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabaseClient.from('habits')
+    .select('name')
+    .eq('user_id', session.user.id)
+    .eq('completed_at', today);
+
+  if (data && data.length > 0) {
+    data.forEach(habit => {
+      LS.set(habit.name, true);
+    });
+    // This second render updates the checkmarks on the screen
+    renderGoalsPage();
+  }
+}
+
+// And finally, trigger the sync 1 second after the page opens
+setTimeout(syncCheckmarksFromCloud, 1000);
+
 </script></body></html>
