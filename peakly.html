@@ -235,13 +235,47 @@ const pickImage = async (url) => {
     }
   };
   
-  const handleUpload=(e)=>{
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{pickImage(ev.target.result);};
-    reader.readAsDataURL(file);
-  };
+const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !window.sb) return;
 
+    try {
+      // 1. Get the current user session
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return alert("Please log in to sync images!");
+
+      // 2. Prepare the file path (User ID / Timestamp)
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${session.user.id}/${Date.now()}.${fileExt}`;
+
+      // 3. Upload to the Supabase "images" bucket
+      const { error: uploadError } = await sb.storage
+        .from('images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 4. Get the public URL that both phone and computer can see
+      const { data } = sb.storage.from('images').getPublicUrl(fileName);
+      const publicUrl = data.publicUrl;
+
+      // 5. Update the local UI and sync the link to your profile
+      setVibe(publicUrl);
+      LS.set('home_vibe_img', publicUrl);
+
+      await sb.from('profiles').upsert({ 
+        id: session.user.id, 
+        home_vibe: publicUrl,
+        updated_at: new Date().toISOString() 
+      });
+
+      console.log("Vibe successfully synced to cloud!");
+
+    } catch (error) {
+      console.error('Upload error:', error.message);
+      alert("Sync failed: Ensure you have a PUBLIC bucket named 'images' in Supabase.");
+    }
+  };
   const openPicker=(t)=>{setTab(t);setShowPicker(true);setResults([]);setQuery('');};
 
   return(
