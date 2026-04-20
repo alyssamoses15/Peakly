@@ -151,7 +151,25 @@ function DateCard(){
   const [results,setResults]=useState([]);
   const [loading,setLoading]=useState(false);
 
-  useEffect(()=>{const t=setInterval(()=>setNow(new Date()),1000);return()=>clearInterval(t);},[]);
+ useEffect(() => {
+    const loadVibe = async () => {
+      if (window.sb) {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          const { data } = await sb.from('profiles')
+            .select('home_vibe')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (data?.home_vibe) {
+            setVibe(data.home_vibe);
+            LS.set('home_vibe_img', data.home_vibe);
+          }
+        }
+      }
+    };
+    loadVibe();
+  }, []);
 
   const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -190,10 +208,33 @@ function DateCard(){
     setLoading(false);
   };
 
-  const pickImage=(url)=>{
-    setVibe(url);LS.set('home_vibe_img',url);setShowPicker(false);setResults([]);
-  };
+const pickImage = async (url) => {
+    // 1. Update UI immediately so it feels snappy
+    setVibe(url);
+    LS.set('home_vibe_img', url); 
+    setShowPicker(false);
+    setResults([]);
 
+    // 2. Sync to Supabase so your computer sees what your phone picks
+    if (window.sb) {
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          const { error } = await sb.from('profiles').upsert({ 
+            id: session.user.id, 
+            home_vibe: url,
+            updated_at: new Date().toISOString() 
+          });
+          
+          if (error) console.error("Sync error:", error.message);
+          else console.log("Vibe synced to cloud! ☁️");
+        }
+      } catch (err) {
+        console.error("Connection error:", err);
+      }
+    }
+  };
+  
   const handleUpload=(e)=>{
     const file=e.target.files[0];if(!file)return;
     const reader=new FileReader();
