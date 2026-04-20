@@ -392,11 +392,104 @@ function Water({water,setWater}){
 
 // ─ Goals + Habits (left) ─
 function GoalList({goals,onToggle}){
+  const now=new Date();
+  const {useState:useSt,useEffect:useEff,useRef:useRf}=React;
+  const [events,setEvs]=useSt(()=>getCalendarEvents());
+  const [doneMap,setDone]=useSt(()=>{
+    const m={};
+    getCalendarEvents().forEach(e=>{m[e.checkKey]=LS.get(e.checkKey,false);});
+    return m;
+  });
+  const calRef=useRf(null);
+  const curH=now.getHours(),curM=now.getMinutes();
+  const todayStr=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+
+  useEff(()=>{
+    // Scroll to current hour on mount
+    if(calRef.current)calRef.current.scrollTop=Math.max(0,(curH-1)*60);
+    // Poll for updates every 3s
+    const iv=setInterval(()=>{
+      const fresh=getCalendarEvents();
+      setEvs(fresh);
+      const m={};fresh.forEach(e=>{m[e.checkKey]=LS.get(e.checkKey,false);});setDone(m);
+    },3000);
+    return()=>clearInterval(iv);
+  },[]);
+
+  const toggle=(ev)=>{
+    const newVal=!doneMap[ev.checkKey];
+    setDone(prev=>({...prev,[ev.checkKey]:newVal}));
+    LS.set(ev.checkKey,newVal);
+    // Sync to goals page
+    if(ev.type==='goal'&&ev.goalId&&ev.taskId){
+      const _today=new Date().toISOString().slice(0,10);
+      const ttype=ev.taskType||'daily';
+      if(ttype==='planning')LS.set('plan_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
+      else if(ttype==='checkin')LS.set('checkin_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
+      else LS.set('daily_'+ev.goalId+'_'+ev.taskId+'_'+_today,newVal);
+      // Update peakly_goals todayTasks
+      const pg=LS.get('peakly_goals',[]);
+      const gi=pg.findIndex(g=>String(g.id)===String(ev.goalId));
+      if(gi>-1&&pg[gi].todayTasks){
+        const ti=pg[gi].todayTasks.findIndex(t=>t.taskId===ev.taskId);
+        if(ti>-1){pg[gi].todayTasks[ti].done=newVal;LS.set('peakly_goals',pg);}
+      }
+    }
+  };
+
+  // Split into unscheduled vs scheduled
+  const unscheduled=events.filter(e=>!e.time||e.time==='');
+  const scheduled=events.filter(e=>e.time&&e.time!=='');
+
+  // Group unscheduled by goal
+  const unschedByGoal={};
+  unscheduled.forEach(e=>{
+    const key=e.goalName||e.title;
+    if(!unschedByGoal[key])unschedByGoal[key]={color:e.color,events:[]};
+    unschedByGoal[key].events.push(e);
+  });
+
+  // Build hour buckets for scheduled
+  const byHour={};
+  scheduled.forEach(e=>{
+    const hr=parseInt((e.time||'9').split(':')[0]);
+    if(!byHour[hr])byHour[hr]=[];
+    byHour[hr].push(e);
+  });
+
+  const doneCount=events.filter(e=>doneMap[e.checkKey]).length;
+
+  const EventPill=({ev})=>{
+    const done=doneMap[ev.checkKey]||false;
+    const goalColor=ev.color||'#0891B2';
+    const typeMap={goal:'🎯',lifeadmin:'🏠',routine:'🌅',work:'💼',manual:'📌'};
+    return(
+      <div onClick={()=>toggle(ev)}
+        style={{display:'flex',alignItems:'center',gap:7,padding:'6px 10px',borderRadius:8,
+          background:done?'var(--bg2)':'var(--white)',
+          borderLeft:`3px solid ${done?'var(--border)':goalColor}`,
+          border:`1px solid ${done?'var(--border2)':goalColor+'44'}`,
+          cursor:'pointer',transition:'all 0.15s',opacity:done?0.55:1,marginBottom:3}}>
+        <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${done?'var(--border)':goalColor}`,
+          background:done?goalColor:'transparent',display:'flex',alignItems:'center',justifyContent:'center',
+          flexShrink:0,transition:'all 0.15s'}}>
+          {done&&<svg width="8" height="6" viewBox="0 0 8 6"><path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        </div>
+        <span style={{flex:1,fontSize:12,fontWeight:done?400:600,color:done?'var(--text3)':'var(--text)',textDecoration:done?'line-through':'none',lineHeight:1.3}}>{ev.title}</span>
+        {ev.time&&<span style={{fontSize:10,color:'var(--text4)',flexShrink:0,fontWeight:500}}>{fmtHour(parseInt(ev.time.split(':')[0]))}</span>}
+        <span style={{fontSize:10,flexShrink:0}}>{typeMap[ev.type]||'📌'}</span>
+      </div>
+    );
+  };
+
   if(!goals||goals.length===0){
     return(
-      <div className="card" style={{flex:1}}>
-        <div className="clabel">Goals & Today's Tasks</div>
-        <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'40px 24px',gap:12,minHeight:200}}>
+      <div className="card" style={{display:'flex',flexDirection:'column',height:'calc(100vh - 104px)',minHeight:500,overflow:'hidden'}}>
+        <div style={{padding:'13px 16px',borderBottom:'1px solid var(--border2)',flexShrink:0}}>
+          <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700,color:'var(--text)'}}>{todayStr}</div>
+          <div style={{fontSize:11,color:'var(--text3)'}}>No active goals</div>
+        </div>
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:12,padding:24}}>
           <div style={{fontSize:36}}>🏔️</div>
           <div style={{fontSize:15,fontWeight:700,color:'var(--text)'}}>No active goals yet</div>
           <div style={{fontSize:13,color:'var(--text3)',textAlign:'center',lineHeight:1.5}}>Head to the Goals page to start a goal and your daily tasks will appear here.</div>
@@ -405,37 +498,62 @@ function GoalList({goals,onToggle}){
       </div>
     );
   }
+
   return(
-    <div className="card" style={{flex:1}}>
-      <div className="clabel">Goals & Today's Tasks</div>
-      <div style={{display:'flex',flexDirection:'column',gap:16}}>
-        {goals.map(g=>{
-          const c=CMAP[g.color]||CMAP.blue;
-          const done=g.habits.filter(h=>h.done).length;
-          return(
-            <div key={g.id}>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                <div style={{width:26,height:26,borderRadius:'var(--r-sm)',background:c.bg,border:`1px solid ${c.border}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,flexShrink:0,overflow:'hidden'}}>
-                {g.img?<img src={g.img} style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>e.target.style.display='none'}/>:g.emoji}
+    <div className="card" style={{display:'flex',flexDirection:'column',height:'calc(100vh - 104px)',minHeight:500,overflow:'hidden',padding:0}}>
+      {/* Header */}
+      <div style={{padding:'13px 16px',borderBottom:'1px solid var(--border2)',flexShrink:0,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:700,color:'var(--text)'}}>{todayStr}</div>
+          <div style={{fontSize:11,color:'var(--text3)'}}>{doneCount}/{events.length} tasks done today</div>
+        </div>
+        <a href="peakly-goals.html" style={{fontSize:11,padding:'4px 11px',borderRadius:100,background:'var(--blue-light)',color:'var(--blue)',fontWeight:700,textDecoration:'none',border:'1px solid var(--blue-muted)'}}>Goals →</a>
+      </div>
+
+      <div ref={calRef} style={{flex:1,overflowY:'auto'}}>
+
+        {/* Unscheduled section */}
+        {unscheduled.length>0&&(
+          <div style={{padding:'10px 14px 6px',borderBottom:'1px solid var(--border2)',background:'var(--bg)'}}>
+            <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.6px',textTransform:'uppercase',color:'var(--text3)',marginBottom:8}}>Unscheduled</div>
+            {/* Group by goal */}
+            {Object.entries(unschedByGoal).map(([goalName,{color,events:gevs}])=>(
+              <div key={goalName} style={{marginBottom:10}}>
+                <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:4}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:color||'var(--blue)',flexShrink:0}}/>
+                  <span style={{fontSize:10,fontWeight:700,color:'var(--text2)'}}>{goalName}</span>
                 </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:700,color:'var(--text)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{g.name}</div>
-                  <div style={{fontSize:10,color:'var(--text3)'}}>{done}/{g.habits.length} today</div>
-                </div>
+                {gevs.map(ev=><EventPill key={ev.id} ev={ev}/>)}
               </div>
-              <div style={{paddingLeft:8,borderLeft:`2px solid ${c.border}`,display:'flex',flexDirection:'column',gap:4}}>
-                {g.habits.map(h=>(
-                  <div key={h.id} onClick={()=>onToggle(g.id,h.id)}
-                    style={{display:'flex',alignItems:'center',gap:7,padding:'6px 8px',borderRadius:'var(--r-sm)',background:h.done?'var(--bg2)':c.bg,cursor:'pointer',transition:'all 0.2s'}}>
-                    <div style={{width:17,height:17,borderRadius:5,border:`2px solid ${h.done?c.accent:'var(--border)'}`,background:h.done?c.accent:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all 0.2s'}}>
-                      {h.done&&<svg width="9" height="7" viewBox="0 0 9 7"><path d="M1 3.5l2.5 2.5L8 1" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
-                    </div>
-                    <span style={{flex:1,fontSize:12,color:h.done?'var(--text3)':'var(--text)',textDecoration:h.done?'line-through':'none',transition:'all 0.2s'}}>{h.name}</span>
-                    <span style={{fontSize:10,color:'var(--text4)',background:'var(--white)',padding:'1px 6px',borderRadius:100,fontWeight:500,flexShrink:0,border:'1px solid var(--border2)'}}>
-                      {parseInt(h.time)<12?`${parseInt(h.time)}am`:parseInt(h.time)===12?'12pm':`${parseInt(h.time)-12}pm`}
-                    </span>
-                  </div>
-                ))}
+            ))}
+          </div>
+        )}
+
+        {/* Time slots */}
+        {HOURS.map(hr=>{
+          const isNow=hr===curH;
+          const isPast=hr<curH;
+          const evs=byHour[hr]||[];
+          if(evs.length===0&&!isNow)return(
+            <div key={hr} style={{display:'flex',minHeight:50,borderBottom:'1px solid var(--border2)',position:'relative',background:isPast?'rgba(0,0,0,0.01)':'transparent'}}>
+              <div style={{width:54,flexShrink:0,paddingTop:6,paddingRight:8,textAlign:'right',fontSize:10,fontWeight:isNow?700:400,color:isNow?'var(--blue)':'var(--text4)',borderRight:'1px solid var(--border2)',userSelect:'none'}}>
+                {fmtHour(hr)}
+              </div>
+              <div style={{flex:1}}/>
+            </div>
+          );
+          return(
+            <div key={hr} style={{display:'flex',minHeight:60,borderBottom:'1px solid var(--border2)',position:'relative',background:isNow?'rgba(8,145,178,0.03)':isPast?'rgba(0,0,0,0.01)':'transparent'}}>
+              <div style={{width:54,flexShrink:0,paddingTop:6,paddingRight:8,textAlign:'right',fontSize:10,fontWeight:isNow?700:400,color:isNow?'var(--blue)':'var(--text4)',borderRight:'1px solid var(--border2)',userSelect:'none'}}>
+                {fmtHour(hr)}
+              </div>
+              {isNow&&(
+                <div style={{position:'absolute',left:54,right:0,top:`${curM/60*100}%`,height:'2px',background:'var(--orange)',zIndex:3,pointerEvents:'none'}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:'var(--orange)',marginLeft:-4,marginTop:-3}}/>
+                </div>
+              )}
+              <div style={{flex:1,padding:'4px 8px',display:'flex',flexDirection:'column',gap:2}}>
+                {evs.map(ev=><EventPill key={ev.id} ev={ev}/>)}
               </div>
             </div>
           );
@@ -469,37 +587,25 @@ function getCalendarEvents(){
     evs.push({id:'m_'+e.id,type:'manual',title:e.title,time:e.time,dur:e.dur||e.duration||60,color:e.color||'#64748B',srcId:e.id,checkKey:'manual_'+e.id,page:'peakly-calendar.html'});
   });
 
-  // 2. Goal tasks
+  // 2. Goal tasks — read from actual todayTasks (set by goals page)
   const goals=LS.get('peakly_goals',[]);
-  const PLANNING_DAYS=[1,8,16,24,32,40,48,56,64,72,80,88];
-  const CHECKIN_DAYS=[30,60,90];
   goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
     const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
     const dayNum=Math.floor((today-sd)/86400000)+1;
-    if(dayNum<1||dayNum>90)return;
-    const tasks=[
-      {id:'d_steps',text:'8,000 steps',defTime:'19:00'},
-      {id:'d_water',text:'Drink 8–12 cups water',defTime:'08:00'},
-      {id:'d_calories',text:'Calorie deficit',defTime:'12:00'},
-      {id:'d_workout',text:'Workout / active rest',defTime:'07:00'},
-      {id:'d_sleep',text:'Sleep 7–9 hours',defTime:'22:00'},
-    ];
-    if([21,42,63,84].includes(dayNum))tasks.push({id:'d_maint',text:'Maintenance calories',defTime:'12:00'});
-    if(PLANNING_DAYS.includes(dayNum)){
-      tasks.push({id:'p_workouts',text:'Plan workouts for week',defTime:'08:00'});
-      tasks.push({id:'p_meals',text:'Plan meals & meal prep',defTime:'09:00'});
-    }
-    if(CHECKIN_DAYS.includes(dayNum)){
-      tasks.push({id:'c_metrics',text:'Weight & measurements',defTime:'07:00'});
-      tasks.push({id:'c_reward',text:'Plan your reward',defTime:'18:00'});
-    }
-    tasks.forEach(t=>{
-      const savedTime=LS.get('time_'+g.id+'_'+t.id,'');
-      const time=savedTime||t.defTime;
-      if(!time)return;
-      const evId='g_'+g.id+'_d'+dayNum+'_'+t.id;
-      const checkKey='daily_'+g.id+'_'+t.id+'_'+todayStr;
-      evs.push({id:evId,type:'goal',title:g.name+': '+t.text,time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:t.id,page:'peakly-goals.html'});
+    const totalDays=g.totalDays||90;
+    if(dayNum<1||dayNum>totalDays)return;
+    const todayTasks=g.todayTasks||[];
+    todayTasks.forEach(t=>{
+      const tid=t.taskId||t.id||'task';
+      const taskType=t.taskType||'daily';
+      const today2=new Date();today2.setHours(0,0,0,0);
+      const _today=new Date().toISOString().slice(0,10);
+      const checkKey=taskType==='planning'?'plan_'+g.id+'_'+tid+'_d'+dayNum
+        :taskType==='checkin'?'checkin_'+g.id+'_'+tid+'_d'+dayNum
+        :'daily_'+g.id+'_'+tid+'_'+_today;
+      const time=t.time||'09:00';
+      const evId='g_'+g.id+'_d'+dayNum+'_'+tid;
+      evs.push({id:evId,type:'goal',title:(t.task||t.name||'Task'),time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:tid,taskType,goalName:g.name,page:'peakly-goals.html'});
     });
   });
 
@@ -523,14 +629,18 @@ function getCalendarEvents(){
     evs.push({id:evId,type:'work',title:(sh.jobName||'Work')+(sh.location?' @ '+sh.location:''),time:sh.start||'09:00',dur:LS.get('cal_dur_'+evId,480),color:sh.color||'#7C3AED',checkKey:'work_done_'+tk,page:'peakly-second-brain-2.html'});
   }
 
-  // 5. Life Admin cal events
+  // 5. Life Admin cal events (include today's, with or without time)
   const calEvs=LS.get('cal_events',[]);
   calEvs.forEach((e,i)=>{
-    if(!e.time||!e.date)return;
-    const d=new Date(e.date);if(isNaN(d))return;
-    if(d.toDateString()!==todayStr)return;
+    if(!e.date&&!e.title)return;
+    // Include if date matches today or no date (treat as today)
+    if(e.date){
+      const d=new Date(e.date);
+      if(!isNaN(d)&&d.toDateString()!==todayStr)return;
+    }
     const evId='la_'+i;
-    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time:e.time,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:'peakly-second-brain-1.html'});
+    const time=e.time||''; // no time = unscheduled
+    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:'peakly-second-brain-1.html'});
   });
 
   return evs.sort((a,b)=>{
@@ -566,9 +676,20 @@ function HourCal(){
     const newMap={...doneMap,[ev.checkKey]:newVal};
     setDoneMap(newMap);
     LS.set(ev.checkKey,newVal);
-    // Sync back to goal page if it's a goal task
+    // Sync to goals page using same key format as goals page
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      LS.set('daily_'+ev.goalId+'_'+ev.taskId+'_'+now.toDateString(),newVal);
+      const _today=new Date().toISOString().slice(0,10);
+      const ttype=ev.taskType||'daily';
+      if(ttype==='planning')LS.set('plan_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
+      else if(ttype==='checkin')LS.set('checkin_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
+      else LS.set('daily_'+ev.goalId+'_'+ev.taskId+'_'+_today,newVal);
+      // Also update peakly_goals todayTasks done state
+      const pg=LS.get('peakly_goals',[]);
+      const gi=pg.findIndex(g=>String(g.id)===String(ev.goalId));
+      if(gi>-1&&pg[gi].todayTasks){
+        const ti=pg[gi].todayTasks.findIndex(t=>t.taskId===ev.taskId);
+        if(ti>-1){pg[gi].todayTasks[ti].done=newVal;LS.set('peakly_goals',pg);}
+      }
     }
   };
 
