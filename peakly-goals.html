@@ -386,14 +386,37 @@ function getTasksForDay(g,dayNum){
   return{daily,planning,checkin};
 }
 
-function isTaskDone(g,taskId,taskType,dayNum){
-  if(taskType==='daily'||!taskType){
-    const dayDate=getDayDateStr(g,dayNum);
-    return LS.get('daily_'+g.id+'_'+taskId+'_'+dayDate,false)===true;
+async function setTaskDone(g, taskId, taskType, dayNum, val) {
+  const dayDate = (taskType === 'daily' || !taskType) ? getDayDateStr(g, dayNum) : 'milestone_' + dayNum;
+  
+  // 1. Keep LocalStorage so the checkmark stays if you're offline
+  if(taskType === 'daily' || !taskType) {
+    LS.set('daily_' + g.id + '_' + taskId + '_' + dayDate, val);
+  } else if(taskType === 'planning') {
+    LS.set('plan_' + g.id + '_' + taskId + '_d' + dayNum, val);
+  } else if(taskType === 'checkin') {
+    LS.set('checkin_' + g.id + '_' + taskId + '_d' + dayNum, val);
   }
-  if(taskType==='planning'){return LS.get('plan_'+g.id+'_'+taskId+'_d'+dayNum,false)===true;}
-  if(taskType==='checkin'){return LS.get('checkin_'+g.id+'_'+taskId+'_d'+dayNum,false)===true;}
-  return false;
+
+  // 2. SYNC TO CLOUD (The missing piece)
+  if (window.supabaseClient) {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      const storageKey = 'daily_' + g.id + '_' + taskId + '_' + dayDate;
+      if (val) {
+        await supabaseClient.from('habits').upsert({
+          user_id: session.user.id,
+          name: storageKey, // We use the specific key to ensure home/goals match
+          is_checked: true,
+          completed_at: new Date().toISOString().split('T')[0]
+        });
+      } else {
+        await supabaseClient.from('habits').delete()
+          .eq('user_id', session.user.id)
+          .eq('name', storageKey);
+      }
+    }
+  }
 }
 function setTaskDone(g,taskId,taskType,dayNum,val){
   if(taskType==='daily'||!taskType){
