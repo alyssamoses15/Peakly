@@ -418,6 +418,17 @@ async function setTaskDone(g, taskId, taskType, dayNum, val) {
     }
   }
 }
+  function isTaskDone(g, taskId, taskType, dayNum) {
+  const dayDate = (taskType === 'daily' || !taskType) ? getDayDateStr(g, dayNum) : 'milestone_' + dayNum;
+  if(taskType === 'daily' || !taskType) {
+    return !!LS.get('daily_' + g.id + '_' + taskId + '_' + dayDate);
+  } else if(taskType === 'planning') {
+    return !!LS.get('plan_' + g.id + '_' + taskId + '_d' + dayNum);
+  } else if(taskType === 'checkin') {
+    return !!LS.get('checkin_' + g.id + '_' + taskId + '_d' + dayNum);
+  }
+  return false;
+}
 function setTaskDone(g,taskId,taskType,dayNum,val){
   if(taskType==='daily'||!taskType){
     const dayDate=getDayDateStr(g,dayNum);
