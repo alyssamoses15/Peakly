@@ -1341,6 +1341,32 @@ async function syncCheckmarksFromCloud() {
 
 // Keep your existing timeout
 setTimeout(syncCheckmarksFromCloud, 1500);
+
+async function syncCheckmarksFromCloud() {
+  if (!window.sb) return; 
+  try {
+    const { data: { session } } = await window.sb.auth.getSession();
+    if (!session) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { data: habits } = await window.sb
+      .from('habits')
+      .select('name')
+      .eq('user_id', session.user.id)
+      .eq('completed_at', today);
+
+    if (habits && habits.length > 0) {
+      let changed = false;
+      habits.forEach(h => {
+        if (localStorage.getItem(h.name) !== JSON.stringify(true)) {
+          localStorage.setItem(h.name, JSON.stringify(true));
+          changed = true;
+        }
+      });
+      if (changed) window.dispatchEvent(new Event('focus'));
+    }
+  } catch (e) { console.error(e); }
+}
+
 </script>
 </body>
 </html>
