@@ -1293,7 +1293,7 @@ const sickDay = () => {
         if (!hasCelebrated) {
           if (typeof showConfetti === 'function') showConfetti();
           setTimeout(() => {
-            alert("Congratulations Alyssa! 100% Reached! 🏔️");
+            alert("Congratulations! 100% Reached! 🏔️");
           }, 500);
           localStorage.setItem('celebrated_' + today, 'true');
         }
@@ -1320,16 +1320,12 @@ const sickDay = () => {
         if (habits && habits.length > 0) {
           let changed = false;
           habits.forEach(h => {
-            // We use JSON.Stringify(true) so the 'LS.get' helper can read it
-            const cloudValue = JSON.stringify(ture);
             if (localStorage.getItem(h.name) !== JSON.stringify(true)) {
               localStorage.setItem(h.name, JSON.stringify(true));
               changed = true;
             }
           });
-          // If we found new cloud checkmarks, we nudge the app to re-calculate the percentage
-          if (changed) {
-            window.dispatchEvent(new Event('focus'));
+          if (changed) window.dispatchEvent(new Event('focus'));
         }
       } catch (e) { console.error("Sync error:", e); }
     }
