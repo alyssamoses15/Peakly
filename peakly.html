@@ -1266,13 +1266,10 @@ const sickDay = () => {
             <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
-              {pct === 100 && (
+{pct === 100 && (
   <>
     <span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>
-    {/* This triggers the function to throw the confetti */}
-    {useEffect(() => {
-      if (typeof showConfetti === 'function') showConfetti();
-    }, [])}
+    <CelebrationTrigger />
   </>
 )}
             </div>
