@@ -1281,58 +1281,30 @@ const sickDay = () => {
         </div>
 
       </main>
-    </div>
-  );
-}
+</div>
+      );
+    };
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-// Add this to your peakly.html (Home Page) before the closing </script>
-async function syncCheckmarksFromCloud() {
-  if (!window.supabaseClient) return;
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  if (!session) return;
+    // --- CELEBRATION COMPONENT (ONE-TIME TRIGGER) ---
+    const CelebrationTrigger = () => {
+      React.useEffect(() => {
+        const today = new Date().toDateString();
+        const hasCelebrated = localStorage.getItem('celebrated_' + today);
+        if (!hasCelebrated) {
+          if (typeof showConfetti === 'function') showConfetti();
+          setTimeout(() => {
+            alert("Congratulations Alyssa! 100% Reached! 🏔️");
+          }, 500);
+          localStorage.setItem('celebrated_' + today, 'true');
+        }
+      }, []);
+      return null;
+    };
 
-  const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabaseClient.from('habits')
-    .select('name')
-    .eq('user_id', session.user.id)
-    .eq('completed_at', today);
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
 
-  if (data && data.length > 0) {
-    data.forEach(habit => {
-      LS.set(habit.name, true); // Syncs the cloud checkmark to local memory
-    });
-    // This is the important part: refresh the Home Page view
-    if (typeof refreshDashboard === 'function') refreshDashboard();
-    else if (typeof renderApp === 'function') renderApp();
-  }
-}
-
-// Trigger it on load
-async function syncCheckmarksFromCloud() {
-  if (!window.sb) return; // Uses the 'sb' client created at the top
-
-  const { data: { session } } = await window.sb.auth.getSession();
-  if (!session) return;
-
-  const today = new Date().toISOString().split('T')[0];
-  const { data: habits } = await window.sb
-    .from('habits')
-    .select('name')
-    .eq('user_id', session.user.id)
-    .eq('completed_at', today);
-
-  if (habits && habits.length > 0) {
-    let changed = false;
-    habits.forEach(h => {
-      if (localStorage.getItem(h.name) !== 'true') {
-        localStorage.setItem(h.name, 'true');
-        changed = true;
-      }
-    });
-
-    setTimeout(syncCheckmarksFromCloud, 1500);
-
+    // --- CLOUD SYNC LOGIC ---
     async function syncCheckmarksFromCloud() {
       if (!window.sb) return; 
       try {
@@ -1357,6 +1329,7 @@ async function syncCheckmarksFromCloud() {
         }
       } catch (e) { console.error("Sync error:", e); }
     }
+    setTimeout(syncCheckmarksFromCloud, 1500);
   </script>
 </body>
 </html>
