@@ -1266,7 +1266,7 @@ const sickDay = () => {
             <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
-{pct === 100 && (
+{pct === 100 && <CelebrationTrigger />}
   <>
     <span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>
     <CelebrationTrigger />
@@ -1320,12 +1320,16 @@ const sickDay = () => {
         if (habits && habits.length > 0) {
           let changed = false;
           habits.forEach(h => {
+            // We use JSON.Stringify(true) so the 'LS.get' helper can read it
+            const cloudValue = JSON.stringify(ture);
             if (localStorage.getItem(h.name) !== JSON.stringify(true)) {
               localStorage.setItem(h.name, JSON.stringify(true));
               changed = true;
             }
           });
-          if (changed) window.dispatchEvent(new Event('focus'));
+          // If we found new cloud checkmarks, we nudge the app to re-calculate the percentage
+          if (changed) {
+            window.dispatchEvent(new Event('focus'));
         }
       } catch (e) { console.error("Sync error:", e); }
     }
