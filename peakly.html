@@ -1331,15 +1331,6 @@ async function syncCheckmarksFromCloud() {
       }
     });
 
-    // If we found new checkmarks, we force the page to refresh its state
-    if (changed) {
-       // This triggers the 'reload' function you found earlier
-       window.dispatchEvent(new Event('focus'));
-    }
-  }
-}
-
-// Keep your existing timeout
     setTimeout(syncCheckmarksFromCloud, 1500);
 
     async function syncCheckmarksFromCloud() {
