@@ -78,6 +78,7 @@ function Logo({size=32}){
 
 // ─ Confetti ─
 function Confetti({active,onDone}){
+  alert("100% Reached! Peak Achieved! 🏔️");
   useEffect(()=>{
     if(!active)return;
     const colors=['#1A5FA8','#F97316','#3B82F6','#FB923C','#DBEAFE','#FED7AA'];
@@ -1266,7 +1267,15 @@ const sickDay = () => {
             <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
-              {pct===100&&<span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>}
+              {pct === 100 && (
+  <>
+    <span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>
+    {/* This triggers the function to throw the confetti */}
+    {useEffect(() => {
+      if (typeof showConfetti === 'function') showConfetti();
+    }, [])}
+  </>
+)}
             </div>
           </div>
           <Pomo/>
@@ -1304,7 +1313,38 @@ async function syncCheckmarksFromCloud() {
 }
 
 // Trigger it on load
-setTimeout(syncCheckmarksFromCloud, 1000);
+async function syncCheckmarksFromCloud() {
+  if (!window.sb) return; // Uses the 'sb' client created at the top
+
+  const { data: { session } } = await window.sb.auth.getSession();
+  if (!session) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data: habits } = await window.sb
+    .from('habits')
+    .select('name')
+    .eq('user_id', session.user.id)
+    .eq('completed_at', today);
+
+  if (habits && habits.length > 0) {
+    let changed = false;
+    habits.forEach(h => {
+      if (localStorage.getItem(h.name) !== 'true') {
+        localStorage.setItem(h.name, 'true');
+        changed = true;
+      }
+    });
+
+    // If we found new checkmarks, we force the page to refresh its state
+    if (changed) {
+       // This triggers the 'reload' function you found earlier
+       window.dispatchEvent(new Event('focus'));
+    }
+  }
+}
+
+// Keep your existing timeout
+setTimeout(syncCheckmarksFromCloud, 1500);
 </script>
 </body>
 </html>
