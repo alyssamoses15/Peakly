@@ -1281,6 +1281,30 @@ const sickDay = () => {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+// Add this to your peakly.html (Home Page) before the closing </script>
+async function syncCheckmarksFromCloud() {
+  if (!window.supabaseClient) return;
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (!session) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabaseClient.from('habits')
+    .select('name')
+    .eq('user_id', session.user.id)
+    .eq('completed_at', today);
+
+  if (data && data.length > 0) {
+    data.forEach(habit => {
+      LS.set(habit.name, true); // Syncs the cloud checkmark to local memory
+    });
+    // This is the important part: refresh the Home Page view
+    if (typeof refreshDashboard === 'function') refreshDashboard();
+    else if (typeof renderApp === 'function') renderApp();
+  }
+}
+
+// Trigger it on load
+setTimeout(syncCheckmarksFromCloud, 1000);
 </script>
 </body>
 </html>
