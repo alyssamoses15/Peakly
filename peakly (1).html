@@ -514,7 +514,8 @@ function getCalendarEvents(){
       const time=savedTime||t.defTime;
       if(!time)return;
       const evId='g_'+g.id+'_d'+dayNum+'_'+t.id;
-      const checkKey='daily_'+g.id+'_'+t.id+'_'+todayStr;
+   // Ensure it looks exactly like this:
+      const checkKey = `daily_${goal.id}_${task.taskId}_${new Date().toDateString()}`;
       evs.push({id:evId,type:'goal',title:g.name+': '+t.text,time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:t.id,page:'peakly-goals.html'});
     });
   });
