@@ -498,25 +498,31 @@ function getAllEvents(){
   // Goal tasks
   // Load goal tasks from actual goal definitions (not hardcoded)
   const goals=LS.get('peakly_goals',[]);
-  goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
-    const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
-    const totalDays=g.totalDays||90;
-    for(let d=1;d<=totalDays;d++){
-      const dd=new Date(sd);dd.setDate(sd.getDate()+d-1);
-      // Use todayTasks if this is today's day, otherwise skip (calendar shows today's tasks)
-      const today=new Date();today.setHours(0,0,0,0);
-      const dayNum=Math.floor((today-sd)/86400000)+1;
-      if(d!==dayNum)continue; // only show today's tasks
-      const todayTasks=g.todayTasks||[];
-      todayTasks.forEach(t=>{
-        const tid=t.taskId||t.id||'task';
-        const gEvId='g_'+g.id+'_d'+d+'_'+tid;
-        const gDur=LS.get('cal_dur_'+gEvId,30);
-        const taskTime=t.time||'09:00';
-        evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(dd),time:taskTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,goalDay:d,scheduled:true,sourcePage:'peakly-goals.html'});
-      });
-    }
-  });
+const goals = LS.get('peakly_goals', []);
+goals.filter(g => g.startedDate && !g.completed).forEach(g => {
+    const todayTasks = g.todayTasks || [];
+    
+    todayTasks.forEach(t => {
+        const tid = t.taskId || t.id || 'task';
+        // Matches the "checkKey" on Peakly home page for syncing
+        const gEvId = `daily_${g.id}_${tid}_${today.toDateString()}`;
+        const gDur = LS.get('cal_dur_' + gEvId, 30);
+        
+        evs.push({
+            id: gEvId,
+            type: 'goal',
+            title: `${g.name}: ${t.task || t.name || 'Task'}`,
+            date: new Date(today), 
+            time: t.time || '09:00',
+            dur: gDur,
+            color: g.color || TYPE.goal.color,
+            goalId: g.id,
+            taskId: tid,
+            scheduled: true,
+            sourcePage: 'peakly-goals.html'
+        });
+    });
+});
   // Routines
   ['Morning_routine','Night_routine'].forEach(rk=>{
     const cfg=LS.get('routine_'+rk+'_cal',null);
