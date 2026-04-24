@@ -119,14 +119,14 @@ function SickModal({onConfirm,onCancel}){
     </Overlay>
   );
 }
-function CongratsModal({msg,onClose}){
+function CongratsModal({msg,title,emoji,onClose}){
   return(
     <Overlay>
       <div style={{textAlign:'center'}}>
-        <div style={{fontSize:52,marginBottom:8}}>🎉</div>
-        <div style={{fontFamily:'var(--font-display)',fontSize:24,fontWeight:700,color:'var(--blue)',marginBottom:8}}>You crushed it!</div>
+        <div style={{fontSize:60,marginBottom:12}}>{emoji||'🎉'}</div>
+        <div style={{fontFamily:'var(--font-display)',fontSize:26,fontWeight:700,color:'var(--blue)',marginBottom:8}}>{title||'Peak reached!'}</div>
         <p style={{fontSize:14,color:'var(--text2)',lineHeight:1.7,marginBottom:24}}>{msg}</p>
-        <button onClick={onClose} style={{width:'100%',padding:'12px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:14,fontWeight:600,border:'none'}}>Keep going 💪</button>
+        <button onClick={onClose} style={{width:'100%',padding:'13px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:14,fontWeight:600,border:'none',cursor:'pointer'}}>Keep climbing 🏔️</button>
       </div>
     </Overlay>
   );
@@ -1261,17 +1261,10 @@ const sickDay = () => {
           <div className="card">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <div className="clabel" style={{marginBottom:0}}>Today's Progress</div>
-              <span style={{fontSize:14,fontWeight:700,color:pct===100?'var(--orange)':'var(--blue)'}}>{pct}%</span>
-            </div>
-            <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
-{pct === 100 && <CelebrationTrigger />}
-  <>
-    <span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>
-    <CelebrationTrigger />
-  </>
-)}
+                          <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+              <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
             </div>
           </div>
           <Pomo/>
@@ -1284,23 +1277,6 @@ const sickDay = () => {
 </div>
       );
     };
-
-    // --- CELEBRATION COMPONENT (ONE-TIME TRIGGER) ---
-    const CelebrationTrigger = () => {
-      React.useEffect(() => {
-        const today = new Date().toDateString();
-        const hasCelebrated = localStorage.getItem('celebrated_' + today);
-        if (!hasCelebrated) {
-          if (typeof showConfetti === 'function') showConfetti();
-          setTimeout(() => {
-            alert("Congratulations! 100% Reached! 🏔️");
-          }, 500);
-          localStorage.setItem('celebrated_' + today, 'true');
-        }
-      }, []);
-      return null;
-    };
-
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
