@@ -1175,7 +1175,7 @@ const toggleHabit = (goalId, habitId) => {
     const doneCount = all.filter(h => h.done).length;
     if (all.length > 0 && doneCount === all.length && doneCount > prevRef.current) {
       setConfetti(true);
-      setCongrats("You completed every task today — that's your peak! 🏔️ Keep this streak alive.");
+      setCongrats("Congratulations, you're one day closer to reaching your peak");
     }
     prevRef.current = doneCount;
   };
@@ -1266,9 +1266,6 @@ const sickDay = () => {
             <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
-              {pct===100&&(
-                <span style={{fontSize:11,color:'var(--orange)',fontWeight:700,animation:'shimmer 1.5s ease-in-out infinite'}}>🏔️ Peak reached!</span>
-              )}
             </div>
           </div>
           <Pomo/>
