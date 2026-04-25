@@ -490,6 +490,7 @@ const CHECKIN_DAYS=[30,60,90];
 
 function getAllEvents(){
   const evs=[];
+  const today=new Date();today.setHours(0,0,0,0);
   // Manual
   manualEvents.forEach(e=>{
     const d=new Date(e.date);if(isNaN(d))return;
@@ -497,8 +498,7 @@ function getAllEvents(){
   });
   // Goal tasks
   // Load goal tasks from actual goal definitions (not hardcoded)
-  const goals=LS.get('peakly_goals',[]);
-const goals = LS.get('peakly_goals', []);
+  const goals = LS.get('peakly_goals', []);
 goals.filter(g => g.startedDate && !g.completed).forEach(g => {
     const todayTasks = g.todayTasks || [];
     
@@ -528,7 +528,6 @@ goals.filter(g => g.startedDate && !g.completed).forEach(g => {
     const cfg=LS.get('routine_'+rk+'_cal',null);
     if(!cfg||!cfg.synced)return;
     const isNight=rk.includes('Night');
-    const today=new Date();today.setHours(0,0,0,0);
     for(let i=-7;i<60;i++){
       const d=new Date(today);d.setDate(today.getDate()+i);
       const dow=['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
