@@ -4446,6 +4446,14 @@ function saveGoals(){LS.set('peakly_goals',goals);}
 })();
 
 renderGoalsPage();
+(()=>{
+  const qs=new URLSearchParams(window.location.search);
+  const gid=qs.get('goal');
+  if(gid){
+    const target=goals.find(g=>String(g.id)===String(gid));
+    if(target)setTimeout(()=>openGoalDetail(target.id),50);
+  }
+})();
 // ... many lines of code above ...
     renderGoalsPage();
 // This runs every time the page loads to pull checkmarks from your phone/cloud

@@ -119,6 +119,57 @@ function SickModal({onConfirm,onCancel}){
     </Overlay>
   );
 }
+function TaskInfoModal({ev,onClose}){
+  const goal=ev.type==='goal'&&ev.goalId?(LS.get('peakly_goals',[]).find(g=>String(g.id)===String(ev.goalId))):null;
+  const dayInfo=(()=>{
+    if(!goal||!goal.startedDate)return null;
+    const sd=new Date(goal.startedDate);sd.setHours(0,0,0,0);
+    const now=new Date();now.setHours(0,0,0,0);
+    const dayNum=Math.floor((now-sd)/86400000)+1;
+    const total=goal.totalDays||90;
+    return {dayNum,total};
+  })();
+  const linkLabel=(()=>{
+    if(ev.type==='goal')return 'View goal page →';
+    if(ev.type==='lifeadmin')return 'View Life Admin →';
+    if(ev.type==='routine')return 'View routines →';
+    if(ev.type==='work')return 'View work →';
+    if(ev.type==='manual')return 'View calendar →';
+    return 'View source →';
+  })();
+  const linkHref=(()=>{
+    if(ev.type==='goal'&&ev.goalId)return `peakly-goals.html?goal=${encodeURIComponent(ev.goalId)}`;
+    return ev.page||null;
+  })();
+  const headerEmoji=goal?.emoji||(ev.type==='goal'?'🎯':ev.type==='lifeadmin'?'🏠':ev.type==='routine'?'🌅':ev.type==='work'?'💼':'📌');
+  const headerTitle=goal?.name||ev.goalName||ev.title;
+  const subtypeLabel=ev.subType?ev.subType.replace(/_/g,' '):null;
+  return(
+    <Overlay>
+      <div>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
+          <div style={{fontSize:32}}>{headerEmoji}</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:'var(--text)',lineHeight:1.2}}>{headerTitle}</div>
+            {dayInfo&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Day {dayInfo.dayNum} of {dayInfo.total}</div>}
+            {!dayInfo&&subtypeLabel&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2,textTransform:'capitalize'}}>{subtypeLabel}</div>}
+          </div>
+        </div>
+        <div style={{padding:'12px 14px',background:'var(--bg)',borderRadius:'var(--r-md)',marginBottom:14}}>
+          <div style={{fontSize:10,fontWeight:700,letterSpacing:'0.6px',textTransform:'uppercase',color:'var(--text3)',marginBottom:5}}>Today's task</div>
+          <div style={{fontSize:14,fontWeight:600,color:'var(--text)',lineHeight:1.4}}>{ev.title}</div>
+          {ev.time&&<div style={{fontSize:12,color:'var(--text2)',marginTop:6}}>⏰ {ev.time}</div>}
+          {ev.taskType&&ev.taskType!=='daily'&&<div style={{fontSize:11,color:'var(--text3)',marginTop:4,textTransform:'capitalize'}}>{ev.taskType} task</div>}
+        </div>
+        {goal?.description&&<p style={{fontSize:13,color:'var(--text2)',lineHeight:1.6,marginBottom:14}}>{goal.description}</p>}
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onClose} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',border:'1px solid var(--border)',background:'var(--white)',color:'var(--text2)',fontSize:13,fontWeight:600,cursor:'pointer'}}>Close</button>
+          {linkHref&&<a href={linkHref} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:13,fontWeight:600,textDecoration:'none',textAlign:'center'}}>{linkLabel}</a>}
+        </div>
+      </div>
+    </Overlay>
+  );
+}
 function CongratsModal({msg,title,emoji,onClose}){
   return(
     <Overlay>
@@ -475,6 +526,7 @@ function GoalList({goals,onToggle}){
     getCalendarEvents().forEach(e=>{m[e.checkKey]=LS.get(e.checkKey,false);});
     return m;
   });
+  const [infoEvent,setInfoEvent]=useSt(null);
   const calRef=useRf(null);
   const curH=now.getHours(),curM=now.getMinutes();
   const todayStr=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
@@ -539,20 +591,24 @@ function GoalList({goals,onToggle}){
     const goalColor=ev.color||'#0891B2';
     const typeMap={goal:'🎯',lifeadmin:'🏠',routine:'🌅',work:'💼',manual:'📌'};
     return(
-      <div onClick={()=>toggle(ev)}
-        style={{display:'flex',alignItems:'center',gap:7,padding:'6px 10px',borderRadius:8,
+      <div style={{display:'flex',alignItems:'center',gap:7,padding:'6px 10px',borderRadius:8,
           background:done?'var(--bg2)':'var(--white)',
           borderLeft:`3px solid ${done?'var(--border)':goalColor}`,
           border:`1px solid ${done?'var(--border2)':goalColor+'44'}`,
           cursor:'pointer',transition:'all 0.15s',opacity:done?0.55:1,marginBottom:3}}>
-        <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${done?'var(--border)':goalColor}`,
-          background:done?goalColor:'transparent',display:'flex',alignItems:'center',justifyContent:'center',
-          flexShrink:0,transition:'all 0.15s'}}>
-          {done&&<svg width="8" height="6" viewBox="0 0 8 6"><path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        <div onClick={()=>toggle(ev)} style={{flex:1,display:'flex',alignItems:'center',gap:7,minWidth:0}}>
+          <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${done?'var(--border)':goalColor}`,
+            background:done?goalColor:'transparent',display:'flex',alignItems:'center',justifyContent:'center',
+            flexShrink:0,transition:'all 0.15s'}}>
+            {done&&<svg width="8" height="6" viewBox="0 0 8 6"><path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </div>
+          <span style={{flex:1,fontSize:12,fontWeight:done?400:600,color:done?'var(--text3)':'var(--text)',textDecoration:done?'line-through':'none',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.title}</span>
+          {ev.time&&<span style={{fontSize:10,color:'var(--text4)',flexShrink:0,fontWeight:500}}>{fmtHour(parseInt(ev.time.split(':')[0]))}</span>}
+          <span style={{fontSize:10,flexShrink:0}}>{typeMap[ev.type]||'📌'}</span>
         </div>
-        <span style={{flex:1,fontSize:12,fontWeight:done?400:600,color:done?'var(--text3)':'var(--text)',textDecoration:done?'line-through':'none',lineHeight:1.3}}>{ev.title}</span>
-        {ev.time&&<span style={{fontSize:10,color:'var(--text4)',flexShrink:0,fontWeight:500}}>{fmtHour(parseInt(ev.time.split(':')[0]))}</span>}
-        <span style={{fontSize:10,flexShrink:0}}>{typeMap[ev.type]||'📌'}</span>
+        <button onClick={(e)=>{e.stopPropagation();setInfoEvent(ev);}}
+          title="More info"
+          style={{flexShrink:0,width:20,height:20,borderRadius:'50%',border:'none',background:'transparent',color:'var(--text3)',fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,lineHeight:1}}>ⓘ</button>
       </div>
     );
   };
@@ -576,6 +632,7 @@ function GoalList({goals,onToggle}){
 
   return(
     <div className="card" style={{display:'flex',flexDirection:'column',height:'calc(100vh - 104px)',minHeight:500,overflow:'hidden',padding:0}}>
+      {infoEvent&&<TaskInfoModal ev={infoEvent} onClose={()=>setInfoEvent(null)}/>}
       {/* Header */}
       <div style={{padding:'13px 16px',borderBottom:'1px solid var(--border2)',flexShrink:0,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div>
@@ -705,6 +762,7 @@ function getCalendarEvents(){
   }
 
   // 5. Life Admin cal events (include today's, with or without time)
+  const LA_PART2_KEYS=['pro_meetings','pro_certs','partner_dates','fam_events','comm_events'];
   const calEvs=LS.get('cal_events',[]);
   calEvs.forEach((e,i)=>{
     if(!e.date&&!e.title)return;
@@ -714,8 +772,14 @@ function getCalendarEvents(){
       if(!isNaN(d)&&d.toDateString()!==todayStr)return;
     }
     const evId='la_'+i;
-    const time=e.time||''; // no time = unscheduled
-    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:'peakly-second-brain-1.html'});
+    let evTime=e.time||'';
+    if(!evTime&&typeof e.date==='string'&&e.date.includes('T')){
+      const tPart=e.date.split('T')[1];
+      if(tPart)evTime=tPart.slice(0,5);
+    }
+    const isPart2=e.sourceKey&&(LA_PART2_KEYS.includes(e.sourceKey)||e.sourceKey.startsWith('child_'));
+    const sourcePage=isPart2?'peakly-second-brain-2.html':'peakly-second-brain-1.html';
+    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time:evTime,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:sourcePage,subType:e.type,sourceKey:e.sourceKey});
   });
 
   return evs.sort((a,b)=>{
