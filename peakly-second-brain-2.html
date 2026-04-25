@@ -1748,7 +1748,7 @@ function buildProfessional(wrap){
         ti.addEventListener('input',e=>{m.title=e.target.value;LS.set('pro_meetings',meetings);});
         const di=mk('input','inp');di.type='datetime-local';di.value=m.date||'';di.style.fontSize='12px';
         di.addEventListener('input',e=>{m.date=e.target.value;LS.set('pro_meetings',meetings);});
-        const csb=calSyncBtn('Sync',()=>({title:m.title,date:m.date,notes:m.notes,type:'meeting'}));
+        const csb=calSyncBtn('Sync',()=>({title:m.title,date:m.date,notes:m.notes,type:'meeting',sourceKey:'pro_meetings',sourceId:m.id}));
         const ni=mk('textarea','inp');ni.placeholder='Agenda, notes, action items…';ni.value=m.notes||'';ni.rows=2;ni.style.fontSize='12px';
         ni.addEventListener('input',e=>{m.notes=e.target.value;LS.set('pro_meetings',meetings);});
         const del=mk('button');del.textContent='Remove';del.style.cssText='font-size:11px;color:var(--red);padding:0;margin-top:4px;';
@@ -1774,7 +1774,7 @@ function buildProfessional(wrap){
         ni.addEventListener('input',e=>{c.name=e.target.value;LS.set('pro_certs',certs);});
         const di=mk('input','inp');di.type='date';di.value=c.expiry||'';di.style.fontSize='12px';
         di.addEventListener('input',e=>{c.expiry=e.target.value;LS.set('pro_certs',certs);});
-        const csb=calSyncBtn('Sync',()=>({title:(c.name||'Certification')+' renewal',date:c.expiry,notes:c.notes,type:'cert_renewal',reminder:'30days'}));
+        const csb=calSyncBtn('Sync',()=>({title:(c.name||'Certification')+' renewal',date:c.expiry,notes:c.notes,type:'cert_renewal',reminder:'30days',sourceKey:'pro_certs',sourceId:c.id,sourceField:'expiry'}));
         const notesi=mk('input','inp');notesi.placeholder='Notes, renewal steps…';notesi.value=c.notes||'';notesi.style.fontSize='12px';
         notesi.addEventListener('input',e=>{c.notes=e.target.value;LS.set('pro_certs',certs);});
         const del=mk('button');del.textContent='Remove';del.style.cssText='font-size:11px;color:var(--red);margin-top:4px;';
@@ -2176,7 +2176,7 @@ function buildFamily(wrap){
             const lbl=mk('span');lbl.style.cssText='font-size:12px;font-weight:600;color:var(--text);min-width:80px;';lbl.textContent=a.type;
             const di=mk('input','inp');di.type='date';di.value=a.date;di.style.cssText='font-size:11px;width:130px;';di.addEventListener('input',e=>{a.date=e.target.value;LS.set('child_apts_'+ci,apts);});
             const ni=mk('input','inp');ni.placeholder='Notes…';ni.value=a.notes;ni.style.cssText='flex:1;font-size:11px;';ni.addEventListener('input',e=>{a.notes=e.target.value;LS.set('child_apts_'+ci,apts);});
-            const csb=calSyncBtn('Sync',()=>({title:(a.type||'Appointment')+' (child)',date:a.date,notes:a.notes,type:'child_apt'}));csb.style.fontSize='10px';
+            const csb=calSyncBtn('Sync',()=>({title:(a.type||'Appointment')+' (child)',date:a.date,notes:a.notes,type:'child_apt',sourceKey:'child_apts_'+ci,sourceId:a.id}));csb.style.fontSize='10px';
             row.appendChild(chk);row.appendChild(lbl);row.appendChild(di);row.appendChild(ni);row.appendChild(csb);aptWrap.appendChild(row);
           });
           aptWrap.appendChild(addbtn('Add specialist appointment',()=>{apts.push({id:Date.now(),type:'',done:false,date:'',notes:''});LS.set('child_apts_'+ci,apts);renderApts();}));
@@ -2194,7 +2194,7 @@ function buildFamily(wrap){
             const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:5px;';
             const ni=mk('input','inp');ni.placeholder='Activity / sport';ni.value=a.name||'';ni.style.cssText='flex:1;font-size:12px;';ni.addEventListener('input',e=>{a.name=e.target.value;LS.set('child_acts_'+ci,activities);});
             const di=mk('input','inp');di.type='datetime-local';di.value=a.date||'';di.style.cssText='font-size:12px;width:170px;';di.addEventListener('input',e=>{a.date=e.target.value;LS.set('child_acts_'+ci,activities);});
-            const csb=calSyncBtn('Sync',()=>({title:(a.name||'Activity')+' (child)',date:a.date,type:'child_activity'}));csb.style.fontSize='10px';
+            const csb=calSyncBtn('Sync',()=>({title:(a.name||'Activity')+' (child)',date:a.date,type:'child_activity',sourceKey:'child_acts_'+ci,sourceId:a.id}));csb.style.fontSize='10px';
             const del=mk('button');del.textContent='×';del.style.cssText='font-size:16px;color:var(--text4);';del.addEventListener('click',()=>{activities.splice(ai,1);LS.set('child_acts_'+ci,activities);renderActs();});
             row.appendChild(ni);row.appendChild(di);row.appendChild(csb);row.appendChild(del);actWrap.appendChild(row);
           });
@@ -2213,7 +2213,7 @@ function buildFamily(wrap){
             const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:5px;';
             const ni=mk('input','inp');ni.placeholder='Event / deadline';ni.value=s.name||'';ni.style.cssText='flex:1;font-size:12px;';ni.addEventListener('input',e=>{s.name=e.target.value;LS.set('child_school_'+ci,schoolEvents);});
             const di=mk('input','inp');di.type='datetime-local';di.value=s.date||'';di.style.cssText='font-size:12px;width:170px;';di.addEventListener('input',e=>{s.date=e.target.value;LS.set('child_school_'+ci,schoolEvents);});
-            const csb=calSyncBtn('Sync',()=>({title:(s.name||'School event')+' (school)',date:s.date,type:'school_event'}));csb.style.fontSize='10px';
+            const csb=calSyncBtn('Sync',()=>({title:(s.name||'School event')+' (school)',date:s.date,type:'school_event',sourceKey:'child_school_'+ci,sourceId:s.id}));csb.style.fontSize='10px';
             const del=mk('button');del.textContent='×';del.style.cssText='font-size:16px;color:var(--text4);';del.addEventListener('click',()=>{schoolEvents.splice(si,1);LS.set('child_school_'+ci,schoolEvents);renderSE();});
             row.appendChild(ni);row.appendChild(di);row.appendChild(csb);row.appendChild(del);seWrap.appendChild(row);
           });
@@ -2336,11 +2336,11 @@ function buildFamily(wrap){
         const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
         const ni=mk('input','inp');ni.placeholder='Date idea / plan';ni.value=d.plan||'';ni.style.cssText='flex:1;font-size:12px;';ni.addEventListener('input',e=>{d.plan=e.target.value;LS.set('partner_dates',dates);});
         const di=mk('input','inp');di.type='datetime-local';di.value=d.date||'';di.style.cssText='font-size:12px;width:170px;';di.addEventListener('input',e=>{d.date=e.target.value;LS.set('partner_dates',dates);});
-        const csb=calSyncBtn('Sync',()=>({title:'Date: '+(d.plan||'plan'),date:d.date,type:'partner_date'}));csb.style.fontSize='10px';
+        const csb=calSyncBtn('Sync',()=>({title:'Date: '+(d.plan||'plan'),date:d.date,type:'partner_date',sourceKey:'partner_dates',sourceId:d.id}));csb.style.fontSize='10px';
         const del=mk('button');del.textContent='×';del.style.cssText='font-size:16px;color:var(--text4);';del.addEventListener('click',()=>{dates.splice(i,1);LS.set('partner_dates',dates);renderDates();});
         row.appendChild(ni);row.appendChild(di);row.appendChild(csb);row.appendChild(del);dWrap.appendChild(row);
       });
-      dWrap.appendChild(addbtn('Plan a date',()=>{dates.push({plan:'',date:''});LS.set('partner_dates',dates);renderDates();}));
+      dWrap.appendChild(addbtn('Plan a date',()=>{dates.push({id:Date.now(),plan:'',date:''});LS.set('partner_dates',dates);renderDates();}));
     };
     renderDates();dpSection.appendChild(dWrap);
     b.appendChild(dpSection);
@@ -2358,11 +2358,11 @@ function buildFamily(wrap){
         const ti=mk('input','inp');ti.placeholder='Event (birthday, holiday, tradition…)';ti.value=e.title||'';ti.style.cssText='flex:1;font-size:12px;';ti.addEventListener('input',ev=>{e.title=ev.target.value;LS.set('fam_events',events);});
         const di=mk('input','inp');di.type='datetime-local';di.value=e.date||'';di.style.cssText='font-size:12px;width:170px;';di.addEventListener('input',ev=>{e.date=ev.target.value;LS.set('fam_events',events);});
         const ni=mk('input','inp');ni.placeholder='Notes…';ni.value=e.notes||'';ni.style.cssText='flex:1;font-size:12px;';ni.addEventListener('input',ev=>{e.notes=ev.target.value;LS.set('fam_events',events);});
-        const csb=calSyncBtn('Sync',()=>({title:e.title||'Family event',date:e.date,notes:e.notes,type:'family_event'}));csb.style.fontSize='10px';
+        const csb=calSyncBtn('Sync',()=>({title:e.title||'Family event',date:e.date,notes:e.notes,type:'family_event',sourceKey:'fam_events',sourceId:e.id}));csb.style.fontSize='10px';
         const del=mk('button');del.textContent='×';del.style.cssText='font-size:16px;color:var(--text4);';del.addEventListener('click',()=>{events.splice(i,1);LS.set('fam_events',events);renderEvents();});
         row.appendChild(ti);row.appendChild(di);row.appendChild(ni);row.appendChild(csb);row.appendChild(del);eWrap.appendChild(row);
       });
-      eWrap.appendChild(addbtn('Add family event or holiday',()=>{events.push({title:'',date:'',notes:''});LS.set('fam_events',events);renderEvents();}));
+      eWrap.appendChild(addbtn('Add family event or holiday',()=>{events.push({id:Date.now(),title:'',date:'',notes:''});LS.set('fam_events',events);renderEvents();}));
     };
     renderEvents();
     b.appendChild(fld('Elder care notes',ta('Medications, doctors, care schedule for aging parents…','',null,2)));
@@ -2529,11 +2529,11 @@ function buildCommunity(wrap){
         const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;';
         const ni=mk('input','inp');ni.placeholder='Event name';ni.value=e.name||'';ni.style.cssText='flex:1;font-size:12px;';ni.addEventListener('input',ev=>{e.name=ev.target.value;LS.set('comm_events',events);});
         const di=mk('input','inp');di.type='datetime-local';di.value=e.date||'';di.style.cssText='font-size:12px;width:170px;';di.addEventListener('input',ev=>{e.date=ev.target.value;LS.set('comm_events',events);});
-        const csb=calSyncBtn('Add to calendar',()=>({title:e.name,date:e.date,type:'community_event'}));csb.style.fontSize='10px';
+        const csb=calSyncBtn('Add to calendar',()=>({title:e.name,date:e.date,type:'community_event',sourceKey:'comm_events',sourceId:e.id,sourceTitleField:'name'}));csb.style.fontSize='10px';
         const del=mk('button');del.textContent='×';del.style.cssText='font-size:16px;color:var(--text4);';del.addEventListener('click',()=>{events.splice(i,1);LS.set('comm_events',events);renderEvents();});
         row.appendChild(ni);row.appendChild(di);row.appendChild(csb);row.appendChild(del);evWrap.appendChild(row);
       });
-      evWrap.appendChild(addbtn('Add community event',()=>{events.push({name:'',date:''});LS.set('comm_events',events);renderEvents();}));
+      evWrap.appendChild(addbtn('Add community event',()=>{events.push({id:Date.now(),name:'',date:''});LS.set('comm_events',events);renderEvents();}));
     };
     renderEvents();evSection.appendChild(evWrap);b.appendChild(evSection);
   },true));

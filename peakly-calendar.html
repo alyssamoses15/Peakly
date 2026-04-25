@@ -305,7 +305,35 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
       <div class="banner-sub" id="bannerSub"></div>
     </div>
     <div class="banner-upload">
-      <label title="Upload photo or GIF">🖼️ Set banner<input type="file" accept="image/*,image/gif" id="bannerUpload"/></label>
+      <button id="bannerPickBtn" style="padding:7px 14px;border-radius:var(--rm);background:rgba(255,255,255,.15);backdrop-filter:blur(8px);color:#fff;font-size:11px;font-weight:600;cursor:pointer;border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;gap:5px;">🖼️ Set banner</button>
+      <input type="file" accept="image/*,image/gif" id="bannerUpload" style="display:none;"/>
+    </div>
+  </div>
+
+  <!-- Banner picker modal -->
+  <div id="bannerPickerModal" style="display:none;position:fixed;inset:0;background:rgba(15,28,46,.55);backdrop-filter:blur(3px);z-index:1100;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:16px;width:92%;max-width:560px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.25);">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-family:var(--display);font-size:16px;font-weight:700;">Choose a banner</div>
+        <button id="bpClose" style="font-size:20px;color:var(--text4);background:none;border:none;cursor:pointer;">×</button>
+      </div>
+      <div style="display:flex;gap:6px;padding:10px 18px 0 18px;">
+        <button class="bp-tab on" data-tab="free" style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--blue);color:#fff;">🌅 Free images</button>
+        <button class="bp-tab" data-tab="upload" style="padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:var(--bg);color:var(--text2);">📤 Upload</button>
+      </div>
+      <div id="bpFree" style="padding:12px 18px 18px 18px;overflow-y:auto;">
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input id="bpQuery" placeholder="Search (e.g. mountains, calm, ocean)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;"/>
+          <button id="bpSearch" style="padding:8px 14px;border-radius:8px;background:var(--blue);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;">Search</button>
+        </div>
+        <div id="bpGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;"></div>
+      </div>
+      <div id="bpUpload" style="display:none;padding:18px;text-align:center;">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Upload a photo or GIF from your device</p>
+        <label style="padding:10px 18px;border-radius:8px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;display:inline-block;">
+          Choose file<input type="file" accept="image/*,image/gif" id="bpUploadInput" style="display:none;"/>
+        </label>
+      </div>
     </div>
   </div>
 
@@ -474,13 +502,99 @@ function dk(d){return d.toDateString();}
 function sameDay(a,b){return dk(a)===dk(b);}
 
 // ── Banner ────────────────────────────────────────────────────────────────
+function applyBannerImage(url){
+  const img=document.getElementById('bannerImg');
+  if(!url){img.style.display='none';img.src='';return;}
+  img.src=url;img.style.display='block';
+}
+
+async function saveBannerToCloud(url){
+  if(!window.sb)return;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)return;
+    await sb.from('profiles').upsert({id:session.user.id,cal_banner:url,updated_at:new Date().toISOString()});
+  }catch(err){/* column may not exist on Supabase yet — local fallback still works */}
+}
+
+async function loadBannerFromCloud(){
+  if(!window.sb)return null;
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)return null;
+    const {data}=await sb.from('profiles').select('cal_banner').eq('id',session.user.id).single();
+    return data?.cal_banner||null;
+  }catch(err){return null;}
+}
+
+function pickBanner(url){
+  LS.set('cal_banner',url);
+  applyBannerImage(url);
+  saveBannerToCloud(url);
+  document.getElementById('bannerPickerModal').style.display='none';
+  toast('Banner updated!');
+}
+
+function renderBannerGrid(query){
+  const grid=document.getElementById('bpGrid');
+  grid.innerHTML='';
+  const seeds=Array.from({length:9},(_,i)=>Math.floor(Math.random()*1000)+i*37);
+  seeds.forEach(seed=>{
+    const url=`https://picsum.photos/seed/${query?encodeURIComponent(query)+seed:seed}/400/240`;
+    const tile=document.createElement('div');
+    tile.style.cssText='position:relative;aspect-ratio:5/3;border-radius:8px;overflow:hidden;cursor:pointer;background:var(--bg);';
+    const img=document.createElement('img');
+    img.src=url;img.style.cssText='width:100%;height:100%;object-fit:cover;display:block;';
+    img.loading='lazy';
+    tile.appendChild(img);
+    tile.addEventListener('click',()=>pickBanner(url));
+    grid.appendChild(tile);
+  });
+}
+
 function initBanner(){
-  const stored=LS.get('cal_banner','');
-  if(stored){document.getElementById('bannerImg').src=stored;document.getElementById('bannerImg').style.display='block';}
   document.getElementById('bannerSub').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-  document.getElementById('bannerUpload').addEventListener('change',e=>{
+
+  const local=LS.get('cal_banner','');
+  if(local)applyBannerImage(local);
+
+  loadBannerFromCloud().then(url=>{
+    if(url&&url!==local){LS.set('cal_banner',url);applyBannerImage(url);}
+  });
+
+  const modal=document.getElementById('bannerPickerModal');
+  document.getElementById('bannerPickBtn').addEventListener('click',()=>{
+    modal.style.display='flex';
+    renderBannerGrid('');
+  });
+  document.getElementById('bpClose').addEventListener('click',()=>{modal.style.display='none';});
+  modal.addEventListener('click',e=>{if(e.target===modal)modal.style.display='none';});
+
+  document.querySelectorAll('.bp-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const tab=btn.dataset.tab;
+      document.querySelectorAll('.bp-tab').forEach(b=>{
+        const on=b.dataset.tab===tab;
+        b.style.background=on?'var(--blue)':'var(--bg)';
+        b.style.color=on?'#fff':'var(--text2)';
+      });
+      document.getElementById('bpFree').style.display=tab==='free'?'block':'none';
+      document.getElementById('bpUpload').style.display=tab==='upload'?'block':'none';
+    });
+  });
+
+  document.getElementById('bpSearch').addEventListener('click',()=>{
+    renderBannerGrid(document.getElementById('bpQuery').value.trim());
+  });
+  document.getElementById('bpQuery').addEventListener('keydown',e=>{
+    if(e.key==='Enter')renderBannerGrid(document.getElementById('bpQuery').value.trim());
+  });
+
+  document.getElementById('bpUploadInput').addEventListener('change',e=>{
     const file=e.target.files[0];if(!file)return;
-    const r=new FileReader();r.onload=ev=>{LS.set('cal_banner',ev.target.result);document.getElementById('bannerImg').src=ev.target.result;document.getElementById('bannerImg').style.display='block';toast('Banner updated!');};r.readAsDataURL(file);
+    const r=new FileReader();
+    r.onload=ev=>pickBanner(ev.target.result);
+    r.readAsDataURL(file);
   });
 }
 
@@ -553,7 +667,7 @@ goals.filter(g => g.startedDate && !g.completed).forEach(g => {
       const tPart=e.date.split('T')[1];
       if(tPart)evTime=tPart.slice(0,5);
     }
-    const laEvId='la_'+i;const laDur=LS.get('cal_dur_'+laEvId,e.duration||30);evs.push({id:laEvId,type:'lifeadmin',title:e.title||'Life Admin',date:d,time:evTime,dur:laDur,color:TYPE.lifeadmin.color,scheduled:!!evTime,sourcePage:'peakly-second-brain-1.html'});
+    const laEvId='la_'+i;const laDur=LS.get('cal_dur_'+laEvId,e.duration||30);evs.push({id:laEvId,type:'lifeadmin',title:e.title||'Life Admin',date:d,time:evTime,dur:laDur,color:TYPE.lifeadmin.color,scheduled:!!evTime,sourcePage:'peakly-second-brain-1.html',sourceKey:e.sourceKey,sourceId:e.sourceId,sourceField:e.sourceField,sourceTitleField:e.sourceTitleField});
   });
   return evs;
 }
@@ -853,11 +967,27 @@ function dropEvent(date,mins){
     const sh=LS.get('work_shifts',{});if(sh[e.shiftKey]){sh[e.shiftKey].start=newTime;LS.set('work_shifts',sh);}
   } else if(e.type==='lifeadmin'){
     const calevs=LS.get('cal_events',[]);const idx=parseInt(e.id.replace('la_',''));
-    if(calevs[idx]){calevs[idx].time=newTime;calevs[idx].date=date.toDateString();LS.set('cal_events',calevs);}
+    const newDateTime=combineDateTime(date,newTime);
+    if(calevs[idx]){calevs[idx].time=newTime;calevs[idx].date=newDateTime;LS.set('cal_events',calevs);}
+    if(e.sourceKey&&e.sourceId!=null)writeBackLifeAdminSource(e.sourceKey,e.sourceId,newDateTime,e.sourceField);
   }
   draggingEvent=null;
   renderCal();renderUpcoming();renderMini();
   toast('Moved to '+fmt(newTime)+' · synced across app ✓');
+}
+
+function combineDateTime(date,time){
+  const y=date.getFullYear(),mo=String(date.getMonth()+1).padStart(2,'0'),d=String(date.getDate()).padStart(2,'0');
+  return `${y}-${mo}-${d}T${time}`;
+}
+
+function writeBackLifeAdminSource(sourceKey,sourceId,newDateTime,sourceField){
+  const list=LS.get(sourceKey,[]);
+  if(!Array.isArray(list))return;
+  const idx=list.findIndex(x=>String(x.id)===String(sourceId));
+  if(idx<0)return;
+  list[idx][sourceField||'date']=newDateTime;
+  LS.set(sourceKey,list);
 }
 
 // ── Day panel ─────────────────────────────────────────────────────────────
@@ -984,7 +1114,9 @@ function openEdit(e){
       } else if(e.type==='lifeadmin'){
         const calevs=LS.get('cal_events',[]);
         const idx=parseInt(e.id.replace('la_',''));
-        if(calevs[idx]){calevs[idx].time=newTime;calevs[idx].date=newDate.toDateString();calevs[idx].duration=newDur;LS.set('cal_events',calevs);}
+        const newDateTime=combineDateTime(newDate,newTime);
+        if(calevs[idx]){calevs[idx].time=newTime;calevs[idx].date=newDateTime;calevs[idx].duration=newDur;LS.set('cal_events',calevs);}
+        if(e.sourceKey&&e.sourceId!=null)writeBackLifeAdminSource(e.sourceKey,e.sourceId,newDateTime,e.sourceField);
       }
     }
     // Update viewDate to show the new date
