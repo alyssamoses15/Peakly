@@ -548,7 +548,12 @@ goals.filter(g => g.startedDate && !g.completed).forEach(g => {
   const calevs=LS.get('cal_events',[]);
   calevs.forEach((e,i)=>{
     if(!e.date)return;const d=new Date(e.date);if(isNaN(d))return;
-    const laEvId='la_'+i;const laDur=LS.get('cal_dur_'+laEvId,e.duration||30);evs.push({id:laEvId,type:'lifeadmin',title:e.title||'Life Admin',date:d,time:e.time||'',dur:laDur,color:TYPE.lifeadmin.color,scheduled:!!(e.time),sourcePage:'peakly-second-brain-1.html'});
+    let evTime=e.time||'';
+    if(!evTime&&typeof e.date==='string'&&e.date.includes('T')){
+      const tPart=e.date.split('T')[1];
+      if(tPart)evTime=tPart.slice(0,5);
+    }
+    const laEvId='la_'+i;const laDur=LS.get('cal_dur_'+laEvId,e.duration||30);evs.push({id:laEvId,type:'lifeadmin',title:e.title||'Life Admin',date:d,time:evTime,dur:laDur,color:TYPE.lifeadmin.color,scheduled:!!evTime,sourcePage:'peakly-second-brain-1.html'});
   });
   return evs;
 }
@@ -836,6 +841,12 @@ function dropEvent(date,mins){
     if(idx>-1){manualEvents[idx].time=newTime;manualEvents[idx].date=date.toISOString();LS.set('cal_manual_events',manualEvents);}
   } else if(e.type==='goal'&&e.taskId){
     LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
+    const pg=LS.get('peakly_goals',[]);
+    const gIdx=pg.findIndex(x=>String(x.id)===String(e.goalId));
+    if(gIdx>-1){
+      const tIdx=(pg[gIdx].todayTasks||[]).findIndex(t=>(t.taskId||t.id)===e.taskId);
+      if(tIdx>-1){pg[gIdx].todayTasks[tIdx].time=newTime;LS.set('peakly_goals',pg);}
+    }
   } else if(e.type==='routine'&&e.routineKey){
     const cfg=LS.get('routine_'+e.routineKey+'_cal',{});cfg.time=newTime;LS.set('routine_'+e.routineKey+'_cal',cfg);
   } else if(e.type==='work'&&e.shiftKey){
@@ -949,6 +960,12 @@ function openEdit(e){
       // Update time + date on source pages
       if(e.type==='goal'&&e.taskId){
         LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
+        const pg=LS.get('peakly_goals',[]);
+        const gIdx=pg.findIndex(x=>String(x.id)===String(e.goalId));
+        if(gIdx>-1){
+          const tIdx=(pg[gIdx].todayTasks||[]).findIndex(t=>(t.taskId||t.id)===e.taskId);
+          if(tIdx>-1){pg[gIdx].todayTasks[tIdx].time=newTime;LS.set('peakly_goals',pg);}
+        }
       } else if(e.type==='routine'&&e.routineKey){
         const cfg=LS.get('routine_'+e.routineKey+'_cal',{});
         cfg.time=newTime;LS.set('routine_'+e.routineKey+'_cal',cfg);
