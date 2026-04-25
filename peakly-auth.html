@@ -512,6 +512,14 @@ async function handleSignup(){
 
   // Auto-confirmed (local dev) or session exists
   if(data.session){
+    const lastUserId = localStorage.getItem('peakly_last_user_id');
+    if(lastUserId && lastUserId !== data.user.id){
+      const intent = localStorage.getItem('peakly_plan_intent');
+      localStorage.clear();
+      if(intent) localStorage.setItem('peakly_plan_intent', intent);
+    }
+    localStorage.setItem('peakly_last_user_id', data.user.id);
+
     // Save name to profile
     await sb.from('profiles').update({
       first_name: firstName,
@@ -556,6 +564,12 @@ async function handleLogin(){
     }
     return;
   }
+
+  const lastUserId = localStorage.getItem('peakly_last_user_id');
+  if(lastUserId && lastUserId !== data.user.id){
+    localStorage.clear();
+  }
+  localStorage.setItem('peakly_last_user_id', data.user.id);
 
   window.location.href = 'peakly.html';
 }

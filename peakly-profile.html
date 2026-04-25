@@ -1051,7 +1051,6 @@ async function handleLogout(){
     const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
     await sb.auth.signOut();
   }catch(e){}
-  localStorage.clear();
   window.location.href='peakly-auth.html';
 }
 
