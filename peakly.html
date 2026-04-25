@@ -497,7 +497,7 @@ function GoalList({goals,onToggle}){
     LS.set(ev.checkKey,newVal);
     // Sync to goals page
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      const _today=new Date().toISOString().slice(0,10);
+      const _today=todayKey();
       const ttype=ev.taskType||'daily';
       if(ttype==='planning')LS.set('plan_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
       else if(ttype==='checkin')LS.set('checkin_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
@@ -674,7 +674,7 @@ function getCalendarEvents(){
       const tid=t.taskId||t.id||'task';
       const taskType=t.taskType||'daily';
       const today2=new Date();today2.setHours(0,0,0,0);
-      const _today=new Date().toISOString().slice(0,10);
+      const _today=todayKey();
       const checkKey=taskType==='planning'?'plan_'+g.id+'_'+tid+'_d'+dayNum
         :taskType==='checkin'?'checkin_'+g.id+'_'+tid+'_d'+dayNum
         :'daily_'+g.id+'_'+tid+'_'+_today;
@@ -753,7 +753,7 @@ function HourCal(){
     LS.set(ev.checkKey,newVal);
     // Sync to goals page using same key format as goals page
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      const _today=new Date().toISOString().slice(0,10);
+      const _today=todayKey();
       const ttype=ev.taskType||'daily';
       if(ttype==='planning')LS.set('plan_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
       else if(ttype==='checkin')LS.set('checkin_'+ev.goalId+'_'+ev.taskId+'_d'+(ev.dayNum||1),newVal);
@@ -1078,7 +1078,7 @@ function App(){
               const _gid=g.id;
               const _tid=t.taskId||('t'+ti);
               const _type=t.taskType||'daily';
-              const _today=new Date().toISOString().slice(0,10);
+              const _today=todayKey();
               const _sd=g.startedDate?new Date(g.startedDate):new Date();
               _sd.setHours(0,0,0,0);
               const _now=new Date();_now.setHours(0,0,0,0);
@@ -1118,7 +1118,7 @@ function App(){
             id:g.id,name:g.name,emoji:g.emoji||'🎯',color:g.color||'blue',img:g.img||null,
             habits:tasks.map((t,ti)=>{
               const _gid=g.id,_tid=t.taskId||('t'+ti),_type=t.taskType||'daily';
-              const _today=new Date().toISOString().slice(0,10);
+              const _today=todayKey();
               const _sd=g.startedDate?new Date(g.startedDate):new Date();
               _sd.setHours(0,0,0,0);
               const _now=new Date();_now.setHours(0,0,0,0);
