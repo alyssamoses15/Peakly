@@ -1175,7 +1175,7 @@ const toggleHabit = (goalId, habitId) => {
     const doneCount = all.filter(h => h.done).length;
     if (all.length > 0 && doneCount === all.length && doneCount > prevRef.current) {
       setConfetti(true);
-      setCongrats("You completed every task today — that's your peak! 🏔️ Keep this streak alive.");
+      setCongrats("Congratulations, you're one day closer to reaching your peak");
     }
     prevRef.current = doneCount;
   };
@@ -1261,9 +1261,10 @@ const sickDay = () => {
           <div className="card">
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
               <div className="clabel" style={{marginBottom:0}}>Today's Progress</div>
+              <span style={{fontSize:14,fontWeight:700,color:pct===100?'var(--orange)':'var(--blue)'}}>{pct}%</span>
+            </div>
+            <Bar pct={pct} color={pct===100?'var(--orange)':'var(--blue)'} h={12}/>
             <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
-              <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
-                          <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
             </div>
           </div>
@@ -1277,6 +1278,7 @@ const sickDay = () => {
 </div>
       );
     };
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
