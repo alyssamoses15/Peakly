@@ -1097,7 +1097,6 @@ function App(){
   const [confetti,setConfetti]=useState(false);
   const [congrats,setCongrats]=useState(null);
   const [sickModal,setSickModal]=useState(false);
-  const prevRef=useRef(goals.flatMap(g=>g.habits).filter(h=>h.done).length);
 
   // Reload goals from localStorage when window gets focus (so goal page changes show here)
   const {useEffect}=React;
@@ -1170,14 +1169,6 @@ const toggleHabit = (goalId, habitId) => {
       LS.set('peakly_goals', updatedPg);
     }
 
-    // 4. Confetti Celebration (Now triggers at exactly 100%)
-    const all = upd.flatMap(g => g.habits);
-    const doneCount = all.filter(h => h.done).length;
-    if (all.length > 0 && doneCount === all.length && doneCount > prevRef.current) {
-      setConfetti(true);
-      setCongrats("Congratulations, you're one day closer to reaching your peak");
-    }
-    prevRef.current = doneCount;
   };
   
 const sickDay = () => {
@@ -1208,6 +1199,15 @@ const sickDay = () => {
   const done=allHabits.filter(h=>h.done).length;
   const total=allHabits.length;
   const pct=total?Math.round(done/total*100):0;
+
+  const lastPctRef=useRef(pct);
+  useEffect(()=>{
+    if(total>0&&pct===100&&lastPctRef.current<100){
+      setConfetti(true);
+      setCongrats("Congratulations, you're one day closer to reaching your peak");
+    }
+    lastPctRef.current=pct;
+  },[pct,total]);
 
   return(
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
