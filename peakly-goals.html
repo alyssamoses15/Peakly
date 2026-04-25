@@ -528,6 +528,7 @@ function buildSmartRow(g,task,dayNum){
   if(done)chk.innerHTML='<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   chk.style.flexShrink='0';
   chk.addEventListener('click',()=>{
+    refreshAllTodayTasks();
     const newDone=!isTaskDone(g,task.id,task.type,dayNum);
     setTaskDone(g,task.id,task.type,dayNum,newDone);
     chk.className='chk'+(newDone?' done':'');
@@ -567,7 +568,9 @@ function buildSmartRow(g,task,dayNum){
     const goalInPg=pg2.find(x=>x.id===g.id);
     if(goalInPg&&goalInPg.todayTasks){
       goalInPg.todayTasks.forEach((t,ti)=>{
-        if(t.homeKey)LS.set(t.homeKey, isTaskDone(g,allT[ti]?.id||'',allT[ti]?.type||'daily',dayNum));
+        const tDone=isTaskDone(g,allT[ti]?.id||'',allT[ti]?.type||'daily',dayNum);
+        t.done=tDone;
+        if(t.homeKey)LS.set(t.homeKey,tDone);
       });
       LS.set('peakly_goals',pg2);
     }

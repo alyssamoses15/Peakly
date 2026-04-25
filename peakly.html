@@ -737,6 +737,9 @@ function getCalendarEvents(){
         :'daily_'+g.id+'_'+tid+'_'+_today;
       const time=t.time||'09:00';
       const evId='g_'+g.id+'_d'+dayNum+'_'+tid;
+      // If goals page already marked t.done=true, mirror it into the storeKey
+      // so the same value is read no matter which side updated last.
+      if(t.done===true&&LS.get(checkKey,false)!==true)LS.set(checkKey,true);
       evs.push({id:evId,type:'goal',title:(t.task||t.name||'Task'),time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:tid,taskType,goalName:g.name,page:'peakly-goals.html'});
     });
   });
@@ -1190,8 +1193,9 @@ function App(){
               const _storeKey=_type==='planning'?'plan_'+_gid+'_'+_tid+'_d'+_dayNum
                 :_type==='checkin'?'checkin_'+_gid+'_'+_tid+'_d'+_dayNum
                 :'daily_'+_gid+'_'+_tid+'_'+_today;
+              const _done=LS.get(_storeKey,false)===true||t.done===true;
               return {id:g.id+'_'+ti,homeKey:t.homeKey||('home_task_'+g.id+'_'+ti+'_'+new Date().toDateString()),
-                storeKey:_storeKey,name:t.task||t.name||String(t),time:t.time||'',taskType:_type,done:LS.get(_storeKey,false)};
+                storeKey:_storeKey,name:t.task||t.name||String(t),time:t.time||'',taskType:_type,done:_done};
             })
           };
         });
