@@ -129,15 +129,30 @@ function TaskInfoModal({ev,onClose}){
     const total=goal.totalDays||90;
     return {dayNum,total};
   })();
-  const goalLink=ev.goalId?`peakly-goals.html?goal=${encodeURIComponent(ev.goalId)}`:'peakly-goals.html';
+  const linkLabel=(()=>{
+    if(ev.type==='goal')return 'View goal page →';
+    if(ev.type==='lifeadmin')return 'View Life Admin →';
+    if(ev.type==='routine')return 'View routines →';
+    if(ev.type==='work')return 'View work →';
+    if(ev.type==='manual')return 'View calendar →';
+    return 'View source →';
+  })();
+  const linkHref=(()=>{
+    if(ev.type==='goal'&&ev.goalId)return `peakly-goals.html?goal=${encodeURIComponent(ev.goalId)}`;
+    return ev.page||null;
+  })();
+  const headerEmoji=goal?.emoji||(ev.type==='goal'?'🎯':ev.type==='lifeadmin'?'🏠':ev.type==='routine'?'🌅':ev.type==='work'?'💼':'📌');
+  const headerTitle=goal?.name||ev.goalName||ev.title;
+  const subtypeLabel=ev.subType?ev.subType.replace(/_/g,' '):null;
   return(
     <Overlay>
       <div>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:14}}>
-          <div style={{fontSize:32}}>{goal?.emoji||(ev.type==='goal'?'🎯':ev.type==='routine'?'🌅':ev.type==='work'?'💼':'📌')}</div>
+          <div style={{fontSize:32}}>{headerEmoji}</div>
           <div style={{flex:1,minWidth:0}}>
-            <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:'var(--text)',lineHeight:1.2}}>{goal?.name||ev.goalName||ev.title}</div>
+            <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:'var(--text)',lineHeight:1.2}}>{headerTitle}</div>
             {dayInfo&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Day {dayInfo.dayNum} of {dayInfo.total}</div>}
+            {!dayInfo&&subtypeLabel&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2,textTransform:'capitalize'}}>{subtypeLabel}</div>}
           </div>
         </div>
         <div style={{padding:'12px 14px',background:'var(--bg)',borderRadius:'var(--r-md)',marginBottom:14}}>
@@ -149,7 +164,7 @@ function TaskInfoModal({ev,onClose}){
         {goal?.description&&<p style={{fontSize:13,color:'var(--text2)',lineHeight:1.6,marginBottom:14}}>{goal.description}</p>}
         <div style={{display:'flex',gap:10}}>
           <button onClick={onClose} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',border:'1px solid var(--border)',background:'var(--white)',color:'var(--text2)',fontSize:13,fontWeight:600,cursor:'pointer'}}>Close</button>
-          {ev.type==='goal'&&<a href={goalLink} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:13,fontWeight:600,textDecoration:'none',textAlign:'center'}}>View goal page →</a>}
+          {linkHref&&<a href={linkHref} style={{flex:1,padding:'10px',borderRadius:'var(--r-md)',background:'var(--blue)',color:'#fff',fontSize:13,fontWeight:600,textDecoration:'none',textAlign:'center'}}>{linkLabel}</a>}
         </div>
       </div>
     </Overlay>
@@ -747,6 +762,7 @@ function getCalendarEvents(){
   }
 
   // 5. Life Admin cal events (include today's, with or without time)
+  const LA_PART2_KEYS=['pro_meetings','pro_certs','partner_dates','fam_events','comm_events'];
   const calEvs=LS.get('cal_events',[]);
   calEvs.forEach((e,i)=>{
     if(!e.date&&!e.title)return;
@@ -756,8 +772,14 @@ function getCalendarEvents(){
       if(!isNaN(d)&&d.toDateString()!==todayStr)return;
     }
     const evId='la_'+i;
-    const time=e.time||''; // no time = unscheduled
-    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:'peakly-second-brain-1.html'});
+    let evTime=e.time||'';
+    if(!evTime&&typeof e.date==='string'&&e.date.includes('T')){
+      const tPart=e.date.split('T')[1];
+      if(tPart)evTime=tPart.slice(0,5);
+    }
+    const isPart2=e.sourceKey&&(LA_PART2_KEYS.includes(e.sourceKey)||e.sourceKey.startsWith('child_'));
+    const sourcePage=isPart2?'peakly-second-brain-2.html':'peakly-second-brain-1.html';
+    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time:evTime,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:sourcePage,subType:e.type,sourceKey:e.sourceKey});
   });
 
   return evs.sort((a,b)=>{
