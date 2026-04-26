@@ -470,6 +470,9 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
 
 <script>
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+// One-time cleanup: remove goal_task entries from cal_events (duplicates of
+// goal tasks already rendered from peakly_goals.todayTasks).
+(()=>{const ce=LS.get('cal_events',[]);const filt=ce.filter(e=>e.type!=='goal_task');if(filt.length!==ce.length)LS.set('cal_events',filt);})();
 function toast(msg,dur=2600){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',dur);}
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -662,6 +665,8 @@ goals.filter(g => g.startedDate && !g.completed).forEach(g => {
   const calevs=LS.get('cal_events',[]);
   calevs.forEach((e,i)=>{
     if(!e.date)return;const d=new Date(e.date);if(isNaN(d))return;
+    // Skip goal_task entries — those are already rendered from peakly_goals above.
+    if(e.type==='goal_task')return;
     let evTime=e.time||'';
     if(!evTime&&typeof e.date==='string'&&e.date.includes('T')){
       const tPart=e.date.split('T')[1];
