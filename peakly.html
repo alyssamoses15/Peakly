@@ -472,27 +472,35 @@ function Meals(){
   const [meals,setMeals]=useState(LS.get(key,def));
   const upd=(f,v)=>{const n={...meals,[f]:v};setMeals(n);LS.set(key,n);};
   const list=[
-    {key:'breakfast',label:'Breakfast',emoji:'🍳'},
-    {key:'lunch',label:'Lunch',emoji:'🥗'},
-    {key:'dinner',label:'Dinner',emoji:'🍽️'},
-    {key:'snack',label:'Snack',emoji:'🍎'},
+    {key:'breakfast',label:'Breakfast',emoji:'🍳',lifeAdminKey:'Breakfast'},
+    {key:'lunch',label:'Lunch',emoji:'🥗',lifeAdminKey:'Lunch'},
+    {key:'dinner',label:'Dinner',emoji:'🍽️',lifeAdminKey:'Dinner'},
+    {key:'snack',label:'Snack',emoji:'🍎',lifeAdminKey:'Snack'},
   ];
+  const getLifeAdminMeal=(mealName)=>{
+    const laKey=`meal_${todayKey()}_${mealName}`;
+    return LS.get(laKey,'');
+  };
   return(
     <div className="card">
       <div className="clabel">Meal Tracker</div>
       <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {list.map(m=>(
-          <div key={m.key} style={{display:'flex',alignItems:'center',gap:8}}>
-            <div style={{width:30,height:30,borderRadius:'var(--r-sm)',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,flexShrink:0,border:'1px solid var(--border2)'}}>
-              {m.emoji}
+        {list.map(m=>{
+          const lifeAdminMeal=getLifeAdminMeal(m.lifeAdminKey);
+          const displayValue=meals[m.key]||lifeAdminMeal;
+          return(
+            <div key={m.key} style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:30,height:30,borderRadius:'var(--r-sm)',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,flexShrink:0,border:'1px solid var(--border2)'}}>
+                {m.emoji}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',letterSpacing:'0.4px',textTransform:'uppercase',marginBottom:2}}>{m.label}</div>
+                <input value={meals[m.key]} onChange={e=>upd(m.key,e.target.value)} placeholder={lifeAdminMeal?`${lifeAdminMeal} (from Life Admin)`:displayValue?displayValue:'What did you eat?'}
+                  style={{width:'100%',padding:'5px 8px',borderRadius:'var(--r-sm)',border:`1px solid ${displayValue?'var(--blue)':'var(--border)'}`,fontSize:12,color:'var(--text)',background:displayValue?'var(--blue-light)':'var(--bg)',outline:'none',transition:'all 0.2s'}}/>
+              </div>
             </div>
-            <div style={{flex:1}}>
-              <div style={{fontSize:10,fontWeight:700,color:'var(--text3)',letterSpacing:'0.4px',textTransform:'uppercase',marginBottom:2}}>{m.label}</div>
-              <input value={meals[m.key]} onChange={e=>upd(m.key,e.target.value)} placeholder="What did you eat?"
-                style={{width:'100%',padding:'5px 8px',borderRadius:'var(--r-sm)',border:`1px solid ${meals[m.key]?'var(--blue)':'var(--border)'}`,fontSize:12,color:'var(--text)',background:meals[m.key]?'var(--blue-light)':'var(--bg)',outline:'none',transition:'all 0.2s'}}/>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

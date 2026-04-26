@@ -1578,6 +1578,18 @@ function renderGoalDetail(){
     ta.addEventListener('input',e=>{g.treatPlan=e.target.value;saveGoals();});b.appendChild(ta);
   },false));
 
+  // Target date
+  right.appendChild(sblock2('Target Date','🎯',b=>{
+    const calcTargetDate=()=>{
+      if(!g.startedDate)return null;
+      const start=new Date(g.startedDate);
+      const target=new Date(start);
+      target.setDate(target.getDate()+(g.totalDays||90)-1);
+      return target.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+    };
+    const td=document.createElement('div');td.style.cssText='font-size:13px;color:var(--text);line-height:1.6;';td.textContent=g.startedDate?'Finish by '+calcTargetDate():'Goal not started yet';b.appendChild(td);
+  },false));
+
   main.appendChild(left);main.appendChild(right);
   el.appendChild(main);
 
