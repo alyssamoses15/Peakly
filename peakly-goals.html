@@ -537,7 +537,6 @@ function buildSmartRow(g,task,dayNum){
     lbl.style.color=newDone?'var(--text3)':'var(--text)';
     // Sync to home + calendar
     const savedT=getTimePref(g,task.id)||task.time||'';
-    if(savedT){const calEvs=LS.get('cal_events',[]);const ei=calEvs.findIndex(e=>e.taskId===task.id&&e.goalId===g.id&&e.date===dateKey());const entry={title:g.name+': '+task.text,time:savedT,date:dateKey(),type:'goal_task',goalId:g.id,taskId:task.id,done:newDone};if(ei>-1)calEvs[ei]=entry;else calEvs.push(entry);LS.set('cal_events',calEvs);}
     // Update progress bar live
     const _def2=getGoalTaskDef(g);const _totalD2=_def2?(_def2.totalDays||g.totalDays||90):(g.totalDays||90);if(dayNum>_totalD2)dayNum=_totalD2;
     const{daily,planning,checkin}=getTasksForDay(g,dayNum);
@@ -585,7 +584,6 @@ function buildSmartRow(g,task,dayNum){
   tInp.style.cssText='font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text2);outline:none;font-family:var(--font);cursor:pointer;';
   tInp.addEventListener('change',e=>{
     setTimePref(g,task.id,e.target.value);
-    const ev=LS.get('cal_events',[]);ev.push({title:g.name+': '+task.text,time:e.target.value,date:dateKey(),type:'goal_task',goalId:g.id,taskId:task.id});LS.set('cal_events',ev);
     calBtn.textContent='✓ Synced';calBtn.style.background='var(--green-light)';calBtn.style.color='var(--green-dark)';
     setTimeout(()=>{calBtn.textContent='📅 Sync';calBtn.style.background='var(--blue-light)';calBtn.style.color='var(--blue)';},2000);
   });
@@ -593,7 +591,6 @@ function buildSmartRow(g,task,dayNum){
   info.appendChild(lbl);info.appendChild(sub);
   const calBtn=document.createElement('button');calBtn.style.cssText='font-size:10px;padding:3px 8px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;';calBtn.textContent='📅 Sync';
   calBtn.addEventListener('click',()=>{
-    const ev=LS.get('cal_events',[]);ev.push({title:g.name+': '+task.text,time:savedTime,date:dateKey(),type:'goal_task',goalId:g.id,taskId:task.id});LS.set('cal_events',ev);
     calBtn.textContent='✓';calBtn.style.background='var(--green-light)';calBtn.style.color='var(--green-dark)';setTimeout(()=>{calBtn.textContent='📅 Sync';calBtn.style.background='var(--blue-light)';calBtn.style.color='var(--blue)';},2000);
   });
   topRow.appendChild(chk);topRow.appendChild(info);topRow.appendChild(calBtn);row.appendChild(topRow);
@@ -1671,11 +1668,9 @@ function sickDay(){
 }
 
 function syncToCalendar(task,g){
-  const events=LS.get('cal_events',[]);
-  const existing=events.findIndex(e=>e.taskId===task.id&&e.date===dateKey());
-  const entry={title:g.name+': '+task.text,time:task.time,date:dateKey(),type:'goal_task',goalId:g.id,taskId:task.id};
-  if(existing>-1)events[existing]=entry;else events.push(entry);
-  LS.set('cal_events',events);
+  // No-op: goal tasks are rendered directly from peakly_goals.todayTasks on
+  // the home and calendar pages, so there's no need to also push them into
+  // cal_events. Doing so caused duplicate rows.
 }
 
 function openImgPicker(goalId){

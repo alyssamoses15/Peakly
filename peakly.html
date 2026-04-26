@@ -55,6 +55,11 @@ const LS={
   set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 };
 
+// One-time cleanup: remove goal_task entries from cal_events. Goal tasks are
+// rendered directly from peakly_goals.todayTasks; the cal_events copies created
+// duplicate rows with slightly different titles ("<goal>: <task>" vs "<task>").
+(()=>{const ce=LS.get('cal_events',[]);const filt=ce.filter(e=>e.type!=='goal_task');if(filt.length!==ce.length)LS.set('cal_events',filt);})();
+
 // SEED_GOALS removed
 const MOODS=['😔','😕','😐','🙂','😄'];
 const HOURS=Array.from({length:24},(_,i)=>i);
@@ -769,6 +774,9 @@ function getCalendarEvents(){
   const calEvs=LS.get('cal_events',[]);
   calEvs.forEach((e,i)=>{
     if(!e.date&&!e.title)return;
+    // Skip goal_task entries — those are already rendered from peakly_goals.todayTasks
+    // in section 2 above. Including them here would duplicate every goal task.
+    if(e.type==='goal_task')return;
     // Include if date matches today or no date (treat as today)
     if(e.date){
       const d=new Date(e.date);
