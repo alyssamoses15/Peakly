@@ -1049,10 +1049,23 @@ function openEdit(e){
   const body=document.getElementById('editBody');
   const srcPage=e.sourcePage||t.page;
   const dateStr=e.date instanceof Date&&!isNaN(e.date)?e.date.toISOString().split('T')[0]:'';
+  // Compute goal target date for goal events (last date of final milestone)
+  let goalTargetStr='';
+  if(e.type==='goal'&&e.goalId){
+    const pg=LS.get('peakly_goals',[]);
+    const g=pg.find(x=>String(x.id)===String(e.goalId));
+    if(g&&g.startedDate){
+      const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
+      const total=g.totalDays||90;
+      const td=new Date(sd);td.setDate(td.getDate()+total-1);
+      goalTargetStr=td.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    }
+  }
   body.innerHTML=`
     <div style="padding:10px 12px;border-radius:var(--rm);margin-bottom:14px;background:${e.color||t.color}18;border-left:4px solid ${e.color||t.color};">
       <div style="font-size:11px;font-weight:700;color:${e.color||t.color};">${t.label}</div>
       <div style="font-size:13px;font-weight:600;color:var(--text);margin-top:2px;">${e.title}</div>
+      ${goalTargetStr?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">🎯 Goal target: ${goalTargetStr}</div>`:''}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
       <div><label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;">Date</label>

@@ -337,7 +337,7 @@ function buildGoalCard(g,i){
         <div style="font-size:11px;color:var(--text3);">Today: <strong style="color:var(--text)">${doneToday}/${totalToday}</strong> tasks</div>
         <div style="font-size:11px;color:var(--text3);">${g.milestones.filter(m=>m.reached).length}/${g.milestones.length} milestones</div>
       </div>
-      ${g.target?`<div style="font-size:10px;color:var(--text4);margin-top:4px;">📅 Target: ${new Date(g.target).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>`:''}
+      ${(()=>{const td=calcGoalTargetDate(g);return td?`<div style="font-size:10px;color:var(--text4);margin-top:4px;">🎯 Target: ${td}</div>`:'';})()}
     </div>`;
   return card;
 }
@@ -348,6 +348,15 @@ function getDayNum(g){
   const start=new Date(g.startedDate);start.setHours(0,0,0,0);
   const today=new Date();today.setHours(0,0,0,0);
   return Math.floor((today-start)/86400000)+1;
+}
+// Compute target date as the last date of the final milestone (end of goal)
+function calcGoalTargetDate(g){
+  if(!g||!g.startedDate)return null;
+  const start=new Date(g.startedDate);start.setHours(0,0,0,0);
+  const total=g.totalDays||90;
+  const target=new Date(start);
+  target.setDate(target.getDate()+total-1);
+  return target.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
 }
 function dateKey(){return new Date().toDateString();}
 // Get the actual calendar date string for a specific goal day number
@@ -1429,10 +1438,11 @@ function renderGoalDetail(){
   const startedDate=g.startedDate?new Date(g.startedDate):null;
   const hdrBar=document.createElement('div');
   hdrBar.style.cssText='background:var(--white);border-bottom:1px solid var(--border2);padding:12px 24px;display:flex;align-items:center;gap:14px;position:sticky;top:54px;z-index:90;flex-wrap:wrap;';
+  const targetDateStr=calcGoalTargetDate(g);
   hdrBar.innerHTML='<button onclick="backToGoals()" style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text3);font-weight:500;padding:6px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--white);flex-shrink:0;">← Back</button>'
     +'<div style="flex:1;min-width:160px;">'
     +'<div style="font-family:var(--display);font-size:19px;font-weight:700;color:var(--text);">'+g.emoji+' '+g.name+'</div>'
-    +'<div style="font-size:11px;color:var(--text3);">'+(startedDate?'Day '+dayNum0+' of '+totalDaysForGoal+' · Started '+startedDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):g.target?'Target: '+new Date(g.target).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'Not started yet')+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);">'+(startedDate?'Day '+dayNum0+' of '+totalDaysForGoal+' · Started '+startedDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+(targetDateStr?' · 🎯 Target: '+targetDateStr:''):g.target?'Target: '+new Date(g.target).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}):'Not started yet')+'</div>'
     +'</div>'
     +(!g.startedDate
       ?'<button onclick="startGoal('+g.id+')" style="padding:10px 18px;border-radius:var(--rm);background:'+g.color+';color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;">🚀 Start — Day 1</button>'
@@ -1580,14 +1590,15 @@ function renderGoalDetail(){
 
   // Target date
   right.appendChild(sblock2('Target Date','🎯',b=>{
-    const calcTargetDate=()=>{
-      if(!g.startedDate)return null;
-      const start=new Date(g.startedDate);
-      const target=new Date(start);
-      target.setDate(target.getDate()+(g.totalDays||90)-1);
-      return target.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
-    };
-    const td=document.createElement('div');td.style.cssText='font-size:13px;color:var(--text);line-height:1.6;';td.textContent=g.startedDate?'Finish by '+calcTargetDate():'Goal not started yet';b.appendChild(td);
+    const td=document.createElement('div');td.style.cssText='font-size:13px;color:var(--text);line-height:1.6;';
+    const targetStr=calcGoalTargetDate(g);
+    td.textContent=targetStr?'Finish by '+targetStr:'Goal not started yet';
+    b.appendChild(td);
+    if(targetStr){
+      const sub=document.createElement('div');sub.style.cssText='font-size:11px;color:var(--text3);margin-top:4px;';
+      sub.textContent='Last date of final milestone';
+      b.appendChild(sub);
+    }
   },false));
 
   main.appendChild(left);main.appendChild(right);
