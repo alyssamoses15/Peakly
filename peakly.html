@@ -134,6 +134,13 @@ function TaskInfoModal({ev,onClose}){
     const total=goal.totalDays||90;
     return {dayNum,total};
   })();
+  const targetDate=(()=>{
+    if(!goal||!goal.startedDate)return null;
+    const sd=new Date(goal.startedDate);sd.setHours(0,0,0,0);
+    const total=goal.totalDays||90;
+    const td=new Date(sd);td.setDate(td.getDate()+total-1);
+    return td.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  })();
   const linkLabel=(()=>{
     if(ev.type==='goal')return 'View goal page →';
     if(ev.type==='lifeadmin')return 'View Life Admin →';
@@ -158,6 +165,7 @@ function TaskInfoModal({ev,onClose}){
             <div style={{fontFamily:'var(--font-display)',fontSize:18,fontWeight:700,color:'var(--text)',lineHeight:1.2}}>{headerTitle}</div>
             {dayInfo&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>Day {dayInfo.dayNum} of {dayInfo.total}</div>}
             {!dayInfo&&subtypeLabel&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2,textTransform:'capitalize'}}>{subtypeLabel}</div>}
+            {targetDate&&<div style={{fontSize:11,color:'var(--text3)',marginTop:2}}>🎯 Target: {targetDate}</div>}
           </div>
         </div>
         <div style={{padding:'12px 14px',background:'var(--bg)',borderRadius:'var(--r-md)',marginBottom:14}}>
