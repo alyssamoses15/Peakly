@@ -416,8 +416,12 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Check if already logged in
+// Check if already logged in — but skip auto-redirect if user explicitly logged out
 (async()=>{
+  if(localStorage.getItem('peakly_logged_out')==='1'){
+    localStorage.removeItem('peakly_logged_out');
+    return;
+  }
   const { data:{ session } } = await sb.auth.getSession();
   if(session){
     window.location.href='peakly.html';
