@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="peakly-config.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -715,34 +717,13 @@ function loadProfile(){
   document.getElementById('streakBadge').textContent='🔥 '+streak+' day streak';
 
   // Subscription status
-  const isPro=LS.get('peakly_pro',false);
-  const isTrial=LS.get('peakly_trial',false);
-  const trialDays=LS.get('peakly_trial_days',14);
-
-  if(isTrial){
-    document.getElementById('planBadge').textContent='⏳ Trial';
-    document.getElementById('planBadge').className='badge badge-trial';
-    document.getElementById('subBadge').textContent='⏳ Free Trial';
-    document.getElementById('subBadge').className='sub-plan-badge spb-trial';
-    document.getElementById('subPlanName').textContent='14-Day Free Trial';
-    document.getElementById('subPlanDetail').textContent=trialDays+' days remaining · No card required';
-    document.getElementById('subHeaderSub').textContent=trialDays+' trial days remaining';
-    document.getElementById('proSection').style.display='none';
-    document.getElementById('freeSection').style.display='block';
-  } else if(isPro){
-    document.getElementById('planBadge').textContent='⭐ Pro';
-    document.getElementById('planBadge').className='badge badge-pro';
-  } else {
-    document.getElementById('planBadge').textContent='Free';
-    document.getElementById('planBadge').className='badge badge-free';
-    document.getElementById('subBadge').textContent='Free';
-    document.getElementById('subBadge').className='sub-plan-badge spb-free';
-    document.getElementById('subPlanName').textContent='Free Plan';
-    document.getElementById('subPlanDetail').textContent='5 goals · 5 Life Admin sections';
-    document.getElementById('subHeaderSub').textContent='Free plan — upgrade to unlock everything';
-    document.getElementById('proSection').style.display='none';
-    document.getElementById('freeSection').style.display='block';
-  }
+  // Render plan UI from cache first, then refresh from Supabase below.
+  renderSubscriptionUI({
+    plan: LS.get('peakly_plan','free'),
+    sub: null,
+    trialDaysLeft: parseInt(localStorage.getItem('peakly_trial_days_left')||'0',10) || null
+  });
+  loadSubscriptionFromSupabase();
 
   // Accomplishments - milestones reached
   const allGoals=LS.get('peakly_goals',[]);
@@ -955,23 +936,140 @@ function saveAccount(){
 }
 
 // ── Subscription actions ─────────────────────────────────────
+let _currentSub = null;
+let _sbClient = null;
+
+function getSb(){
+  if(_sbClient) return _sbClient;
+  const cfg = window.PeaklyConfig;
+  _sbClient = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+  return _sbClient;
+}
+
+async function loadSubscriptionFromSupabase(){
+  try{
+    const sb = getSb();
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session) return;
+    const result = await window.PeaklyAuth.loadSubscription(sb, session.user);
+    _currentSub = result.sub;
+    renderSubscriptionUI(result);
+  }catch(e){ /* ignore — cache UI is already rendered */ }
+}
+
+function renderSubscriptionUI({ plan, sub, trialDaysLeft }){
+  const badge = document.getElementById('subBadge');
+  const planName = document.getElementById('subPlanName');
+  const planDetail = document.getElementById('subPlanDetail');
+  const headerSub = document.getElementById('subHeaderSub');
+  const planBadge = document.getElementById('planBadge');
+  const proSection = document.getElementById('proSection');
+  const freeSection = document.getElementById('freeSection');
+  if(!badge||!planName||!planDetail) return;
+
+  if(plan === 'pro'){
+    const interval = sub?.billing_interval || 'month';
+    const priceText = interval === 'year' ? '$60/year' : '$6/month';
+    let detail = priceText;
+    if(sub?.current_period_end){
+      const ends = new Date(sub.current_period_end);
+      const fmt = ends.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+      detail += sub.cancel_at_period_end ? ` · Cancels on ${fmt}` : ` · Renews ${fmt}`;
+    }
+    badge.textContent='⭐ Pro'; badge.className='sub-plan-badge spb-pro';
+    planName.textContent='Peakly Pro';
+    planDetail.textContent = detail;
+    headerSub.textContent = sub?.cancel_at_period_end ? 'Cancels at period end' : 'Active subscription';
+    if(planBadge){ planBadge.textContent='⭐ Pro'; planBadge.className='badge badge-pro'; }
+    proSection.style.display='block';
+    freeSection.style.display='none';
+    // Swap cancel button label if already canceling
+    const cancelBtn = proSection.querySelector('.btn-danger');
+    if(cancelBtn){
+      if(sub?.cancel_at_period_end){
+        cancelBtn.textContent='Reactivate subscription';
+        cancelBtn.className='btn btn-primary';
+        cancelBtn.onclick = reactivateSubscription;
+      } else {
+        cancelBtn.textContent='Cancel subscription';
+        cancelBtn.className='btn btn-danger';
+        cancelBtn.onclick = confirmCancel;
+      }
+    }
+  } else if(plan === 'trial'){
+    const days = trialDaysLeft != null ? trialDaysLeft : 14;
+    badge.textContent='⏳ Free Trial'; badge.className='sub-plan-badge spb-trial';
+    planName.textContent='14-Day Pro Trial';
+    planDetail.textContent = `${days} day${days===1?'':'s'} remaining · No card required`;
+    headerSub.textContent = `${days} trial days remaining`;
+    if(planBadge){ planBadge.textContent='⏳ Trial'; planBadge.className='badge badge-trial'; }
+    proSection.style.display='none';
+    freeSection.style.display='block';
+  } else {
+    badge.textContent='Free'; badge.className='sub-plan-badge spb-free';
+    planName.textContent='Free Plan';
+    planDetail.textContent='5 goals · 5 Life Admin sections';
+    headerSub.textContent='Free plan — upgrade to unlock everything';
+    if(planBadge){ planBadge.textContent='Free'; planBadge.className='badge badge-free'; }
+    proSection.style.display='none';
+    freeSection.style.display='block';
+  }
+}
+
 function upgradeToPro(){
-  // Will connect to Stripe when Supabase is integrated
-  toast('Redirecting to checkout… (coming soon)');
+  window.location.href = 'peakly-plan.html';
 }
+
 function manageBilling(){
-  toast('Billing portal coming soon');
+  window.location.href = 'peakly-plan.html';
 }
+
 function confirmCancel(){
   showModal(
     'Cancel subscription?',
-    'You will lose access to Pro features at the end of your current billing period. Your data will be kept.',
-    ()=>{
-      LS.set('peakly_pro',false);
-      toast('Subscription cancelled. You have access until end of billing period.');
-      loadProfile();
+    'You will keep Pro access until the end of your current billing period. Your data is always preserved.',
+    async ()=>{
+      try{
+        const sb = getSb();
+        const { data:{ session } } = await sb.auth.getSession();
+        if(!session){ toast('Please log in again.'); return; }
+        const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': window.PeaklyConfig.SUPABASE_KEY
+          },
+          body: JSON.stringify({ userId: session.user.id })
+        });
+        const json = await res.json();
+        if(!res.ok) throw new Error(json.error || 'Cancel failed');
+        toast('Subscription will end at the close of this billing period.');
+        loadSubscriptionFromSupabase();
+      }catch(e){ toast(e.message || 'Could not cancel subscription.'); }
     }
   );
+}
+
+async function reactivateSubscription(){
+  try{
+    const sb = getSb();
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session){ toast('Please log in again.'); return; }
+    const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': window.PeaklyConfig.SUPABASE_KEY
+      },
+      body: JSON.stringify({ userId: session.user.id, reactivate: true })
+    });
+    const json = await res.json();
+    if(!res.ok) throw new Error(json.error || 'Reactivate failed');
+    toast('Subscription reactivated 🎉');
+    loadSubscriptionFromSupabase();
+  }catch(e){ toast(e.message || 'Could not reactivate.'); }
 }
 
 // ── Settings ─────────────────────────────────────────────────

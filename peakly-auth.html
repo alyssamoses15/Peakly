@@ -491,7 +491,7 @@ async function handleSignup(){
     password,
     options:{
       data:{ first_name: firstName, last_name: lastName },
-      emailRedirectTo: window.location.origin + '/peakly.html'
+      emailRedirectTo: window.location.origin + '/peakly-plan.html'
     }
   });
 
@@ -510,13 +510,11 @@ async function handleSignup(){
     return;
   }
 
-  // Auto-confirmed (local dev) or session exists
+  // Auto-confirmed (local dev) or session exists — go to plan picker
   if(data.session){
     const lastUserId = localStorage.getItem('peakly_last_user_id');
     if(lastUserId && lastUserId !== data.user.id){
-      const intent = localStorage.getItem('peakly_plan_intent');
       localStorage.clear();
-      if(intent) localStorage.setItem('peakly_plan_intent', intent);
     }
     localStorage.setItem('peakly_last_user_id', data.user.id);
 
@@ -527,16 +525,7 @@ async function handleSignup(){
       email: email
     }).eq('id', data.user.id);
 
-    // Set plan based on what button they clicked
-    const intent = localStorage.getItem('peakly_plan_intent');
-    if(intent === 'pro'){
-      localStorage.setItem('peakly_trial', JSON.stringify(true));
-      localStorage.setItem('peakly_trial_days', JSON.stringify(14));
-    } else {
-      localStorage.setItem('peakly_trial', JSON.stringify(false));
-    }
-    localStorage.removeItem('peakly_plan_intent');
-    window.location.href = 'peakly.html';
+    window.location.href = 'peakly-plan.html';
   }
 }
 
@@ -576,9 +565,11 @@ async function handleLogin(){
 
 // ── Google OAuth ──────────────────────────────────────────────
 async function signInWithGoogle(){
+  // New OAuth users land on the plan picker; returning users get redirected
+  // away from the plan page automatically if they already have a paid plan.
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options:{ redirectTo: window.location.origin + '/peakly.html' }
+    options:{ redirectTo: window.location.origin + '/peakly-plan.html' }
   });
   if(error) showAlert(error.message);
 }

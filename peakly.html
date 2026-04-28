@@ -9,6 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="peakly-config.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1114,7 +1115,7 @@ function UserAvatar(){
   React.useEffect(()=>{
     // Only check auth on real domain, not local files
     if(!window.sb||window.location.protocol==='file:')return;
-    sb.auth.getSession().then(({data:{session}})=>{
+    sb.auth.getSession().then(async ({data:{session}})=>{
       if(!session&&window.location.protocol!=='file:'){window.location.href='peakly-auth.html';return;}
       if(!session)return;
       const user=session.user;
@@ -1126,6 +1127,22 @@ function UserAvatar(){
         return;
       }
       localStorage.setItem('peakly_last_user_id',user.id);
+      // Load subscription state from Supabase and render trial banner if needed
+      if(window.PeaklyAuth){
+        try{
+          const result = await window.PeaklyAuth.loadSubscription(sb, user);
+          window.PeaklyAuth.renderTrialBanner(result);
+          // If a fresh trial just expired, mark sessionStorage so banner shows
+          if(result.plan==='free' && localStorage.getItem('peakly_plan_was_trial')==='1'){
+            sessionStorage.setItem('peakly_trial_just_expired','1');
+            localStorage.removeItem('peakly_plan_was_trial');
+            window.PeaklyAuth.renderTrialBanner(result);
+          }
+          if(result.plan==='trial'){
+            localStorage.setItem('peakly_plan_was_trial','1');
+          }
+        }catch(e){}
+      }
       const meta=user.user_metadata||{};
       const first=(meta.first_name||meta.full_name||user.email||'').trim();
       const last=(meta.last_name||'').trim();
@@ -1231,6 +1248,29 @@ function App(){
     // Poll every 3s so task checks on goals page show here without switching tabs
     const interval=setInterval(reload,3000);
     return()=>{window.removeEventListener('focus',reload);clearInterval(interval);};
+  },[]);
+
+  // Handle ?checkout=success after Stripe redirect — webhook may need a moment.
+  useEffect(()=>{
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('checkout')!=='success')return;
+    let tries=0;
+    const refresh=async()=>{
+      tries++;
+      if(!window.sb||!window.PeaklyAuth)return;
+      const { data:{ session } } = await window.sb.auth.getSession();
+      if(!session)return;
+      const result = await window.PeaklyAuth.loadSubscription(window.sb, session.user);
+      if(result.plan==='pro'){
+        setCongrats({title:'Welcome to Pro! 🏔️',msg:'Your subscription is active. Time to lock in those goals.',emoji:'⭐'});
+        setConfetti(true);
+        // Strip query params so refresh doesn't re-trigger
+        history.replaceState({},'',window.location.pathname);
+      } else if(tries<6){
+        setTimeout(refresh,1500);
+      }
+    };
+    setTimeout(refresh,1200);
   },[]);
 
   const saveGoals=g=>{setGoals(g);LS.set(`goals_${todayKey()}`,g);};
