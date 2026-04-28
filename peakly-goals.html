@@ -66,6 +66,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .bar-fill{height:100%;border-radius:100px;transition:width .7s ease;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="peakly-config.js"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (function(){
@@ -73,9 +74,16 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
   if(typeof supabase==='undefined')return;
   const sb=supabase.createClient(SURL,SKEY);
-  sb.auth.getSession().then(({data:{session}})=>{
+  sb.auth.getSession().then(async ({data:{session}})=>{
     if(!session){window.location.href='peakly-auth.html';return;}
     const user=session.user;
+    // Refresh plan state from Supabase + render trial banner if applicable
+    if(window.PeaklyAuth){
+      try{
+        const result = await window.PeaklyAuth.loadSubscription(sb, user);
+        window.PeaklyAuth.renderTrialBanner(result);
+      }catch(e){}
+    }
     const meta=user.user_metadata||{};
     const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'';
     const last=meta.last_name||meta.full_name?.split(' ')[1]||'';
@@ -227,7 +235,8 @@ function renderGoalsPage(){
   const el=document.getElementById('goalsPage');
   const active=goals.filter(g=>!g.completed);
   const saved=goals.filter(g=>g.completed);
-  const maxFree=5;
+  const hasProAccess=JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  const maxFree = hasProAccess ? Infinity : 5;
   el.innerHTML='';
 
   // Page header
@@ -237,7 +246,7 @@ function renderGoalsPage(){
     <div style="max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;">
       <div>
         <div style="font-family:var(--display);font-size:26px;font-weight:700;color:var(--text);">🏔️ My Goals</div>
-        <div style="font-size:13px;color:var(--text3);margin-top:2px;">${active.length} active · ${saved.length} completed · ${maxFree-active.length} slots remaining (free plan)</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px;">${active.length} active · ${saved.length} completed${hasProAccess?'':' · '+(maxFree-active.length)+' slots remaining (free plan)'}</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
         <div style="text-align:right;">
@@ -245,7 +254,7 @@ function renderGoalsPage(){
           <div style="font-size:20px;font-weight:700;color:var(--blue);">${active.length?Math.round(active.reduce((s,g)=>s+g.pct,0)/active.length):0}%</div>
         </div>
         ${active.length<maxFree?`<button class="btn-blue" onclick="openCreate()" style="display:flex;align-items:center;gap:6px;"><span style="font-size:18px;">+</span> New Goal</button>`:
-        `<div style="padding:10px 16px;background:var(--orange-light);border-radius:var(--rm);font-size:12px;color:var(--orange-dark);font-weight:600;border:1px solid var(--orange-muted);">⭐ Upgrade for more goals</div>`}
+        `<a href="peakly-plan.html" style="padding:10px 16px;background:var(--orange-light);border-radius:var(--rm);font-size:12px;color:var(--orange-dark);font-weight:600;border:1px solid var(--orange-muted);text-decoration:none;display:inline-flex;align-items:center;gap:6px;">⭐ Upgrade for unlimited goals →</a>`}
       </div>
     </div>`;
   el.appendChild(hdr);
@@ -1333,16 +1342,15 @@ function sblock2(title,icon,renderFn,open=false){
 // ── startGoal ─────────────────────────────────────────────────────────────
 function startGoal(id){
   const g=goals.find(x=>x.id===id);if(!g)return;
-  // Free plan: max 5 active goals
-  const isPro=JSON.parse(localStorage.getItem('peakly_pro')||'false');
-  const isTrial=JSON.parse(localStorage.getItem('peakly_trial')||'false');
-  if(!isPro&&!isTrial){
+  // Free plan: max 5 active goals (Pro/Trial = unlimited)
+  const hasAccess=JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  if(!hasAccess){
     const activeCount=goals.filter(x=>x.startedDate&&!x.completed).length;
     if(activeCount>=5){
       showToast('Free plan allows 5 active goals. Upgrade to Pro for unlimited! 🚀');
       setTimeout(()=>{
         if(confirm('Upgrade to Pro for unlimited goals?\n\n$6/mo — 14-day free trial, no card required.')){
-          window.location.href='peakly-auth.html?plan=pro';
+          window.location.href='peakly-plan.html';
         }
       },1000);
       return;

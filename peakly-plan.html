@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Choose your plan — Peakly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="peakly-config.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;
+  --orange:#F97316;--orange-light:#FFF7ED;--orange-dark:#C2410C;--orange-muted:#FED7AA;
+  --green:#059669;--green-light:#ECFDF5;
+  --bg:#F0F4FA;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;
+  --border:#D4E0EE;--border2:#EAF0F8;
+  --display:'Playfair Display',Georgia,serif;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r:10px;--rm:14px;--rl:20px;
+  --shadow:0 1px 4px rgba(15,28,46,0.07),0 0 0 1px rgba(15,28,46,0.04);
+  --shadow-md:0 4px 16px rgba(15,28,46,0.10);
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1080px;margin:0 auto;padding:48px 24px 80px;}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:32px;}
+.brand-icon{width:38px;height:38px;background:var(--blue);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.brand-text{font-family:var(--display);font-size:22px;font-weight:700;color:var(--text);}
+.hero{text-align:center;margin-bottom:42px;animation:fadeUp .5s ease both;}
+.hero h1{font-family:var(--display);font-size:38px;font-weight:900;line-height:1.15;margin-bottom:10px;}
+.hero h1 em{font-style:italic;color:var(--orange);}
+.hero p{font-size:15px;color:var(--text2);max-width:540px;margin:0 auto;line-height:1.6;}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:stretch;}
+@media(max-width:880px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--white);border-radius:var(--rl);box-shadow:var(--shadow);border:1px solid var(--border2);padding:26px 22px;display:flex;flex-direction:column;animation:fadeUp .55s ease both;}
+.card.featured{border:2px solid var(--orange);box-shadow:var(--shadow-md);position:relative;}
+.featured-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:5px 12px;border-radius:100px;}
+.card .name{font-family:var(--display);font-size:22px;font-weight:700;margin-bottom:6px;}
+.card .price{font-size:32px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.card .price small{font-size:14px;color:var(--text3);font-weight:500;}
+.card .sub{font-size:12px;color:var(--text3);margin-bottom:18px;}
+.card ul{list-style:none;padding:0;margin:0 0 22px;flex:1;}
+.card li{font-size:13px;color:var(--text2);padding:6px 0;display:flex;gap:8px;align-items:flex-start;line-height:1.5;}
+.card li::before{content:'✓';color:var(--green);font-weight:700;flex-shrink:0;}
+.card li.muted{color:var(--text4);}
+.card li.muted::before{content:'·';color:var(--text4);}
+.btn{width:100%;padding:13px;border-radius:var(--rm);font-size:14px;font-weight:700;cursor:pointer;border:none;font-family:var(--font);transition:transform .12s,box-shadow .15s;}
+.btn:hover{transform:translateY(-1px);}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.btn-outline{background:var(--white);color:var(--text);border:1.5px solid var(--border);}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue);}
+.btn-blue{background:var(--blue);color:#fff;}
+.btn-orange{background:var(--orange);color:#fff;}
+.toggle{display:flex;background:var(--bg);padding:4px;border-radius:100px;margin-bottom:14px;border:1px solid var(--border2);}
+.toggle button{flex:1;padding:8px 12px;font-size:12px;font-weight:600;border-radius:100px;border:none;background:transparent;color:var(--text3);cursor:pointer;transition:all .15s;}
+.toggle button.on{background:var(--white);color:var(--text);box-shadow:0 1px 4px rgba(15,28,46,0.08);}
+.save{font-size:11px;color:var(--green);font-weight:700;margin-left:6px;}
+.foot{text-align:center;margin-top:28px;font-size:12px;color:var(--text3);}
+.foot a{color:var(--blue);text-decoration:none;font-weight:600;}
+.foot a:hover{text-decoration:underline;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:11px 18px;border-radius:var(--rm);font-size:13px;font-weight:600;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:1000;}
+.toast.show{opacity:1;transform:translate(-50%,-6px);}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.card:nth-child(1){animation-delay:.05s;}
+.card:nth-child(2){animation-delay:.12s;}
+.card:nth-child(3){animation-delay:.19s;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a href="peakly.html" class="brand" style="text-decoration:none;color:inherit;">
+    <div class="brand-icon">🏔️</div>
+    <div class="brand-text">Peakly</div>
+  </a>
+
+  <div class="hero">
+    <h1>Welcome to Peakly! <em>Choose your path</em> 🏔️</h1>
+    <p>Start free forever, take Pro for a 14-day spin (no card required), or jump straight to Pro and save 17% on yearly.</p>
+  </div>
+
+  <div class="grid">
+    <!-- FREE -->
+    <div class="card">
+      <div class="name">Free</div>
+      <div class="price">$0<small>/forever</small></div>
+      <div class="sub">No card needed</div>
+      <ul>
+        <li>Up to 5 active goals</li>
+        <li>5 Life Admin sections</li>
+        <li>Daily tasks & habit tracking</li>
+        <li>Calendar & meal planner</li>
+        <li class="muted">Basic templates only</li>
+      </ul>
+      <button class="btn btn-outline" id="freeBtn" onclick="chooseFree()">Continue with Free</button>
+    </div>
+
+    <!-- TRIAL -->
+    <div class="card featured">
+      <div class="featured-badge">Most popular</div>
+      <div class="name">Try Pro Free</div>
+      <div class="price">$0<small> for 14 days</small></div>
+      <div class="sub">No credit card required</div>
+      <ul>
+        <li>Everything in Pro</li>
+        <li>Unlimited goals</li>
+        <li>All Life Admin sections</li>
+        <li>All templates</li>
+        <li>Auto-reverts to Free at day 15</li>
+      </ul>
+      <button class="btn btn-orange" id="trialBtn" onclick="chooseTrial()">Start 14-Day Free Trial</button>
+    </div>
+
+    <!-- PRO -->
+    <div class="card">
+      <div class="name">Pro</div>
+      <div class="toggle" role="tablist" aria-label="Billing interval">
+        <button id="tabM" class="on" onclick="selectInterval('month')">Monthly</button>
+        <button id="tabY" onclick="selectInterval('year')">Yearly <span class="save">Save 17%</span></button>
+      </div>
+      <div class="price" id="priceLabel">$6<small>/month</small></div>
+      <div class="sub" id="priceSub">Billed monthly · cancel anytime</div>
+      <ul>
+        <li>Unlimited goals & milestones</li>
+        <li>All Life Admin sections</li>
+        <li>All templates</li>
+        <li>Priority new features</li>
+        <li>Cancel any time</li>
+      </ul>
+      <button class="btn btn-blue" id="proBtn" onclick="chooseProCheckout()">Subscribe to Pro</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    Already have a plan? <a href="peakly.html">Go to your dashboard →</a><br/>
+    <span style="color:var(--text4);">Test mode — use card 4242 4242 4242 4242 with any future date and CVC.</span>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const cfg = window.PeaklyConfig;
+const sb  = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+const stripe = Stripe(cfg.STRIPE_PUBLIC);
+let interval = 'month';
+let currentUser = null;
+let currentSession = null;
+
+function showToast(msg, ms=2400){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+function selectInterval(i){
+  interval = i;
+  document.getElementById('tabM').classList.toggle('on', i==='month');
+  document.getElementById('tabY').classList.toggle('on', i==='year');
+  document.getElementById('priceLabel').innerHTML = i==='month'
+    ? '$6<small>/month</small>' : '$60<small>/year</small>';
+  document.getElementById('priceSub').textContent = i==='month'
+    ? 'Billed monthly · cancel anytime' : 'Billed yearly · save $12 vs monthly';
+}
+
+function setBtnLoading(id, loading, text){
+  const b = document.getElementById(id);
+  b.disabled = loading;
+  b.innerHTML = loading ? '<span class="spinner"></span>Working…' : text;
+}
+
+async function requireUser(){
+  if(currentUser) return currentUser;
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){
+    showToast('Please log in first.');
+    setTimeout(()=>{ window.location.href='peakly-auth.html'; }, 800);
+    return null;
+  }
+  currentSession = session;
+  currentUser = session.user;
+  return currentUser;
+}
+
+async function chooseFree(){
+  const user = await requireUser(); if(!user) return;
+  setBtnLoading('freeBtn', true, 'Continue with Free');
+  try{
+    await sb.from('subscriptions').update({
+      plan:'free', trial_ends_at:null, status:'active'
+    }).eq('user_id', user.id);
+    localStorage.setItem('peakly_plan','free');
+    localStorage.setItem('peakly_pro', JSON.stringify(false));
+    localStorage.setItem('peakly_trial', JSON.stringify(false));
+    window.location.href = 'peakly.html';
+  }catch(e){
+    setBtnLoading('freeBtn', false, 'Continue with Free');
+    showToast('Could not save plan — try again.');
+  }
+}
+
+async function chooseTrial(){
+  const user = await requireUser(); if(!user) return;
+  setBtnLoading('trialBtn', true, 'Start 14-Day Free Trial');
+  try{
+    const ends = new Date(); ends.setDate(ends.getDate()+14);
+    await sb.from('subscriptions').update({
+      plan:'trial', trial_ends_at: ends.toISOString(), status:'trialing'
+    }).eq('user_id', user.id);
+    localStorage.setItem('peakly_plan','trial');
+    localStorage.setItem('peakly_pro', JSON.stringify(true));
+    localStorage.setItem('peakly_trial', JSON.stringify(true));
+    window.location.href = 'peakly.html';
+  }catch(e){
+    setBtnLoading('trialBtn', false, 'Start 14-Day Free Trial');
+    showToast('Could not start trial — try again.');
+  }
+}
+
+async function chooseProCheckout(){
+  const user = await requireUser(); if(!user) return;
+  setBtnLoading('proBtn', true, 'Subscribe to Pro');
+  try{
+    const priceId = interval==='year' ? cfg.PRICE_YEARLY : cfg.PRICE_MONTHLY;
+    const res = await fetch(cfg.CREATE_CHECKOUT_URL, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${currentSession.access_token}`,
+        'apikey': cfg.SUPABASE_KEY
+      },
+      body: JSON.stringify({ priceId, userId: user.id, email: user.email })
+    });
+    const json = await res.json();
+    if(!res.ok || !json.url) throw new Error(json.error || 'Checkout failed');
+    window.location.href = json.url;
+  }catch(e){
+    setBtnLoading('proBtn', false, 'Subscribe to Pro');
+    showToast(e.message || 'Could not start checkout.');
+  }
+}
+
+// Boot — verify session
+(async()=>{
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session){
+    window.location.href = 'peakly-auth.html';
+    return;
+  }
+  currentSession = session;
+  currentUser = session.user;
+  // If already pro, skip the picker
+  try{
+    const { data:sub } = await sb.from('subscriptions').select('plan').eq('user_id', session.user.id).single();
+    if(sub?.plan === 'pro'){ window.location.href='peakly.html'; }
+  }catch(e){}
+  // Handle ?checkout=canceled
+  if(new URLSearchParams(location.search).get('checkout')==='canceled'){
+    showToast('Checkout canceled — no charge was made.');
+  }
+})();
+</script>
+</body>
+</html>

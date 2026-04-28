@@ -235,6 +235,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="peakly-config.js"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (function(){
@@ -242,9 +243,15 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
   if(typeof supabase==='undefined')return;
   const sb=supabase.createClient(SURL,SKEY);
-  sb.auth.getSession().then(({data:{session}})=>{
+  sb.auth.getSession().then(async ({data:{session}})=>{
     if(!session){window.location.href='peakly-auth.html';return;}
     const user=session.user;
+    if(window.PeaklyAuth){
+      try{
+        const result=await window.PeaklyAuth.loadSubscription(sb,user);
+        window.PeaklyAuth.renderTrialBanner(result);
+      }catch(e){}
+    }
     const meta=user.user_metadata||{};
     const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'';
     const last=meta.last_name||meta.full_name?.split(' ')[1]||'';
