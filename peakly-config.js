@@ -157,18 +157,28 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, reason:'no-user' };
     try{
       const data = this.snapshot();
-      // Insert new backup as latest, then mark all others as not-latest.
-      const { error: insertError } = await sb.from('data_backups').insert({
+      // First, mark all current is_latest=true rows as false (handles unique constraint).
+      // Ignore errors here - some rows might already be false.
+      try{
+        await sb.from('data_backups')
+          .update({ is_latest: false })
+          .eq('user_id', user.id)
+          .eq('is_latest', true);
+      }catch(e){}
+      // Insert new backup without is_latest flag first.
+      const { data: inserted, error: insertError } = await sb.from('data_backups').insert({
         user_id: user.id,
         backup_data: data,
-        is_latest: true
+        is_latest: false
       });
       if(insertError) throw insertError;
-      // Mark all previous is_latest=true rows for this user as false to prevent conflicts.
-      await sb.from('data_backups')
-        .update({ is_latest: false })
-        .eq('user_id', user.id)
-        .eq('is_latest', true);
+      // Now mark it as latest using the returned ID.
+      if(inserted && inserted[0]){
+        const { error: updateError } = await sb.from('data_backups')
+          .update({ is_latest: true })
+          .eq('id', inserted[0].id);
+        if(updateError) throw updateError;
+      }
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
       return { ok:true };
     }catch(e){
