@@ -2710,8 +2710,93 @@ function buildCustom(wrap){
     b.appendChild(filterBar);
     renderGrid();
     b.appendChild(grid2);
-    b.appendChild(ubanner('create & sell your own custom templates'));
   },true));
+
+  // ── Create your own template ──────────────────────────────────────────
+  wrap.appendChild(sblock('Create your own template','✨',b=>{
+    b.appendChild(infoBox('Build a custom tracker. Pick a name, an emoji, and the fields you want to track. It will be added as a new tab in your sidebar.','blue'));
+
+    let newName='', newIcon='✨';
+    let newFields=['',''];
+
+    const nameInp=inp('Template name (e.g. Plant care)','',v=>{newName=v;});
+    b.appendChild(fld('Template name',nameInp));
+
+    const iconRow=mk('div');iconRow.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;';
+    const iconLabel=mk('label');iconLabel.style.cssText='font-size:11px;font-weight:600;color:var(--text2);width:100%;margin-bottom:4px;';iconLabel.textContent='Icon';
+    iconRow.appendChild(iconLabel);
+    const EMOJI_PICKS=['✨','📝','🌱','🐾','🎨','💼','🏃','🍳','📚','💰','🎵','🎬','✈️','🛒','🎯','💡','🔧','🏆'];
+    EMOJI_PICKS.forEach(em=>{
+      const eb=mk('button');
+      eb.type='button';
+      eb.textContent=em;
+      eb.dataset.icon=em;
+      eb.style.cssText=`width:34px;height:34px;border-radius:var(--r);border:2px solid ${newIcon===em?'var(--blue)':'var(--border)'};background:${newIcon===em?'var(--blue-light)':'var(--white)'};font-size:16px;cursor:pointer;`;
+      eb.addEventListener('click',()=>{
+        newIcon=em;
+        iconRow.querySelectorAll('button').forEach(x=>{x.style.border='2px solid var(--border)';x.style.background='var(--white)';});
+        eb.style.border='2px solid var(--blue)';
+        eb.style.background='var(--blue-light)';
+      });
+      iconRow.appendChild(eb);
+    });
+    b.appendChild(iconRow);
+
+    const fieldsLabel=mk('label');fieldsLabel.style.cssText='display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:4px;';fieldsLabel.textContent='Fields to track';
+    b.appendChild(fieldsLabel);
+    const fieldsList=mk('div');fieldsList.style.cssText='display:flex;flex-direction:column;gap:6px;margin-bottom:8px;';
+    b.appendChild(fieldsList);
+
+    const renderFields=()=>{
+      fieldsList.innerHTML='';
+      newFields.forEach((val,idx)=>{
+        const row=mk('div');row.style.cssText='display:flex;gap:6px;align-items:center;';
+        const fi=mk('input','inp');fi.type='text';fi.placeholder=`Field ${idx+1} (e.g. Date, Notes…)`;fi.value=val;
+        fi.addEventListener('input',e=>{newFields[idx]=e.target.value;});
+        const del=mk('button');del.type='button';del.textContent='×';
+        del.style.cssText='width:32px;height:32px;border-radius:var(--r);background:var(--bg);color:var(--text3);border:1px solid var(--border);font-size:16px;cursor:pointer;flex-shrink:0;';
+        del.addEventListener('click',()=>{
+          if(newFields.length<=1){showToast('Templates need at least one field.');return;}
+          newFields.splice(idx,1);renderFields();
+        });
+        row.appendChild(fi);row.appendChild(del);
+        fieldsList.appendChild(row);
+      });
+    };
+    renderFields();
+
+    b.appendChild(addbtn('Add field',()=>{newFields.push('');renderFields();}));
+
+    const actions=mk('div');actions.style.cssText='display:flex;gap:8px;margin-top:14px;';
+    const createBtn=mk('button','btn-blue');
+    createBtn.style.cssText='padding:10px 16px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;';
+    createBtn.textContent='Create template';
+    createBtn.addEventListener('click',()=>{
+      // Read live name from input (in case binding lost focus)
+      const liveName=(nameInp.value||'').trim();
+      const cleanFields=newFields.map(f=>(f||'').trim()).filter(Boolean);
+      if(!liveName){showToast('Please give your template a name.');return;}
+      if(cleanFields.length===0){showToast('Add at least one field.');return;}
+      if(customTabs.some(ct=>ct.name.toLowerCase()===liveName.toLowerCase())){
+        showToast('A tab with that name already exists.');return;
+      }
+      const newTab={id:Date.now(),name:liveName,icon:newIcon,fields:cleanFields,rich:false,build:null,custom:true};
+      customTabs.push(newTab);
+      LS.set('custom_tabs',customTabs);
+      buildNav();
+      showToast('"'+liveName+'" added to your sidebar! ✨');
+      // Reset form
+      nameInp.value='';newName='';newIcon='✨';newFields=['',''];
+      iconRow.querySelectorAll('button').forEach((x,i)=>{
+        const isFirst=x.dataset.icon==='✨';
+        x.style.border='2px solid '+(isFirst?'var(--blue)':'var(--border)');
+        x.style.background=isFirst?'var(--blue-light)':'var(--white)';
+      });
+      renderFields();
+    });
+    actions.appendChild(createBtn);
+    b.appendChild(actions);
+  },false));
 }
 
 const PAGES={professional:buildProfessional,finances:buildFinances,family:buildFamily,pets:buildPets,community:buildCommunity,custom:buildCustom};
