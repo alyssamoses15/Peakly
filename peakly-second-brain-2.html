@@ -102,6 +102,9 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
         window.PeaklyAuth.renderTrialBanner(result);
       }catch(e){}
     }
+    if(window.PeaklySync){
+      try{ window.PeaklySync.startAutoBackup(sb, user); }catch(e){}
+    }
     const meta=user.user_metadata||{};
     const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'';
     const last=meta.last_name||meta.full_name?.split(' ')[1]||'';

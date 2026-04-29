@@ -107,3 +107,126 @@ window.PeaklyAuth = {
     document.body.insertBefore(bar, document.body.firstChild);
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Cross-device data sync via JSONB backup of localStorage to Supabase.
+// Phase 1 of the cross-device strategy — covers everything in one shot.
+// ─────────────────────────────────────────────────────────────────────────
+window.PeaklySync = {
+  // localStorage keys that should NOT be synced (per-device only).
+  _skipKey(k){
+    return !k
+      || k.startsWith('sb-')
+      || k === 'peakly_logged_out'
+      || k === 'peakly_last_user_id'
+      || k === 'peakly_trial_days_left';
+  },
+
+  // Snapshot all syncable localStorage keys into a plain object.
+  snapshot(){
+    const out = {};
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(this._skipKey(k)) continue;
+      out[k] = localStorage.getItem(k);
+    }
+    return out;
+  },
+
+  // Write snapshot back into localStorage. Wipes any keys not present in
+  // the snapshot (so deletes propagate across devices).
+  applySnapshot(snap){
+    if(!snap || typeof snap !== 'object') return;
+    const incoming = new Set(Object.keys(snap));
+    // Remove local-only keys that aren't in the snapshot (deletions sync too).
+    const toRemove = [];
+    for(let i=0; i<localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(this._skipKey(k)) continue;
+      if(!incoming.has(k)) toRemove.push(k);
+    }
+    toRemove.forEach(k=>localStorage.removeItem(k));
+    // Write the snapshot.
+    for(const [k,v] of Object.entries(snap)){
+      try{ localStorage.setItem(k, v); }catch(e){}
+    }
+  },
+
+  // Push current localStorage to Supabase as the latest backup row.
+  async backup(sb, user){
+    if(!sb || !user) return { ok:false, reason:'no-user' };
+    try{
+      const data = this.snapshot();
+      // Mark previous latest as not-latest, then upsert this one.
+      await sb.from('data_backups')
+        .update({ is_latest: false })
+        .eq('user_id', user.id)
+        .eq('is_latest', true);
+      const { error } = await sb.from('data_backups').insert({
+        user_id: user.id,
+        backup_data: data,
+        is_latest: true
+      });
+      if(error) throw error;
+      localStorage.setItem('peakly_last_backup_at', String(Date.now()));
+      return { ok:true };
+    }catch(e){
+      return { ok:false, reason:e.message };
+    }
+  },
+
+  // Pull the latest backup from Supabase into localStorage. Returns
+  // { ok, restored, reason }.
+  async restore(sb, user){
+    if(!sb || !user) return { ok:false, restored:false, reason:'no-user' };
+    try{
+      const { data, error } = await sb.from('data_backups')
+        .select('backup_data, created_at')
+        .eq('user_id', user.id)
+        .eq('is_latest', true)
+        .order('created_at', { ascending:false })
+        .limit(1)
+        .single();
+      if(error || !data){
+        return { ok:true, restored:false, reason:'no-backup' };
+      }
+      this.applySnapshot(data.backup_data);
+      localStorage.setItem('peakly_last_restore_at', String(Date.now()));
+      return { ok:true, restored:true, at:data.created_at };
+    }catch(e){
+      return { ok:false, restored:false, reason:e.message };
+    }
+  },
+
+  // Debounced background backup. Call freely; only one push fires per
+  // BACKUP_INTERVAL_MS. Use during normal app activity.
+  _backupTimer: null,
+  _BACKUP_INTERVAL_MS: 8000,
+  scheduleBackup(sb, user){
+    if(!sb || !user) return;
+    clearTimeout(this._backupTimer);
+    this._backupTimer = setTimeout(()=>{ this.backup(sb, user); }, this._BACKUP_INTERVAL_MS);
+  },
+
+  // Listen for any localStorage change and queue a backup. Call once on
+  // page boot after auth is resolved.
+  startAutoBackup(sb, user){
+    if(!sb || !user) return;
+    if(this._autoBackupStarted) return;
+    this._autoBackupStarted = true;
+    // Patch setItem/removeItem to schedule a backup on every change.
+    const origSet = localStorage.setItem.bind(localStorage);
+    const origRemove = localStorage.removeItem.bind(localStorage);
+    const self = this;
+    localStorage.setItem = function(k, v){
+      origSet(k, v);
+      if(!self._skipKey(k)) self.scheduleBackup(sb, user);
+    };
+    localStorage.removeItem = function(k){
+      origRemove(k);
+      if(!self._skipKey(k)) self.scheduleBackup(sb, user);
+    };
+    // Also push on tab close.
+    window.addEventListener('beforeunload', ()=>{ self.backup(sb, user); });
+  }
+};

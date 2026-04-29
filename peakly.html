@@ -1127,6 +1127,22 @@ function UserAvatar(){
         return;
       }
       localStorage.setItem('peakly_last_user_id',user.id);
+      // Cross-device sync: restore from cloud on fresh device, then auto-backup.
+      if(window.PeaklySync){
+        try{
+          const everBackedUp = !!localStorage.getItem('peakly_last_backup_at');
+          if(!everBackedUp){
+            const r = await window.PeaklySync.restore(sb, user);
+            if(r.restored){
+              window.location.reload();
+              return;
+            }
+            // No cloud backup yet — push current state up so future devices sync.
+            await window.PeaklySync.backup(sb, user);
+          }
+          window.PeaklySync.startAutoBackup(sb, user);
+        }catch(e){}
+      }
       // Load subscription state from Supabase and render trial banner if needed
       if(window.PeaklyAuth){
         try{

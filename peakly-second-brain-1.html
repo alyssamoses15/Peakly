@@ -129,6 +129,9 @@ canvas.graph{width:100%;height:100%;}
         window.PeaklyAuth.renderTrialBanner(result);
       }catch(e){}
     }
+    if(window.PeaklySync){
+      try{ window.PeaklySync.startAutoBackup(sb, user); }catch(e){}
+    }
     const meta=user.user_metadata||{};
     const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'';
     const last=meta.last_name||meta.full_name?.split(' ')[1]||'';
