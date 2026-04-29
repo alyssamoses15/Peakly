@@ -226,19 +226,13 @@ async function chooseProCheckout(){
   const user = await requireUser(); if(!user) return;
   setBtnLoading('proBtn', true, 'Subscribe to Pro');
   try{
-    const priceId = interval==='year' ? cfg.PRICE_YEARLY : cfg.PRICE_MONTHLY;
-    const res = await fetch(cfg.CREATE_CHECKOUT_URL, {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization': `Bearer ${currentSession.access_token}`,
-        'apikey': cfg.SUPABASE_KEY
-      },
-      body: JSON.stringify({ priceId, userId: user.id, email: user.email })
-    });
-    const json = await res.json();
-    if(!res.ok || !json.url) throw new Error(json.error || 'Checkout failed');
-    window.location.href = json.url;
+    const paymentLink = interval==='year' ? cfg.PAYMENT_LINK_YEARLY : cfg.PAYMENT_LINK_MONTHLY;
+    if(!paymentLink){
+      throw new Error('Payment link not configured — contact support.');
+    }
+    // Redirect to Stripe Payment Link with user context
+    const linkWithParams = `${paymentLink}?client_reference_id=${encodeURIComponent(user.id)}&prefilled[email]=${encodeURIComponent(user.email)}`;
+    window.location.href = linkWithParams;
   }catch(e){
     setBtnLoading('proBtn', false, 'Subscribe to Pro');
     showToast(e.message || 'Could not start checkout.');

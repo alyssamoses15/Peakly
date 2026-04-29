@@ -9,7 +9,8 @@ window.PeaklyConfig = {
   PRICE_MONTHLY: 'price_1TQd05E3DQkfgMOIeCTbYMx0',
   PRICE_YEARLY:  'price_1TQd05E3DQkfgMOImnOouGt8',
   SITE_URL: 'https://getpeakly.co',
-  CREATE_CHECKOUT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-checkout',
+  PAYMENT_LINK_MONTHLY: '', // TODO: Create in Stripe dashboard, paste link
+  PAYMENT_LINK_YEARLY: '',  // TODO: Create in Stripe dashboard, paste link
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription'
 };
 
