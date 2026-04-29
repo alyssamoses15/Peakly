@@ -241,7 +241,12 @@ async function chooseProCheckout(){
     window.location.href = json.url;
   }catch(e){
     setBtnLoading('proBtn', false, 'Subscribe to Pro');
-    showToast(e.message || 'Could not start checkout.');
+    const msg = String(e.message||'');
+    if(msg.includes('Failed to fetch') || msg.includes('NetworkError')){
+      showToast('Checkout server not reachable — Edge Function may not be deployed yet.', 4500);
+    } else {
+      showToast(msg || 'Could not start checkout.', 4000);
+    }
   }
 }
 

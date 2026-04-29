@@ -277,11 +277,22 @@ function renderGoalsPage(){
       grid.appendChild(card);
     });
 
-    // Empty slot cards for remaining
-    for(let i=active.length;i<maxFree;i++){
+    // Empty slot cards for remaining (free plan only — Pro is unlimited)
+    if(!hasProAccess){
+      for(let i=active.length;i<maxFree;i++){
+        const empty=document.createElement('div');
+        empty.style.cssText='border-radius:var(--rl);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px 16px;cursor:pointer;transition:all .2s;min-height:220px;';
+        empty.innerHTML=`<div style="font-size:32px;color:var(--text4);">+</div><div style="font-size:13px;font-weight:600;color:var(--text3);">Add a goal</div><div style="font-size:11px;color:var(--text4);text-align:center;">${i===0?'Start your first peak':'Keep climbing'}</div>`;
+        empty.onmouseover=()=>{empty.style.borderColor='var(--blue)';empty.style.background='var(--blue-light)';};
+        empty.onmouseout=()=>{empty.style.borderColor='var(--border)';empty.style.background='transparent';};
+        empty.onclick=()=>openCreate();
+        grid.appendChild(empty);
+      }
+    } else {
+      // Pro: show a single "Add a goal" tile
       const empty=document.createElement('div');
       empty.style.cssText='border-radius:var(--rl);border:2px dashed var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:32px 16px;cursor:pointer;transition:all .2s;min-height:220px;';
-      empty.innerHTML=`<div style="font-size:32px;color:var(--text4);">+</div><div style="font-size:13px;font-weight:600;color:var(--text3);">Add a goal</div><div style="font-size:11px;color:var(--text4);text-align:center;">${i===0?'Start your first peak':'Keep climbing'}</div>`;
+      empty.innerHTML=`<div style="font-size:32px;color:var(--text4);">+</div><div style="font-size:13px;font-weight:600;color:var(--text3);">Add a goal</div><div style="font-size:11px;color:var(--text4);text-align:center;">Unlimited with Pro</div>`;
       empty.onmouseover=()=>{empty.style.borderColor='var(--blue)';empty.style.background='var(--blue-light)';};
       empty.onmouseout=()=>{empty.style.borderColor='var(--border)';empty.style.background='transparent';};
       empty.onclick=()=>openCreate();
