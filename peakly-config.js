@@ -169,8 +169,10 @@ window.PeaklySync = {
       });
       if(error) throw error;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
+      console.log('[Peakly] ✓ Data synced to cloud');
       return { ok:true };
     }catch(e){
+      console.error('[Peakly] Sync failed:', e.message);
       return { ok:false, reason:e.message };
     }
   },
@@ -201,11 +203,16 @@ window.PeaklySync = {
   // Debounced background backup. Call freely; only one push fires per
   // BACKUP_INTERVAL_MS. Use during normal app activity.
   _backupTimer: null,
-  _BACKUP_INTERVAL_MS: 8000,
+  _BACKUP_INTERVAL_MS: 3000,
+  _sbRef: null,
+  _userRef: null,
   scheduleBackup(sb, user){
-    if(!sb || !user) return;
+    this._sbRef = sb;
+    this._userRef = user;
     clearTimeout(this._backupTimer);
-    this._backupTimer = setTimeout(()=>{ this.backup(sb, user); }, this._BACKUP_INTERVAL_MS);
+    this._backupTimer = setTimeout(async ()=>{
+      if(this._sbRef && this._userRef) await this.backup(this._sbRef, this._userRef);
+    }, this._BACKUP_INTERVAL_MS);
   },
 
   // Listen for any localStorage change and queue a backup. Call once on
@@ -214,19 +221,21 @@ window.PeaklySync = {
     if(!sb || !user) return;
     if(this._autoBackupStarted) return;
     this._autoBackupStarted = true;
+    this._sbRef = sb;
+    this._userRef = user;
     // Patch setItem/removeItem to schedule a backup on every change.
     const origSet = localStorage.setItem.bind(localStorage);
     const origRemove = localStorage.removeItem.bind(localStorage);
     const self = this;
     localStorage.setItem = function(k, v){
       origSet(k, v);
-      if(!self._skipKey(k)) self.scheduleBackup(sb, user);
+      if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
     };
     localStorage.removeItem = function(k){
       origRemove(k);
-      if(!self._skipKey(k)) self.scheduleBackup(sb, user);
+      if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
     };
     // Also push on tab close.
-    window.addEventListener('beforeunload', ()=>{ self.backup(sb, user); });
+    window.addEventListener('beforeunload', ()=>{ self.backup(self._sbRef, self._userRef); });
   }
 };

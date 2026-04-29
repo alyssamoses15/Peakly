@@ -248,10 +248,10 @@ async function chooseProCheckout(){
   }
   currentSession = session;
   currentUser = session.user;
-  // If already pro, skip the picker
+  // If user already has any plan, go straight to app (don't show picker again)
   try{
     const { data:sub } = await sb.from('subscriptions').select('plan').eq('user_id', session.user.id).single();
-    if(sub?.plan === 'pro'){ window.location.href='peakly.html'; }
+    if(sub?.plan){ window.location.href='peakly.html'; }
   }catch(e){}
   // Handle ?checkout=canceled
   if(new URLSearchParams(location.search).get('checkout')==='canceled'){
