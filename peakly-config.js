@@ -9,8 +9,8 @@ window.PeaklyConfig = {
   PRICE_MONTHLY: 'price_1TQd05E3DQkfgMOIeCTbYMx0',
   PRICE_YEARLY:  'price_1TQd05E3DQkfgMOImnOouGt8',
   SITE_URL: 'https://getpeakly.co',
-  PAYMENT_LINK_MONTHLY: '', // TODO: Create in Stripe dashboard, paste link
-  PAYMENT_LINK_YEARLY: '',  // TODO: Create in Stripe dashboard, paste link
+  PAYMENT_LINK_MONTHLY: 'https://buy.stripe.com/test_cNi00j2jzafW4fsaD97Zu00',
+  PAYMENT_LINK_YEARLY: 'https://buy.stripe.com/test_7sYaEX2jzafWh2efXt7Zu01',
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription'
 };
 
