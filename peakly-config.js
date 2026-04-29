@@ -157,16 +157,11 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, reason:'no-user' };
     try{
       const data = this.snapshot();
-      // Mark previous latest as not-latest, then upsert this one.
-      await sb.from('data_backups')
-        .update({ is_latest: false })
-        .eq('user_id', user.id)
-        .eq('is_latest', true);
-      const { error } = await sb.from('data_backups').insert({
+      const { error } = await sb.from('data_backups').upsert({
         user_id: user.id,
         backup_data: data,
-        is_latest: true
-      });
+        created_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
       if(error) throw error;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
       console.log('[Peakly] ✓ Data synced to cloud');
@@ -185,9 +180,6 @@ window.PeaklySync = {
       const { data, error } = await sb.from('data_backups')
         .select('backup_data, created_at')
         .eq('user_id', user.id)
-        .eq('is_latest', true)
-        .order('created_at', { ascending:false })
-        .limit(1)
         .single();
       if(error || !data){
         return { ok:true, restored:false, reason:'no-backup' };
