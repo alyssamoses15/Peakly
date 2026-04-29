@@ -157,10 +157,12 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, reason:'no-user' };
     try{
       const data = this.snapshot();
-      // Simply insert without is_latest flag - it will use created_at for ordering.
+      // Insert with is_latest=false to avoid unique constraint violations.
+      // We use created_at timestamp for ordering, not the is_latest flag.
       const { error } = await sb.from('data_backups').insert({
         user_id: user.id,
-        backup_data: data
+        backup_data: data,
+        is_latest: false
       });
       if(error) throw error;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
