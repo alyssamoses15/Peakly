@@ -157,17 +157,17 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, reason:'no-user' };
     try{
       const data = this.snapshot();
-      // Insert with is_latest=false to avoid unique constraint violations.
-      // We use created_at timestamp for ordering, not the is_latest flag.
-      const { error } = await sb.from('data_backups').insert({
+      const { error } = await sb.from('data_backups').upsert({
         user_id: user.id,
         backup_data: data,
-        is_latest: false
-      });
+        created_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
       if(error) throw error;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
+      console.log('[Peakly] ✓ Data synced to cloud');
       return { ok:true };
     }catch(e){
+      console.error('[Peakly] Sync failed:', e.message);
       return { ok:false, reason:e.message };
     }
   },
@@ -180,15 +180,13 @@ window.PeaklySync = {
       const { data, error } = await sb.from('data_backups')
         .select('backup_data, created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending:false })
-        .limit(1);
-      if(error || !data || data.length === 0){
+        .single();
+      if(error || !data){
         return { ok:true, restored:false, reason:'no-backup' };
       }
-      const backup = data[0];
-      this.applySnapshot(backup.backup_data);
+      this.applySnapshot(data.backup_data);
       localStorage.setItem('peakly_last_restore_at', String(Date.now()));
-      return { ok:true, restored:true, at:backup.created_at };
+      return { ok:true, restored:true, at:data.created_at };
     }catch(e){
       return { ok:false, restored:false, reason:e.message };
     }
@@ -197,11 +195,16 @@ window.PeaklySync = {
   // Debounced background backup. Call freely; only one push fires per
   // BACKUP_INTERVAL_MS. Use during normal app activity.
   _backupTimer: null,
-  _BACKUP_INTERVAL_MS: 8000,
+  _BACKUP_INTERVAL_MS: 3000,
+  _sbRef: null,
+  _userRef: null,
   scheduleBackup(sb, user){
-    if(!sb || !user) return;
+    this._sbRef = sb;
+    this._userRef = user;
     clearTimeout(this._backupTimer);
-    this._backupTimer = setTimeout(()=>{ this.backup(sb, user); }, this._BACKUP_INTERVAL_MS);
+    this._backupTimer = setTimeout(async ()=>{
+      if(this._sbRef && this._userRef) await this.backup(this._sbRef, this._userRef);
+    }, this._BACKUP_INTERVAL_MS);
   },
 
   // Listen for any localStorage change and queue a backup. Call once on
@@ -210,19 +213,21 @@ window.PeaklySync = {
     if(!sb || !user) return;
     if(this._autoBackupStarted) return;
     this._autoBackupStarted = true;
+    this._sbRef = sb;
+    this._userRef = user;
     // Patch setItem/removeItem to schedule a backup on every change.
     const origSet = localStorage.setItem.bind(localStorage);
     const origRemove = localStorage.removeItem.bind(localStorage);
     const self = this;
     localStorage.setItem = function(k, v){
       origSet(k, v);
-      if(!self._skipKey(k)) self.scheduleBackup(sb, user);
+      if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
     };
     localStorage.removeItem = function(k){
       origRemove(k);
-      if(!self._skipKey(k)) self.scheduleBackup(sb, user);
+      if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
     };
     // Also push on tab close.
-    window.addEventListener('beforeunload', ()=>{ self.backup(sb, user); });
+    window.addEventListener('beforeunload', ()=>{ self.backup(self._sbRef, self._userRef); });
   }
 };
