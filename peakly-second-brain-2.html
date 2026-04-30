@@ -1664,64 +1664,87 @@ function buildProfessional(wrap){
     let editKey=null;
     const openModal=(key,dateLabel)=>{
       editKey=key;
-      const existing=shifts[key]||{};
-      modal.style.display='block';
-      modal.innerHTML=`<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">📅 ${dateLabel}</div>`;
-      // Support multiple jobs per day: shifts[key] is now an array
-      let dayJobs=shifts[editKey];if(!Array.isArray(dayJobs))dayJobs=dayJobs?[dayJobs]:[];
-      const selectedJobIds=new Set(dayJobs.map(j=>j.jobId));
-      // Job selector — click to toggle
-      const jRow=mk('div');jRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
-      jobs.forEach(j=>{
-        const isSelected=selectedJobIds.has(j.id);
-        const jb=mk('button');jb.style.cssText=`padding:5px 12px;border-radius:100px;font-size:11px;font-weight:600;border:2px solid ${j.color};background:${isSelected?j.color:'transparent'};color:${isSelected?'#fff':j.color};cursor:pointer;transition:all .2s;`;
-        jb.textContent=j.name||'Job';
-        jb.addEventListener('click',()=>{
-          if(selectedJobIds.has(j.id)){
-            selectedJobIds.delete(j.id);
-            dayJobs=dayJobs.filter(x=>x.jobId!==j.id);
-            jb.style.background='transparent';jb.style.color=j.color;
-          }else{
-            selectedJobIds.add(j.id);
-            dayJobs.push({jobId:j.id,jobName:j.name,color:j.color,start:'09:00',end:'17:00',location:''});
-            jb.style.background=j.color;jb.style.color='#fff';
-          }
+      let currentShifts=shifts[key]||[];
+      if(!Array.isArray(currentShifts)){currentShifts=currentShifts?[currentShifts]:[];}
+
+      const renderModal=()=>{
+        modal.style.display='block';
+        modal.innerHTML=`<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">📅 ${dateLabel}</div>`;
+
+        if(currentShifts.length>0){
+          const shiftsSection=mk('div');shiftsSection.style.cssText='margin-bottom:12px;padding:10px;background:var(--bg);border-radius:var(--r);';
+          currentShifts.forEach((shift,idx)=>{
+            const shiftCard=mk('div');shiftCard.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px;background:var(--white);border-radius:var(--r);border:1px solid var(--border);';
+            const shiftInfo=mk('div');shiftInfo.style.cssText='flex:1;';
+            shiftInfo.innerHTML=`<div style="font-weight:600;font-size:12px;color:var(--text);">${shift.jobName||'Job'}</div><div style="font-size:11px;color:var(--text2);">${shift.start||'09:00'} – ${shift.end||'17:00'}${shift.location?' @ '+shift.location:''}</div>`;
+            const editBtn=mk('button');editBtn.textContent='✏️ Edit';editBtn.style.cssText='padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);cursor:pointer;font-size:11px;';
+            editBtn.addEventListener('click',()=>{editShiftAtIndex(idx);});
+            const rmBtn=mk('button');rmBtn.textContent='Remove';rmBtn.style.cssText='padding:4px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--red-light);color:var(--red-dark);cursor:pointer;font-size:11px;';
+            rmBtn.addEventListener('click',()=>{currentShifts.splice(idx,1);if(currentShifts.length){shifts[editKey]=currentShifts;}else{delete shifts[editKey];}LS.set('work_shifts',shifts);renderModal();});
+            shiftCard.appendChild(shiftInfo);shiftCard.appendChild(editBtn);shiftCard.appendChild(rmBtn);
+            shiftsSection.appendChild(shiftCard);
+          });
+          modal.appendChild(shiftsSection);
+        }
+
+        const addSection=mk('div');addSection.style.cssText=currentShifts.length>0?'border-top:1px solid var(--border);padding-top:10px;':'';
+        const addTitle=mk('div');addTitle.style.cssText='font-size:11px;font-weight:600;color:var(--text2);margin-bottom:8px;';addTitle.textContent=currentShifts.length>0?'Add another shift:':'Select a job:';addSection.appendChild(addTitle);
+
+        const jRow=mk('div');jRow.style.cssText='display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;';
+        jobs.forEach(j=>{
+          const jb=mk('button');jb.style.cssText=`padding:6px 14px;border-radius:100px;font-size:11px;font-weight:600;border:2px solid ${j.color};background:transparent;color:${j.color};cursor:pointer;transition:all .2s;`;
+          jb.textContent=j.name||'Job';
+          jb.addEventListener('click',()=>{
+            currentShifts.push({jobId:j.id,jobName:j.name,color:j.color,start:'09:00',end:'17:00',location:''});
+            editShiftAtIndex(currentShifts.length-1);
+          });
+          jRow.appendChild(jb);
         });
-        jRow.appendChild(jb);
-      });
-      modal.appendChild(jRow);
-      // Job detail form for first selected job (or empty if none)
-      const firstJob=dayJobs[0]||{};
-      const g2=mk('div');g2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;';
-      const startFld=mk('div');
-      startFld.innerHTML='<label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;">Start time</label>';
-      const si=mk('input','inp');si.type='time';si.value=firstJob.start||'09:00';si.style.fontSize='13px';si.disabled=dayJobs.length===0;
-      si.addEventListener('input',e=>{if(dayJobs[0])dayJobs[0].start=e.target.value;});
-      startFld.appendChild(si);
-      const endFld=mk('div');
-      endFld.innerHTML='<label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;">End time</label>';
-      const ei=mk('input','inp');ei.type='time';ei.value=firstJob.end||'17:00';ei.style.fontSize='13px';ei.disabled=dayJobs.length===0;
-      ei.addEventListener('input',e=>{if(dayJobs[0])dayJobs[0].end=e.target.value;});
-      endFld.appendChild(ei);
-      g2.appendChild(startFld);g2.appendChild(endFld);modal.appendChild(g2);
-      const ni2=mk('input','inp');ni2.placeholder='Location / notes (optional)';ni2.value=firstJob.location||'';ni2.style.cssText='margin-bottom:8px;font-size:12px;';ni2.disabled=dayJobs.length===0;
-      ni2.addEventListener('input',e=>{if(dayJobs[0])dayJobs[0].location=e.target.value;});
-      modal.appendChild(ni2);
-      const btnRow=mk('div');btnRow.style.cssText='display:flex;gap:8px;';
-      const saveBtn=mk('button');saveBtn.style.cssText='flex:1;padding:8px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;';
-      saveBtn.textContent=dayJobs.length>0?'💾 Save '+dayJobs.length+' job'+(dayJobs.length!==1?'s':'')+' to calendar':'💾 Save';
-      saveBtn.addEventListener('click',()=>{
-        shifts[editKey]=dayJobs.length>0?dayJobs:undefined;
-        if(!dayJobs.length)delete shifts[editKey];
-        LS.set('work_shifts',shifts);
-        modal.style.display='none';renderCal();
-      });
-      const clearBtn=mk('button');clearBtn.style.cssText='padding:8px 14px;border-radius:var(--rm);border:1px solid var(--border);color:var(--red);font-size:12px;cursor:pointer;';
-      clearBtn.textContent='Clear all';
-      clearBtn.addEventListener('click',()=>{delete shifts[editKey];LS.set('work_shifts',shifts);modal.style.display='none';renderCal();});
-      const cancelBtn=mk('button');cancelBtn.style.cssText='padding:8px 14px;border-radius:var(--rm);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;';
-      cancelBtn.textContent='Cancel';cancelBtn.addEventListener('click',()=>modal.style.display='none');
-      btnRow.appendChild(saveBtn);btnRow.appendChild(clearBtn);btnRow.appendChild(cancelBtn);modal.appendChild(btnRow);
+        addSection.appendChild(jRow);
+        modal.appendChild(addSection);
+
+        const btnRow=mk('div');btnRow.style.cssText='display:flex;gap:8px;margin-top:12px;';
+        const doneBtn=mk('button');doneBtn.style.cssText='flex:1;padding:8px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;';
+        doneBtn.textContent=currentShifts.length>0?'✓ Done':'Cancel';
+        doneBtn.addEventListener('click',()=>{if(currentShifts.length>0){shifts[editKey]=currentShifts;LS.set('work_shifts',shifts);renderCal();}modal.style.display='none';});
+        const clearBtn=mk('button');clearBtn.style.cssText='padding:8px 14px;border-radius:var(--rm);border:1px solid var(--border);color:var(--red);font-size:12px;cursor:pointer;';
+        clearBtn.textContent='Clear all';
+        clearBtn.addEventListener('click',()=>{delete shifts[editKey];LS.set('work_shifts',shifts);modal.style.display='none';renderCal();});
+        const cancelBtn=mk('button');cancelBtn.style.cssText='padding:8px 14px;border-radius:var(--rm);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;';
+        cancelBtn.textContent='Close';cancelBtn.addEventListener('click',()=>modal.style.display='none');
+        btnRow.appendChild(doneBtn);btnRow.appendChild(clearBtn);btnRow.appendChild(cancelBtn);modal.appendChild(btnRow);
+      };
+
+      const editShiftAtIndex=(idx)=>{
+        const shift=currentShifts[idx];
+        const editForm=mk('div');editForm.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--white);border:1px solid var(--border);border-radius:var(--rl);padding:20px;box-shadow:0 4px 20px rgba(15,28,46,0.15);z-index:10000;min-width:320px;';
+        editForm.innerHTML=`<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;">${shift.jobName}</div>`;
+
+        const g2=mk('div');g2.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;';
+        const startFld=mk('div');startFld.innerHTML='<label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;">Start time</label>';
+        const si=mk('input','inp');si.type='time';si.value=shift.start||'09:00';si.style.fontSize='13px';
+        si.addEventListener('input',e=>{shift.start=e.target.value;});
+        startFld.appendChild(si);
+        const endFld=mk('div');endFld.innerHTML='<label style="display:block;font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px;">End time</label>';
+        const ei=mk('input','inp');ei.type='time';ei.value=shift.end||'17:00';ei.style.fontSize='13px';
+        ei.addEventListener('input',e=>{shift.end=e.target.value;});
+        endFld.appendChild(ei);
+        g2.appendChild(startFld);g2.appendChild(endFld);editForm.appendChild(g2);
+
+        const ni=mk('input','inp');ni.placeholder='Location / notes (optional)';ni.value=shift.location||'';ni.style.cssText='margin-bottom:12px;font-size:12px;';
+        ni.addEventListener('input',e=>{shift.location=e.target.value;});
+        editForm.appendChild(ni);
+
+        const btnRow=mk('div');btnRow.style.cssText='display:flex;gap:8px;';
+        const saveBtn=mk('button');saveBtn.style.cssText='flex:1;padding:8px;border-radius:var(--rm);background:var(--green);color:#fff;font-size:12px;font-weight:600;border:none;cursor:pointer;';
+        saveBtn.textContent='Save shift';saveBtn.addEventListener('click',()=>{shifts[editKey]=currentShifts;LS.set('work_shifts',shifts);document.body.removeChild(editForm);renderModal();});
+        const canBtn=mk('button');canBtn.style.cssText='flex:1;padding:8px;border-radius:var(--rm);border:1px solid var(--border);color:var(--text2);font-size:12px;cursor:pointer;';
+        canBtn.textContent='Cancel';canBtn.addEventListener('click',()=>{document.body.removeChild(editForm);});
+        btnRow.appendChild(saveBtn);btnRow.appendChild(canBtn);editForm.appendChild(btnRow);
+        document.body.appendChild(editForm);
+      };
+
+      renderModal();
     };
     b.appendChild(modal);
 
