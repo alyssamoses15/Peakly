@@ -157,15 +157,12 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, reason:'no-user' };
     try{
       const data = this.snapshot();
-      // Mark previous latest as not-latest, then upsert this one.
-      await sb.from('data_backups')
-        .update({ is_latest: false })
-        .eq('user_id', user.id)
-        .eq('is_latest', true);
+      // Insert with is_latest=false to avoid unique constraint violations.
+      // We use created_at timestamp for ordering, not the is_latest flag.
       const { error } = await sb.from('data_backups').insert({
         user_id: user.id,
         backup_data: data,
-        is_latest: true
+        is_latest: false
       });
       if(error) throw error;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
@@ -183,16 +180,15 @@ window.PeaklySync = {
       const { data, error } = await sb.from('data_backups')
         .select('backup_data, created_at')
         .eq('user_id', user.id)
-        .eq('is_latest', true)
         .order('created_at', { ascending:false })
-        .limit(1)
-        .single();
-      if(error || !data){
+        .limit(1);
+      if(error || !data || data.length === 0){
         return { ok:true, restored:false, reason:'no-backup' };
       }
-      this.applySnapshot(data.backup_data);
+      const backup = data[0];
+      this.applySnapshot(backup.backup_data);
       localStorage.setItem('peakly_last_restore_at', String(Date.now()));
-      return { ok:true, restored:true, at:data.created_at };
+      return { ok:true, restored:true, at:backup.created_at };
     }catch(e){
       return { ok:false, restored:false, reason:e.message };
     }
