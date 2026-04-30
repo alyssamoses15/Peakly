@@ -777,16 +777,18 @@ function getCalendarEvents(){
     evs.push({id:evId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',time:cfg.time,dur:LS.get('cal_dur_'+evId,parseInt(cfg.duration)||30),color:'#F97316',checkKey:'routine_done_'+rk+'_'+todayStr,page:'peakly-second-brain-1.html'});
   });
 
-  // 4. Work shifts
+  // 4. Work shifts — support multiple jobs per day by cycling through them
   const shifts=LS.get('work_shifts',{});
   const tk=`${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
   if(shifts[tk]){
-    const sh=shifts[tk];
-    const evId='w_'+tk;
-    evs.push({id:evId,type:'work',title:(sh.jobName||'Work')+(sh.location?' @ '+sh.location:''),time:sh.start||'09:00',dur:LS.get('cal_dur_'+evId,480),color:sh.color||'#7C3AED',checkKey:'work_done_'+tk,page:'peakly-second-brain-2.html'});
+    const shList=Array.isArray(shifts[tk])?shifts[tk]:[shifts[tk]];
+    shList.forEach((sh,si)=>{
+      const evId='w_'+tk+'_'+si;
+      evs.push({id:evId,type:'work',title:(sh.jobName||'Work')+(sh.location?' @ '+sh.location:''),time:sh.start||'09:00',dur:LS.get('cal_dur_'+evId,480),color:sh.color||'#7C3AED',checkKey:'work_done_'+tk+'_'+si,page:'peakly-second-brain-2.html'});
+    });
   }
 
-  // 5. Life Admin cal events (include today's, with or without time)
+  // 5. Life Admin cal events (ONLY include if they have a time — items with just dates belong in their section)
   const LA_PART2_KEYS=['pro_meetings','pro_certs','partner_dates','fam_events','comm_events'];
   const calEvs=LS.get('cal_events',[]);
   calEvs.forEach((e,i)=>{
@@ -799,15 +801,16 @@ function getCalendarEvents(){
       const d=new Date(e.date);
       if(!isNaN(d)&&d.toDateString()!==todayStr)return;
     }
-    const evId='la_'+i;
+    // Extract time from event — if no time, skip (it belongs in its Life Admin section, not home cal)
     let evTime=e.time||'';
     if(!evTime&&typeof e.date==='string'&&e.date.includes('T')){
       const tPart=e.date.split('T')[1];
       if(tPart)evTime=tPart.slice(0,5);
     }
+    if(!evTime)return; // Skip events with no time
     const isPart2=e.sourceKey&&(LA_PART2_KEYS.includes(e.sourceKey)||e.sourceKey.startsWith('child_'));
     const sourcePage=isPart2?'peakly-second-brain-2.html':'peakly-second-brain-1.html';
-    evs.push({id:evId,type:'lifeadmin',title:e.title||'Life Admin',time:evTime,dur:LS.get('cal_dur_'+evId,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:sourcePage,subType:e.type,sourceKey:e.sourceKey});
+    evs.push({id:'la_'+i,type:'lifeadmin',title:e.title||'Life Admin',time:evTime,dur:LS.get('cal_dur_'+'la_'+i,e.duration||30),color:'#059669',checkKey:'lifeadmin_done_'+i+'_'+todayStr,page:sourcePage,subType:e.type,sourceKey:e.sourceKey});
   });
 
   return evs.sort((a,b)=>{
