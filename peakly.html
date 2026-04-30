@@ -612,6 +612,26 @@ function GoalList({goals,onToggle}){
     const done=doneMap[ev.checkKey]||false;
     const goalColor=ev.color||'#0891B2';
     const typeMap={goal:'🎯',lifeadmin:'🏠',routine:'🌅',work:'💼',manual:'📌'};
+    const handleDelete=(e)=>{
+      e.stopPropagation();
+      // Delete logic depends on event type
+      if(ev.type==='lifeadmin'&&ev.sourceKey!==undefined){
+        const calEvs=LS.get('cal_events',[]);
+        for(let i=0;i<calEvs.length;i++){
+          if(calEvs[i].sourceKey===ev.sourceKey&&calEvs[i].title===ev.title){
+            calEvs.splice(i,1);
+            break;
+          }
+        }
+        LS.set('cal_events',calEvs);
+      }else if(ev.type==='manual'&&ev.srcId!==undefined){
+        const manualEvs=LS.get('cal_manual_events',[]);
+        const filtered=manualEvs.filter(x=>x.id!==ev.srcId);
+        LS.set('cal_manual_events',filtered);
+      }
+      setEvents(getCalendarEvents());
+      setDoneMap({...doneMap});
+    };
     return(
       <div style={{display:'flex',alignItems:'center',gap:7,padding:'6px 10px',borderRadius:8,
           background:done?'var(--bg2)':'var(--white)',
@@ -628,6 +648,9 @@ function GoalList({goals,onToggle}){
           {ev.time&&<span style={{fontSize:10,color:'var(--text4)',flexShrink:0,fontWeight:500}}>{fmtHour(parseInt(ev.time.split(':')[0]))}</span>}
           <span style={{fontSize:10,flexShrink:0}}>{typeMap[ev.type]||'📌'}</span>
         </div>
+        {(ev.type==='lifeadmin'||ev.type==='manual')&&<button onClick={handleDelete}
+          title="Delete"
+          style={{flexShrink:0,width:20,height:20,borderRadius:'50%',border:'none',background:'transparent',color:'var(--text4)',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,lineHeight:1}}>×</button>}
         <button onClick={(e)=>{e.stopPropagation();setInfoEvent(ev);}}
           title="More info"
           style={{flexShrink:0,width:20,height:20,borderRadius:'50%',border:'none',background:'transparent',color:'var(--text3)',fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',padding:0,lineHeight:1}}>ⓘ</button>
