@@ -1679,7 +1679,24 @@ function deleteGoal(id){
     '🗑️ Delete goal?',
     '"'+g.name+'" will be permanently deleted. This cannot be undone.',
     'Yes, delete',
-    ()=>{goals=goals.filter(x=>x.id!==g.id);saveGoals();backToGoals();toast('Goal deleted.');}
+    ()=>{
+      // Clean up cal_events tied to this goal
+      const calEvents=LS.get('cal_events',[]);
+      LS.set('cal_events',calEvents.filter(e=>String(e.goalId||'')!==String(g.id)&&!(e.title&&e.title.startsWith(g.name+':'))));
+      // Clean up cal_manual_events tied to this goal
+      const manualEvents=LS.get('cal_manual_events',[]);
+      LS.set('cal_manual_events',manualEvents.filter(e=>String(e.goalId||'')!==String(g.id)));
+      // Clean up daily_/plan_/checkin_ flags for this goal's tasks
+      const goalIdStr=String(g.id);
+      for(let i=localStorage.length-1;i>=0;i--){
+        const k=localStorage.key(i);
+        if(!k)continue;
+        if(k.startsWith('daily_'+goalIdStr+'_')||k.startsWith('plan_'+goalIdStr+'_')||k.startsWith('checkin_'+goalIdStr+'_')||k.startsWith('cal_dur_g_'+goalIdStr+'_')){
+          localStorage.removeItem(k);
+        }
+      }
+      goals=goals.filter(x=>x.id!==g.id);saveGoals();backToGoals();toast('Goal deleted.');
+    }
   );
 }
 
