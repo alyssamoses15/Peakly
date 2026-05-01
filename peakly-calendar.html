@@ -659,14 +659,17 @@ goals.filter(g => g.startedDate && !g.completed).forEach(g => {
       const rEvId='r_'+rk+'_'+dk(d);const rDur=LS.get('cal_dur_'+rEvId,parseInt(cfg.duration)||30);evs.push({id:rEvId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',date:new Date(d),time:cfg.time||'07:00',dur:rDur,color:TYPE.routine.color,routineKey:rk,scheduled:true,sourcePage:'peakly-second-brain-1.html'});
     }
   });
-  // Work shifts
+  // Work shifts (now supports multiple jobs per day)
   const shifts=LS.get('work_shifts',{});
-  Object.entries(shifts).forEach(([key,sh])=>{
+  Object.entries(shifts).forEach(([key,shiftData])=>{
     const p=key.split('-');if(p.length!==3)return;
     const sd=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
-    const st=sh.start||'09:00';const et=sh.end||'17:00';
-    const dur=Math.max(30,t2m(et)-t2m(st));
-    const wEvId='w_'+key;const wDur=LS.get('cal_dur_'+wEvId,dur);evs.push({id:wEvId,type:'work',title:(sh.jobName||'Work')+(sh.location?' @ '+sh.location:''),date:sd,time:st,dur:wDur,color:sh.color||TYPE.work.color,shiftKey:key,scheduled:true,sourcePage:'peakly-personal-assistant-2.html'});
+    const shiftList=Array.isArray(shiftData)?shiftData:(shiftData?[shiftData]:[]);
+    shiftList.forEach((sh,idx)=>{
+      const st=sh.start||'09:00';const et=sh.end||'17:00';
+      const dur=Math.max(30,t2m(et)-t2m(st));
+      const wEvId='w_'+key+'_'+idx;const wDur=LS.get('cal_dur_'+wEvId,dur);evs.push({id:wEvId,type:'work',title:(sh.jobName||'Work')+(sh.location?' @ '+sh.location:''),date:sd,time:st,dur:wDur,color:sh.color||TYPE.work.color,shiftKey:key,scheduled:true,sourcePage:'peakly-second-brain-2.html'});
+    });
   });
   // Life Admin cal events
   const calevs=LS.get('cal_events',[]);
@@ -900,6 +903,7 @@ function placeWithOverlap(evs,col){
       block.addEventListener('dragstart',ev=>{draggingEvent=e;block.classList.add('dragging');ev.dataTransfer.effectAllowed='move';});
       block.addEventListener('dragend',()=>{block.classList.remove('dragging');draggingEvent=null;});
       block.addEventListener('click',ev=>{ev.stopPropagation();openEdit(e);});
+      block.addEventListener('contextmenu',ev=>{ev.preventDefault();ev.stopPropagation();showEventContextMenu(e,ev);});
       // Touch support
       let touchTimer;
       block.addEventListener('touchstart',()=>{touchTimer=setTimeout(()=>{openEdit(e);},400);},{passive:true});
@@ -1047,6 +1051,62 @@ function saveEvent(){
   const evId=Date.now();const dur=parseInt(document.getElementById('ev-dur').value)||60;const ev={id:evId,title,date:document.getElementById('ev-date').value,time:document.getElementById('ev-time').value,dur,duration:dur,color:document.getElementById('ev-color').value,notes:document.getElementById('ev-notes').value.trim()};
   manualEvents.push(ev);LS.set('cal_manual_events',manualEvents);
   closeAdd();renderCal();renderMini();renderUpcoming();toast('Event added!');
+}
+
+// ── Context menu (right-click to delete) ──────────────────────────────────
+function showEventContextMenu(e,ev){
+  // Remove any existing context menu
+  const existingMenu=document.getElementById('eventContextMenu');
+  if(existingMenu)existingMenu.remove();
+
+  const menu=document.createElement('div');
+  menu.id='eventContextMenu';
+  menu.style.cssText='position:fixed;top:'+ev.clientY+'px;left:'+ev.clientX+'px;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:1000;min-width:140px;';
+
+  const deleteBtn=document.createElement('button');
+  deleteBtn.textContent='Delete';
+  deleteBtn.style.cssText='width:100%;padding:10px 14px;border:none;background:none;color:#DC2626;cursor:pointer;text-align:left;font-size:13px;font-family:var(--font);border-radius:8px;';
+  deleteBtn.addEventListener('click',()=>{deleteEvent(e);menu.remove();});
+  deleteBtn.addEventListener('mouseover',()=>deleteBtn.style.background='var(--red-light)');
+  deleteBtn.addEventListener('mouseout',()=>deleteBtn.style.background='none');
+
+  menu.appendChild(deleteBtn);
+  document.body.appendChild(menu);
+
+  // Close menu when clicking elsewhere
+  setTimeout(()=>{
+    document.addEventListener('click',function closeMenu(){
+      menu.remove();
+      document.removeEventListener('click',closeMenu);
+    });
+  },0);
+}
+
+function deleteEvent(e){
+  if(e.type==='lifeadmin'){
+    const calevs=LS.get('cal_events',[]);
+    const idx=parseInt(e.id.replace('la_',''));
+    if(!isNaN(idx)&&calevs[idx]){
+      calevs.splice(idx,1);
+      LS.set('cal_events',calevs);
+      renderCal();
+      return;
+    }
+  }else if(e.type==='manual'){
+    const manualEvs=LS.get('cal_manual_events',[]);
+    const filtered=manualEvs.filter(x=>x.id!==e.srcId);
+    LS.set('cal_manual_events',filtered);
+    renderCal();
+    return;
+  }else if(e.type==='work'){
+    const shifts=LS.get('work_shifts',{});
+    const key=e.shiftKey;
+    delete shifts[key];
+    LS.set('work_shifts',shifts);
+    renderCal();
+    return;
+  }
+  // Other types cannot be deleted directly from calendar (they're from other pages)
 }
 
 // ── Edit event ────────────────────────────────────────────────────────────
