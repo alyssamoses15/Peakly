@@ -1237,7 +1237,23 @@ renderFilters();
 renderMini();
 renderCal();
 renderUpcoming();
-setInterval(()=>{if(view==='day'||view==='week')renderCal();},60000);
+setInterval(()=>{if(view==='day'||view==='week')renderCal();},5000);
+
+// Refresh when localStorage changes from another tab (e.g. sick day button on goals page)
+window.addEventListener('storage',(ev)=>{
+  if(ev.key==='peakly_goals'||ev.key==='cal_events'||ev.key==='cal_manual_events'||ev.key==='work_shifts'||(ev.key&&ev.key.startsWith('routine_'))){
+    manualEvents=LS.get('cal_manual_events',[]);
+    renderCal();renderMini();renderUpcoming();renderUnscheduled();
+  }
+});
+
+// Refresh when user switches back to this tab
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden){
+    manualEvents=LS.get('cal_manual_events',[]);
+    renderCal();renderMini();renderUpcoming();renderUnscheduled();
+  }
+});
 // Show nav add btn on mobile
 if(window.innerWidth<=480)document.getElementById('navAddBtn').style.display='flex';
 </script>
