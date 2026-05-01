@@ -1355,26 +1355,47 @@ const toggleHabit = (goalId, habitId) => {
   
 const sickDay = () => {
     setSickModal(false);
-    
+
+    const _todayStr = new Date().toDateString();
+    const _todayKey = todayKey();
+
     // 1. Get the Master List
     const pg = LS.get('peakly_goals', []);
-    
-    // 2. Wipe all 'done' statuses to false
-    const updatedPg = pg.map(g => ({
-      ...g,
-      todayTasks: (g.todayTasks || []).map(t => ({ ...t, done: false }))
-    }));
-    
+
+    // 2. Shift each goal's startedDate forward by 1 day so today's tasks become
+    //    tomorrow's tasks (matches the goals page sickDay behavior).
+    //    Clear todayTasks so the goals page recomputes them from definitions.
+    //    Clear done state keys for today's tasks.
+    const updatedPg = pg.map(g => {
+      if (g.startedDate) {
+        const d = new Date(g.startedDate);
+        d.setDate(d.getDate() + 1);
+        // Clear daily done keys for any tasks that were tracked for today
+        (g.todayTasks || []).forEach(t => {
+          const tid = t.taskId || t.id || 'task';
+          LS.set('daily_' + g.id + '_' + tid + '_' + _todayStr, false);
+        });
+        return {
+          ...g,
+          startedDate: d.toISOString(),
+          sickDayDate: _todayKey,
+          todayTasks: []  // Force recompute next time goals page renders
+        };
+      }
+      return g;
+    });
+
     // 3. Save it back to storage
     LS.set('peakly_goals', updatedPg);
-    
+    LS.set('habits_' + _todayKey, {});
+
     // 4. Update the Home Page UI immediately
     setGoals(prev => prev.map(g => ({
       ...g,
       habits: g.habits.map(h => ({ ...h, done: false }))
     })));
-    
-    setCongrats('All tasks pushed to tomorrow. Rest today — recovery is part of every great climb. 🌿');
+
+    setCongrats('Sick day logged. Tasks pushed to tomorrow — visit Goals page to see your new schedule. 🌿');
   };
 
   const allHabits=goals.flatMap(g=>g.habits);
