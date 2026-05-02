@@ -220,15 +220,26 @@ window.PeaklySync = {
     try{
       const data = this.snapshot();
       const nowIso = new Date().toISOString();
-      const { error } = await sb.from('data_backups').upsert({
+      const row = {
         user_id: user.id,
         backup_data: data,
         created_at: nowIso
-      }, { onConflict: 'user_id' });
-      if(error) throw error;
+      };
+      let writeError = null;
+      const updateResult = await sb.from('data_backups')
+        .update({ backup_data:data, created_at:nowIso }, { count:'exact' })
+        .eq('user_id', user.id);
+      if(updateResult.error){
+        writeError = updateResult.error;
+      } else if(updateResult.count === 0){
+        const insertResult = await sb.from('data_backups').insert(row);
+        writeError = insertResult.error;
+      }
+      if(writeError) throw writeError;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
       // Track the cloud version we just wrote so checkAndPull won't fight us.
       localStorage.setItem('peakly_cloud_synced_at', nowIso);
+      this._pendingLocalChange = false;
       console.log('[Peakly] ✓ Data synced to cloud');
       return { ok:true, at:nowIso };
     }catch(e){
@@ -245,19 +256,21 @@ window.PeaklySync = {
       const { data, error } = await sb.from('data_backups')
         .select('backup_data, created_at')
         .eq('user_id', user.id)
-        .single();
-      if(error || !data){
+        .order('created_at', { ascending:false })
+        .limit(1);
+      const row = Array.isArray(data) ? data[0] : data;
+      if(error || !row){
         return { ok:true, restored:false, reason:'no-backup' };
       }
       this._isRestoring = true;
       try{
-        this.applySnapshot(data.backup_data);
+        this.applySnapshot(row.backup_data);
       } finally {
         this._isRestoring = false;
       }
       localStorage.setItem('peakly_last_restore_at', String(Date.now()));
-      localStorage.setItem('peakly_cloud_synced_at', data.created_at);
-      return { ok:true, restored:true, at:data.created_at };
+      localStorage.setItem('peakly_cloud_synced_at', row.created_at);
+      return { ok:true, restored:true, at:row.created_at };
     }catch(e){
       this._isRestoring = false;
       return { ok:false, restored:false, reason:e.message };
@@ -271,9 +284,11 @@ window.PeaklySync = {
       const { data, error } = await sb.from('data_backups')
         .select('created_at')
         .eq('user_id', user.id)
-        .single();
-      if(error || !data) return null;
-      return data.created_at;
+        .order('created_at', { ascending:false })
+        .limit(1);
+      const row = Array.isArray(data) ? data[0] : data;
+      if(error || !row) return null;
+      return row.created_at;
     }catch(e){
       return null;
     }
@@ -318,6 +333,7 @@ window.PeaklySync = {
   _checkInFlight: false,
   _hooksInstalled: false,
   _beforeUnloadInstalled: false,
+  _pendingLocalChange: false,
   scheduleBackup(sb, user){
     this._sbRef = sb;
     this._userRef = user;
@@ -325,6 +341,12 @@ window.PeaklySync = {
     this._backupTimer = setTimeout(async ()=>{
       if(this._sbRef && this._userRef) await this.backup(this._sbRef, this._userRef);
     }, this._BACKUP_INTERVAL_MS);
+  },
+
+  markDirty(k){
+    if(this._isRestoring || this._skipKey(k)) return;
+    this._pendingLocalChange = true;
+    if(this._sbRef && this._userRef) this.scheduleBackup(this._sbRef, this._userRef);
   },
 
   _fireRestored(at){
@@ -346,7 +368,7 @@ window.PeaklySync = {
         const oldValue = storage === localStorage ? storage.getItem(k) : null;
         const result = origSet.call(storage, k, v);
         if(storage === localStorage && !self._isRestoring && !self._skipKey(k) && oldValue !== String(v)){
-          self.scheduleBackup(self._sbRef, self._userRef);
+          self.markDirty(k);
         }
         return result;
       };
@@ -355,7 +377,7 @@ window.PeaklySync = {
         const hadValue = storage === localStorage && storage.getItem(k) !== null;
         const result = origRemove.call(storage, k);
         if(storage === localStorage && !self._isRestoring && !self._skipKey(k) && hadValue){
-          self.scheduleBackup(self._sbRef, self._userRef);
+          self.markDirty(k);
         }
         return result;
       };
@@ -374,7 +396,7 @@ window.PeaklySync = {
           }
           const result = origClear.call(storage);
           if(storage === localStorage && hadSyncableData && !self._isRestoring){
-            self.scheduleBackup(self._sbRef, self._userRef);
+            self.markDirty('__clear__');
           }
           return result;
         };
@@ -400,6 +422,7 @@ window.PeaklySync = {
     this._sbRef = sb;
     this._userRef = user;
     this._installStorageHooks();
+    if(this._pendingLocalChange) this.scheduleBackup(sb, user);
     const self = this;
     // Also push on tab close.
     if(!this._beforeUnloadInstalled){
@@ -435,6 +458,7 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, restored:false, reason:'no-user' };
     this._sbRef = sb;
     this._userRef = user;
+    this.startAutoBackup(sb, user);
     const options = Object.assign({ backupIfMissing:true, reloadOnRestore:false, dispatchOnRestore:true }, opts);
     let result = { ok:true, restored:false, reason:'up-to-date' };
     try{
@@ -451,11 +475,12 @@ window.PeaklySync = {
         }
       } else if(!cloudAt && options.backupIfMissing){
         result = await this.backup(sb, user);
+      } else if(this._pendingLocalChange){
+        result = await this.backup(sb, user);
       }
     }catch(e){
       result = { ok:false, restored:false, reason:e.message };
     } finally {
-      this.startAutoBackup(sb, user);
       this.startSyncPolling(sb, user);
     }
     return result;

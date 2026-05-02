@@ -112,7 +112,7 @@ canvas.graph{width:100%;height:100%;}
 .week-col .wdate{font-size:11px;color:var(--text3);text-align:center;margin-bottom:8px;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=7"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (async function(){
@@ -197,7 +197,7 @@ canvas.graph{width:100%;height:100%;}
 </div>
 
 <script>
-const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));window.PeaklySync?.markDirty?.(k);}catch{}}};
 
 function mk(tag,css,html){const e=document.createElement(tag);if(css)e.className=css;if(html)e.innerHTML=html;return e;}
 function inp(ph,val,cb,type='text'){const i=mk('input','inp');i.type=type;i.placeholder=ph||'';i.value=val||'';if(cb)i.addEventListener('input',e=>cb(e.target.value));return i;}

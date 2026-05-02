@@ -85,7 +85,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .cal-day .shift-label{font-size:9px;color:var(--orange-dark);font-weight:600;margin-top:2px;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=7"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (async function(){
@@ -167,7 +167,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 </div>
 
 <script>
-const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));window.PeaklySync?.markDirty?.(k);}catch{}}};
 function mk(tag,css,html){const e=document.createElement(tag);if(css)e.className=css;if(html)e.innerHTML=html;return e;}
 function inp(ph,val,cb,type='text'){const i=mk('input','inp');i.type=type;i.placeholder=ph||'';i.value=val||'';if(cb)i.addEventListener('input',e=>cb(e.target.value));return i;}
 function ta(ph,val,cb,rows=2){const t=mk('textarea','inp');t.placeholder=ph||'';t.value=val||'';t.rows=rows;if(cb)t.addEventListener('input',e=>cb(e.target.value));return t;}

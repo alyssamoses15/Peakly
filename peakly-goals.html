@@ -66,7 +66,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .bar-fill{height:100%;border-radius:100px;transition:width .7s ease;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=7"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (async function(){
@@ -194,7 +194,7 @@ window.onerror = function(msg, src, line, col, err) {
   return false;
 };
 
-const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));window.PeaklySync?.markDirty?.(k);}catch{}}};
 function toast(msg){const t=document.getElementById('toastEl');t.textContent=msg;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',2800);}
 
 // ── Confetti ──────────────────────────────────────────────────────────────
