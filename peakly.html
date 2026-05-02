@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=3"></script>
+<script src="peakly-config.js?v=4"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1167,6 +1167,8 @@ function UserAvatar(){
             await window.PeaklySync.backup(sb, user);
           }
           window.PeaklySync.startAutoBackup(sb, user);
+          // Pull updates from other devices in the background.
+          window.PeaklySync.startSyncPolling(sb, user);
         }catch(e){}
       }
       // Load subscription state from Supabase and render trial banner if needed
@@ -1287,9 +1289,11 @@ function App(){
     };
     window.addEventListener('focus',reload);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload();});
+    // Reload immediately when fresh data lands from another device.
+    window.addEventListener('peakly:sync-restored',reload);
     // Poll every 3s so task checks on goals page show here without switching tabs
     const interval=setInterval(reload,3000);
-    return()=>{window.removeEventListener('focus',reload);clearInterval(interval);};
+    return()=>{window.removeEventListener('focus',reload);window.removeEventListener('peakly:sync-restored',reload);clearInterval(interval);};
   },[]);
 
   // Handle ?checkout=success after Stripe redirect — webhook may need a moment.

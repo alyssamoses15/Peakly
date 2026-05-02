@@ -119,7 +119,10 @@ window.PeaklySync = {
       || k.startsWith('sb-')
       || k === 'peakly_logged_out'
       || k === 'peakly_last_user_id'
-      || k === 'peakly_trial_days_left';
+      || k === 'peakly_trial_days_left'
+      || k === 'peakly_last_backup_at'
+      || k === 'peakly_last_restore_at'
+      || k === 'peakly_cloud_synced_at';
   },
 
   // Snapshot all syncable localStorage keys into a plain object.
@@ -155,17 +158,21 @@ window.PeaklySync = {
   // Push current localStorage to Supabase as the latest backup row.
   async backup(sb, user){
     if(!sb || !user) return { ok:false, reason:'no-user' };
+    if(this._isRestoring) return { ok:false, reason:'restoring' };
     try{
       const data = this.snapshot();
+      const nowIso = new Date().toISOString();
       const { error } = await sb.from('data_backups').upsert({
         user_id: user.id,
         backup_data: data,
-        created_at: new Date().toISOString()
+        created_at: nowIso
       }, { onConflict: 'user_id' });
       if(error) throw error;
       localStorage.setItem('peakly_last_backup_at', String(Date.now()));
+      // Track the cloud version we just wrote so checkAndPull won't fight us.
+      localStorage.setItem('peakly_cloud_synced_at', nowIso);
       console.log('[Peakly] ✓ Data synced to cloud');
-      return { ok:true };
+      return { ok:true, at:nowIso };
     }catch(e){
       console.error('[Peakly] Sync failed:', e.message);
       return { ok:false, reason:e.message };
@@ -184,11 +191,61 @@ window.PeaklySync = {
       if(error || !data){
         return { ok:true, restored:false, reason:'no-backup' };
       }
-      this.applySnapshot(data.backup_data);
+      this._isRestoring = true;
+      try{
+        this.applySnapshot(data.backup_data);
+      } finally {
+        this._isRestoring = false;
+      }
       localStorage.setItem('peakly_last_restore_at', String(Date.now()));
+      localStorage.setItem('peakly_cloud_synced_at', data.created_at);
       return { ok:true, restored:true, at:data.created_at };
     }catch(e){
+      this._isRestoring = false;
       return { ok:false, restored:false, reason:e.message };
+    }
+  },
+
+  // Get just the cloud's latest backup timestamp (cheap query).
+  async getCloudBackupTime(sb, user){
+    if(!sb || !user) return null;
+    try{
+      const { data, error } = await sb.from('data_backups')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .single();
+      if(error || !data) return null;
+      return data.created_at;
+    }catch(e){
+      return null;
+    }
+  },
+
+  // Compare cloud's latest version with what we last applied; if cloud is
+  // newer, restore it. Fires `peakly:sync-restored` event on success.
+  async checkAndPull(sb, user){
+    if(!sb || !user) return { ok:false, restored:false, reason:'no-user' };
+    if(this._isRestoring) return { ok:true, restored:false, reason:'in-progress' };
+    if(this._checkInFlight) return { ok:true, restored:false, reason:'check-in-flight' };
+    this._checkInFlight = true;
+    try{
+      const cloudAt = await this.getCloudBackupTime(sb, user);
+      if(!cloudAt) return { ok:true, restored:false, reason:'no-cloud-backup' };
+      const localAt = localStorage.getItem('peakly_cloud_synced_at');
+      if(localAt && new Date(cloudAt).getTime() <= new Date(localAt).getTime()){
+        return { ok:true, restored:false, reason:'up-to-date' };
+      }
+      // Cloud is newer, restore it.
+      const r = await this.restore(sb, user);
+      if(r.restored){
+        try{ window.dispatchEvent(new CustomEvent('peakly:sync-restored', { detail:{ at:r.at } })); }catch(e){}
+        console.log('[Peakly] ✓ Pulled newer data from cloud (' + cloudAt + ')');
+      }
+      return r;
+    }catch(e){
+      return { ok:false, restored:false, reason:e.message };
+    } finally {
+      this._checkInFlight = false;
     }
   },
 
@@ -196,8 +253,11 @@ window.PeaklySync = {
   // BACKUP_INTERVAL_MS. Use during normal app activity.
   _backupTimer: null,
   _BACKUP_INTERVAL_MS: 3000,
+  _PULL_INTERVAL_MS: 8000,
   _sbRef: null,
   _userRef: null,
+  _isRestoring: false,
+  _checkInFlight: false,
   scheduleBackup(sb, user){
     this._sbRef = sb;
     this._userRef = user;
@@ -221,13 +281,36 @@ window.PeaklySync = {
     const self = this;
     localStorage.setItem = function(k, v){
       origSet(k, v);
+      if(self._isRestoring) return;
       if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
     };
     localStorage.removeItem = function(k){
       origRemove(k);
+      if(self._isRestoring) return;
       if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
     };
     // Also push on tab close.
     window.addEventListener('beforeunload', ()=>{ self.backup(self._sbRef, self._userRef); });
+  },
+
+  // Pull from cloud on tab focus, visibility change, and on a periodic
+  // interval. Call once per page after auth is resolved. Pages that want
+  // to refresh their UI when remote data lands should listen for the
+  // `peakly:sync-restored` window event.
+  startSyncPolling(sb, user){
+    if(!sb || !user) return;
+    if(this._pollingStarted) return;
+    this._pollingStarted = true;
+    this._sbRef = sb;
+    this._userRef = user;
+    const self = this;
+    const pull = ()=>{ if(!document.hidden) self.checkAndPull(self._sbRef, self._userRef); };
+    // Initial pull
+    pull();
+    // Periodic pull
+    this._pullInterval = setInterval(pull, this._PULL_INTERVAL_MS);
+    // Pull when tab gains focus
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) self.checkAndPull(self._sbRef, self._userRef); });
+    window.addEventListener('focus', ()=>{ self.checkAndPull(self._sbRef, self._userRef); });
   }
 };
