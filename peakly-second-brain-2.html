@@ -85,13 +85,14 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .cal-day .shift-label{font-size:9px;color:var(--orange-dark);font-weight:600;margin-top:2px;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=4"></script>
+<script src="peakly-config.js?v=5"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
-(function(){
+(async function(){
   const SURL='https://rofnthczzpsswdtlpahk.supabase.co';
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
-  if(typeof supabase==='undefined')return;
+  if(!window.PeaklyBoot){console.error('[Peakly] peakly-config.js failed to load — sync disabled');return;}
+  try{ await window.PeaklyBoot.waitForSupabase(); }catch(e){ return; }
   const sb=supabase.createClient(SURL,SKEY);
   sb.auth.getSession().then(async ({data:{session}})=>{
     if(!session){window.location.href='peakly-auth.html';return;}

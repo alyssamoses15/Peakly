@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=4"></script>
+<script src="peakly-config.js?v=5"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -47,7 +47,21 @@ textarea{resize:none;}
 <script type="text/babel">
 const SUPABASE_URL='https://rofnthczzpsswdtlpahk.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
-let sb=null;try{sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);window.sb=sb;}catch(e){}
+let sb=null;
+function ensureSb(){
+  if(sb) return Promise.resolve(sb);
+  if(typeof supabase!=='undefined'){
+    try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); window.sb=sb; return Promise.resolve(sb); }catch(e){ console.error('[Peakly] supabase.createClient failed',e); return Promise.resolve(null); }
+  }
+  if(window.PeaklyBoot){
+    return window.PeaklyBoot.waitForSupabase().then(()=>{
+      try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); window.sb=sb; return sb; }catch(e){ console.error('[Peakly] supabase.createClient failed',e); return null; }
+    }).catch(()=>null);
+  }
+  console.error('[Peakly] Neither supabase nor PeaklyBoot are available — sync disabled.');
+  return Promise.resolve(null);
+}
+ensureSb();
 const {useState,useEffect,useRef}=React;
 const todayKey=()=>new Date().toDateString();
 const pad=n=>String(n).padStart(2,'0');
@@ -1140,8 +1154,13 @@ function UserAvatar(){
   const [initials,setInitials]=React.useState('JD');
   React.useEffect(()=>{
     // Only check auth on real domain, not local files
-    if(!window.sb||window.location.protocol==='file:')return;
-    sb.auth.getSession().then(async ({data:{session}})=>{
+    if(window.location.protocol==='file:')return;
+    ensureSb().then(client=>{
+      if(!client){return;}
+      return client.auth.getSession();
+    }).then(async (sessionResult)=>{
+      if(!sessionResult) return;
+      const session = sessionResult.data?.session;
       if(!session&&window.location.protocol!=='file:'){window.location.href='peakly-auth.html';return;}
       if(!session)return;
       const user=session.user;

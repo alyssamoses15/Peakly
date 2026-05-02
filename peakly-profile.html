@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=4"></script>
+<script src="peakly-config.js?v=5"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -964,16 +964,24 @@ function saveAccount(){
 let _currentSub = null;
 let _sbClient = null;
 
-function getSb(){
+async function getSb(){
   if(_sbClient) return _sbClient;
+  if(typeof supabase === 'undefined' && window.PeaklyBoot){
+    try{ await window.PeaklyBoot.waitForSupabase(); }catch(e){ return null; }
+  }
+  if(typeof supabase === 'undefined'){
+    console.error('[Peakly] Supabase library missing — profile features disabled');
+    return null;
+  }
   const cfg = window.PeaklyConfig;
-  _sbClient = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+  try{ _sbClient = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY); }catch(e){ console.error('[Peakly] supabase.createClient failed', e); return null; }
   return _sbClient;
 }
 
 async function loadSubscriptionFromSupabase(){
   try{
-    const sb = getSb();
+    const sb = await getSb();
+    if(!sb) return;
     const { data:{ session } } = await sb.auth.getSession();
     if(!session) return;
     const result = await window.PeaklyAuth.loadSubscription(sb, session.user);
@@ -1059,7 +1067,8 @@ function confirmCancel(){
     'You will keep Pro access until the end of your current billing period. Your data is always preserved.',
     async ()=>{
       try{
-        const sb = getSb();
+        const sb = await getSb();
+        if(!sb){ toast('Sync library not loaded — try refresh.'); return; }
         const { data:{ session } } = await sb.auth.getSession();
         if(!session){ toast('Please log in again.'); return; }
         const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
@@ -1082,7 +1091,8 @@ function confirmCancel(){
 
 async function reactivateSubscription(){
   try{
-    const sb = getSb();
+    const sb = await getSb();
+    if(!sb) return;
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ toast('Please log in again.'); return; }
     const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {

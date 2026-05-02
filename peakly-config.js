@@ -2,6 +2,58 @@
 // Peakly shared config + subscription helper.
 // Loaded by every app page so plan/access state is consistent.
 // ─────────────────────────────────────────────────────────────────────────
+
+// Bootstrap: wait for the Supabase JS library to load. Mobile browsers,
+// content blockers, and flaky networks can silently fail the primary CDN —
+// fall back to unpkg if jsdelivr never resolves the global.
+window.PeaklyBoot = {
+  _SUPABASE_FALLBACKS: [
+    'https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js'
+  ],
+  _supabaseReady: null,
+
+  // Returns a Promise that resolves once `window.supabase` is available, or
+  // rejects after all fallbacks fail. Pages should `await PeaklyBoot.waitForSupabase()`
+  // instead of bailing on `typeof supabase === 'undefined'`.
+  waitForSupabase(timeoutMs = 6000){
+    if(this._supabaseReady) return this._supabaseReady;
+    this._supabaseReady = new Promise((resolve, reject) => {
+      if(typeof window.supabase !== 'undefined') return resolve(window.supabase);
+      const start = Date.now();
+      const tryFallback = () => {
+        const url = this._SUPABASE_FALLBACKS.shift();
+        if(!url){
+          console.error('[Peakly] Supabase JS library failed to load from any CDN. ' +
+            'Sync, auth, and subscription features will be unavailable. ' +
+            'Check ad blockers, content filters, or network connectivity.');
+          return reject(new Error('supabase-cdn-blocked'));
+        }
+        console.warn('[Peakly] Primary Supabase CDN did not load — trying fallback:', url);
+        const s = document.createElement('script');
+        s.src = url;
+        s.onload = () => {
+          if(typeof window.supabase !== 'undefined') resolve(window.supabase);
+          else tryFallback();
+        };
+        s.onerror = tryFallback;
+        document.head.appendChild(s);
+      };
+      // Poll briefly for the global before triggering fallback (jsdelivr may
+      // simply be slow on mobile networks).
+      const poll = setInterval(() => {
+        if(typeof window.supabase !== 'undefined'){
+          clearInterval(poll);
+          resolve(window.supabase);
+        } else if(Date.now() - start > timeoutMs){
+          clearInterval(poll);
+          tryFallback();
+        }
+      }, 100);
+    });
+    return this._supabaseReady;
+  }
+};
+
 window.PeaklyConfig = {
   SUPABASE_URL: 'https://rofnthczzpsswdtlpahk.supabase.co',
   SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU',

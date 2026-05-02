@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="peakly-config.js?v=4"></script>
+<script src="peakly-config.js?v=5"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -145,11 +145,23 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 <script>
 const cfg = window.PeaklyConfig;
-const sb  = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
-const stripe = Stripe(cfg.STRIPE_PUBLIC);
+let sb = null;
+let stripe = null;
 let interval = 'month';
 let currentUser = null;
 let currentSession = null;
+async function ensurePlanSb(){
+  if(sb) return sb;
+  if(window.PeaklyBoot){
+    try{ await window.PeaklyBoot.waitForSupabase(); }catch(e){ return null; }
+  }
+  if(typeof supabase === 'undefined'){ console.error('[Peakly] Supabase missing on plan page'); return null; }
+  try{
+    sb = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+    if(typeof Stripe !== 'undefined') stripe = Stripe(cfg.STRIPE_PUBLIC);
+  }catch(e){ console.error('[Peakly] plan page init failed', e); }
+  return sb;
+}
 
 function showToast(msg, ms=2400){
   const t = document.getElementById('toast');
@@ -246,6 +258,8 @@ async function chooseProCheckout(){
 
 // Boot — verify session
 (async()=>{
+  await ensurePlanSb();
+  if(!sb){ console.error('[Peakly] plan page cannot init — supabase missing'); return; }
   const { data:{ session } } = await sb.auth.getSession();
   if(!session){
     window.location.href = 'peakly-auth.html';
