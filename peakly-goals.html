@@ -66,7 +66,7 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
 .bar-fill{height:100%;border-radius:100px;transition:width .7s ease;}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=5"></script>
+<script src="peakly-config.js?v=6"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (async function(){
@@ -87,8 +87,10 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
     }
     // Start cross-device auto-backup + remote pull polling
     if(window.PeaklySync){
-      try{ window.PeaklySync.startAutoBackup(sb, user); }catch(e){}
-      try{ window.PeaklySync.startSyncPolling(sb, user); }catch(e){}
+      try{ window.PeaklySync.startAutoBackup(sb, user); }catch(e){ console.error('[Peakly] startAutoBackup failed', e); }
+      try{ window.PeaklySync.startSyncPolling(sb, user); }catch(e){ console.error('[Peakly] startSyncPolling failed', e); }
+    } else {
+      console.warn('[Peakly] window.PeaklySync is undefined — sync disabled on goals page.');
     }
     const meta=user.user_metadata||{};
     const first=meta.first_name||meta.full_name?.split(' ')[0]||user.email?.split('@')[0]||'';

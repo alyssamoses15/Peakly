@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=5"></script>
+<script src="peakly-config.js?v=6"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1175,8 +1175,13 @@ function UserAvatar(){
       // Cross-device sync: restore from cloud on fresh device, then auto-backup.
       if(window.PeaklySync){
         try{
-          const everBackedUp = !!localStorage.getItem('peakly_last_backup_at');
-          if(!everBackedUp){
+          // peakly_cloud_synced_at is set by both backup() and restore(), so
+          // it's the canonical "this device has been initialized with cloud
+          // state at least once" marker. Without this gate fix, the device
+          // would re-restore-and-reload on every page load (infinite loop)
+          // because peakly_last_backup_at is now per-device and not synced.
+          const everSynced = !!localStorage.getItem('peakly_cloud_synced_at');
+          if(!everSynced){
             const r = await window.PeaklySync.restore(sb, user);
             if(r.restored){
               window.location.reload();
@@ -1188,7 +1193,9 @@ function UserAvatar(){
           window.PeaklySync.startAutoBackup(sb, user);
           // Pull updates from other devices in the background.
           window.PeaklySync.startSyncPolling(sb, user);
-        }catch(e){}
+        }catch(e){ console.error('[Peakly] sync setup failed', e); }
+      } else {
+        console.warn('[Peakly] window.PeaklySync is undefined — peakly-config.js may have failed to load. Sync disabled.');
       }
       // Load subscription state from Supabase and render trial banner if needed
       if(window.PeaklyAuth){
