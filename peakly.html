@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=5"></script>
+<script src="peakly-config.js?v=6"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1172,22 +1172,11 @@ function UserAvatar(){
         return;
       }
       localStorage.setItem('peakly_last_user_id',user.id);
-      // Cross-device sync: restore from cloud on fresh device, then auto-backup.
+      // Cross-device sync: pull newer cloud data, then back up local edits.
       if(window.PeaklySync){
         try{
-          const everBackedUp = !!localStorage.getItem('peakly_last_backup_at');
-          if(!everBackedUp){
-            const r = await window.PeaklySync.restore(sb, user);
-            if(r.restored){
-              window.location.reload();
-              return;
-            }
-            // No cloud backup yet — push current state up so future devices sync.
-            await window.PeaklySync.backup(sb, user);
-          }
-          window.PeaklySync.startAutoBackup(sb, user);
-          // Pull updates from other devices in the background.
-          window.PeaklySync.startSyncPolling(sb, user);
+          const r = await window.PeaklySync.init(sb, user, { reloadOnRestore:true });
+          if(r.restored) return;
         }catch(e){}
       }
       // Load subscription state from Supabase and render trial banner if needed
