@@ -217,6 +217,13 @@ function refreshAllTodayTasks(){
   let changed=false;
   goals.forEach(g=>{
     if(!g.startedDate||g.completed)return;
+    if(g.sickDayDate===dateKey()){
+      if((g.todayTasks||[]).length){
+        g.todayTasks=[];
+        changed=true;
+      }
+      return;
+    }
     const def=getGoalTaskDef(g);
     const totalDays=def.totalDays||g.totalDays||90;
     let dayNum=getDayNum(g)||1;
@@ -1806,7 +1813,16 @@ function showConfirmModal(title,msg,confirmLabel,onConfirm){
 function sickDay(){
   document.getElementById('sickModal').style.display='none';
   goals.forEach(g=>{
-    if(g.startedDate){const d=new Date(g.startedDate);d.setDate(d.getDate()+1);g.startedDate=d.toISOString();g.sickDayDate=dateKey();}
+    if(g.startedDate){
+      const def=getGoalTaskDef(g);
+      const totalD=def.totalDays||g.totalDays||90;
+      let dayNum=getDayNum(g)||1;
+      if(dayNum>totalD)dayNum=totalD;
+      const {daily,planning,checkin}=getTasksForDay(g,dayNum);
+      [...daily,...planning,...checkin].forEach(t=>setTaskDone(g,t.id,t.type,dayNum,false));
+      getCustomTasks(g.id).forEach(ct=>LS.set('daily_'+g.id+'_ct_'+ct.id+'_'+dateKey(),false));
+      const d=new Date(g.startedDate);d.setDate(d.getDate()+1);g.startedDate=d.toISOString();g.sickDayDate=dateKey();g.todayTasks=[];
+    }
   });
   LS.set('habits_'+dateKey(),{});
   saveGoals();toast('Sick day logged. Rest up — the mountain will wait. 🌿');

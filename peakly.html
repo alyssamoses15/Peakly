@@ -568,15 +568,22 @@ function GoalList({goals,onToggle}){
   const todayStr=now.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 
   useEff(()=>{
-    // Scroll to current hour on mount
-    if(calRef.current)calRef.current.scrollTop=Math.max(0,(curH-1)*60);
-    // Poll for updates every 3s
-    const iv=setInterval(()=>{
+    const refresh=()=>{
       const fresh=getCalendarEvents();
       setEvs(fresh);
       const m={};fresh.forEach(e=>{m[e.checkKey]=LS.get(e.checkKey,false);});setDone(m);
-    },3000);
-    return()=>clearInterval(iv);
+    };
+    // Scroll to current hour on mount
+    if(calRef.current)calRef.current.scrollTop=Math.max(0,(curH-1)*60);
+    // Poll for updates every 3s
+    const iv=setInterval(refresh,3000);
+    window.addEventListener('peakly:local-data-changed', refresh);
+    window.addEventListener('peakly:sync-restored', refresh);
+    return()=>{
+      clearInterval(iv);
+      window.removeEventListener('peakly:local-data-changed', refresh);
+      window.removeEventListener('peakly:sync-restored', refresh);
+    };
   },[]);
 
   const toggle=(ev)=>{
@@ -781,6 +788,7 @@ function getCalendarEvents(){
   // 2. Goal tasks — read from actual todayTasks (set by goals page)
   const goals=LS.get('peakly_goals',[]);
   goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
+    if(g.sickDayDate===todayKey())return;
     const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
     const dayNum=Math.floor((today-sd)/86400000)+1;
     const totalDays=g.totalDays||90;
@@ -1368,8 +1376,15 @@ const toggleHabit = (goalId, habitId) => {
 const sickDay = () => {
     setSickModal(false);
 
-    const _todayStr = new Date().toDateString();
     const _todayKey = todayKey();
+    const clearTaskDone = (goalId, task, dayNum) => {
+      const tid = task.taskId || task.id || 'task';
+      const taskType = task.taskType || 'daily';
+      if(taskType === 'planning') LS.set('plan_' + goalId + '_' + tid + '_d' + dayNum, false);
+      else if(taskType === 'checkin') LS.set('checkin_' + goalId + '_' + tid + '_d' + dayNum, false);
+      else LS.set('daily_' + goalId + '_' + tid + '_' + _todayKey, false);
+      if(task.homeKey) LS.set(task.homeKey, false);
+    };
 
     // 1. Get the Master List
     const pg = LS.get('peakly_goals', []);
@@ -1380,12 +1395,16 @@ const sickDay = () => {
     //    Clear done state keys for today's tasks.
     const updatedPg = pg.map(g => {
       if (g.startedDate) {
+        const start = new Date(g.startedDate);
+        start.setHours(0,0,0,0);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const dayNum = Math.max(1, Math.floor((today - start) / 86400000) + 1);
         const d = new Date(g.startedDate);
         d.setDate(d.getDate() + 1);
         // Clear daily done keys for any tasks that were tracked for today
         (g.todayTasks || []).forEach(t => {
-          const tid = t.taskId || t.id || 'task';
-          LS.set('daily_' + g.id + '_' + tid + '_' + _todayStr, false);
+          clearTaskDone(g.id, t, dayNum);
         });
         return {
           ...g,
@@ -1404,8 +1423,9 @@ const sickDay = () => {
     // 4. Update the Home Page UI immediately
     setGoals(prev => prev.map(g => ({
       ...g,
-      habits: g.habits.map(h => ({ ...h, done: false }))
+      habits: []
     })));
+    try{ window.dispatchEvent(new Event('peakly:local-data-changed')); }catch(e){}
 
     setCongrats('Sick day logged. Tasks pushed to tomorrow — visit Goals page to see your new schedule. 🌿');
   };
