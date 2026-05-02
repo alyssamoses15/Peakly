@@ -229,6 +229,7 @@ function ubanner(feat){const d=mk('div','ubanner');d.innerHTML=`<span style="fon
 function addbtn(lbl,cb){const b=mk('button','addbtn');b.innerHTML=`<span style="font-size:16px;line-height:1">+</span> ${lbl}`;if(cb)b.addEventListener('click',cb);return b;}
 function infoBox(html,type='blue'){const d=mk('div','info '+type);d.innerHTML=html;return d;}
 function badge(txt,bg,color){const s=mk('span','tag');s.style.cssText=`background:${bg};color:${color};`;s.textContent=txt;return s;}
+function isPro(){try{return JSON.parse(localStorage.getItem('peakly_pro')||'false');}catch{return false;}}
 function calSyncBtn(label,dataKey,data){
   const b=mk('button');b.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;display:flex;align-items:center;gap:4px;';
   b.innerHTML='📅 '+label;
@@ -240,6 +241,60 @@ function calSyncBtn(label,dataKey,data){
     setTimeout(()=>{b.style.background='var(--blue-light)';b.style.color='var(--blue)';b.style.borderColor='var(--blue-muted)';b.innerHTML='📅 '+label;},2000);
   });
   return b;
+}
+function dateValue(d){
+  if(!d)return '';
+  if(typeof d==='string'&&/^\d{4}-\d{2}-\d{2}/.test(d))return d.slice(0,10);
+  const dt=new Date(d);
+  if(isNaN(dt))return '';
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function todayValue(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function addMonthsDateValue(start,months){
+  const d=start?new Date(start):new Date();
+  if(isNaN(d))return todayValue();
+  d.setMonth(d.getMonth()+months);
+  return dateValue(d);
+}
+function advanceDateByFrequency(date,freq){
+  if(freq==='daily')date.setDate(date.getDate()+1);
+  else if(freq==='biweekly')date.setDate(date.getDate()+14);
+  else if(freq==='monthly')date.setMonth(date.getMonth()+1);
+  else if(freq==='annually')date.setFullYear(date.getFullYear()+1);
+  else date.setDate(date.getDate()+7);
+}
+function combineLocalDateTime(date,time){
+  return (date||todayValue())+(time?'T'+time:'');
+}
+function syncChoreToCalendar(chore){
+  const chores=LS.get('chores',[]);
+  const idx=chores.findIndex(c=>String(c.id)===String(chore.id));
+  const scheduleDate=dateValue(chore.scheduleDate||chore.nextDue)||todayValue();
+  const time=chore.time||'09:00';
+  chore.scheduleDate=scheduleDate;
+  chore.time=time;
+  chore.synced=true;
+  if(idx>-1){chores[idx]={...chores[idx],scheduleDate,time,synced:true};LS.set('chores',chores);}
+  const key='chore_'+chore.id;
+  const stored=LS.get('cal_events',[]).filter(e=>e.key!==key);
+  stored.push({
+    key,
+    title:chore.label||'Chore',
+    date:combineLocalDateTime(scheduleDate,time),
+    time,
+    duration:30,
+    type:'chore',
+    recurring:chore.freq||'weekly',
+    sourceKey:'chores',
+    sourceId:chore.id,
+    sourceField:'scheduleDate',
+    sourceTitleField:'label',
+    synced:new Date().toISOString()
+  });
+  LS.set('cal_events',stored);
 }
 
 // ── NAV ───────────────────────────────────────────────────────────────────
@@ -918,14 +973,20 @@ function buildVehicle(wrap){
             sub.textContent='Every '+m.months+' months'+(m.nextDue?' · Next: '+m.nextDue:'');
             info.appendChild(lbl);info.appendChild(sub);
             // Date/time inputs
-            const di=mk('input','inp');di.type='datetime-local';di.placeholder='Date done';di.style.cssText='width:160px;font-size:11px;';
-            di.addEventListener('input',e=>{m.completedDate=e.target.value;LS.set('car_maint_'+ci,maint);});
-            const csb=calSyncBtn('Sync','car_maint_'+m.id+ci,{title:m.label,type:'vehicle_maintenance',recurMonths:m.months});
+            const di=mk('input','inp');di.type='datetime-local';di.placeholder='Date done';di.value=m.completedDate||'';di.style.cssText='width:160px;font-size:11px;';
+            di.addEventListener('input',e=>{
+              m.completedDate=e.target.value;
+              if(e.target.value)m.nextDue=addMonthsDateValue(e.target.value,m.months);
+              LS.set('car_maint_'+ci,maint);
+              renderMaint();
+            });
+            const eventDate=m.nextDue?dateValue(m.nextDue):dateValue(m.completedDate);
+            const csb=calSyncBtn('Sync','car_maint_'+m.id+ci,{title:m.label,date:combineLocalDateTime(eventDate||todayValue(),'09:00'),time:'09:00',type:'vehicle_maintenance',duration:30,recurMonths:m.months});
             row.appendChild(chk);row.appendChild(info);row.appendChild(di);row.appendChild(csb);mw.appendChild(row);
             // Next due when done
             if(m.done&&!m.nextDue){
-              const nd=new Date();nd.setMonth(nd.getMonth()+m.months);
-              m.nextDue=nd.toLocaleDateString();LS.set('car_maint_'+ci,maint);
+              m.completedDate=m.completedDate||combineLocalDateTime(todayValue(),'09:00');
+              m.nextDue=addMonthsDateValue(m.completedDate,m.months);LS.set('car_maint_'+ci,maint);
             }
           });
         };
@@ -950,7 +1011,43 @@ function buildVehicle(wrap){
           wrap2.appendChild(addbtn('+ Add custom field',()=>{cFields.push({label:'',value:''});LS.set('car_custom_'+ci,cFields);renderCF();}));
         };
         renderCF();b.appendChild(cdfBox);
-        b.appendChild(ubanner('file & document uploads'));
+        const docsBox=mk('div');docsBox.style.cssText='padding:10px 12px;background:var(--bg);border-radius:var(--rm);border:1px solid var(--border2);margin-bottom:10px;';
+        docsBox.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">📎 Vehicle documents</div>';
+        if(isPro()){
+          let docs=LS.get('car_docs_'+ci,[]);
+          const docsWrap=mk('div');docsBox.appendChild(docsWrap);
+          const renderDocs=()=>{
+            docsWrap.innerHTML='';
+            if(!docs.length){
+              const empty=mk('div');empty.style.cssText='font-size:11px;color:var(--text3);margin-bottom:8px;';empty.textContent='Upload registration, insurance cards, receipts or maintenance records.';
+              docsWrap.appendChild(empty);
+            }
+            docs.forEach((doc,di)=>{
+              const row=mk('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border2);';
+              const link=mk('a');link.href=doc.data;link.target='_blank';link.rel='noopener';link.download=doc.name;link.style.cssText='flex:1;font-size:12px;color:var(--blue);font-weight:600;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';link.textContent=doc.name;
+              const meta=mk('span');meta.style.cssText='font-size:10px;color:var(--text3);';meta.textContent=doc.added?new Date(doc.added).toLocaleDateString():'';
+              const del=mk('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;';
+              del.addEventListener('click',()=>{docs.splice(di,1);LS.set('car_docs_'+ci,docs);renderDocs();});
+              row.appendChild(link);row.appendChild(meta);row.appendChild(del);docsWrap.appendChild(row);
+            });
+            const file=mk('input');file.type='file';file.multiple=true;file.style.display='none';
+            file.addEventListener('change',()=>{
+              Array.from(file.files||[]).forEach(f=>{
+                const r=new FileReader();
+                r.onload=ev=>{docs.push({id:Date.now()+Math.random(),name:f.name,type:f.type,size:f.size,data:ev.target.result,added:new Date().toISOString()});LS.set('car_docs_'+ci,docs);renderDocs();};
+                r.readAsDataURL(f);
+              });
+              file.value='';
+            });
+            const up=mk('button','addbtn');up.innerHTML='<span style="font-size:16px;line-height:1">+</span> Upload document';
+            up.addEventListener('click',()=>file.click());
+            docsWrap.appendChild(file);docsWrap.appendChild(up);
+          };
+          renderDocs();
+        }else{
+          docsBox.appendChild(ubanner('file & document uploads'));
+        }
+        b.appendChild(docsBox);
       },ci===0);
       carsWrap.appendChild(block);
     });
@@ -1050,24 +1147,39 @@ function buildHousing(wrap){
           const chk=mk('div','chk');
           chk.addEventListener('click',()=>{
             c.done=true;
-            // Calculate next due
-            const freqDays={daily:1,weekly:7,biweekly:14,monthly:30,annually:365};
-            const nd=new Date();nd.setDate(nd.getDate()+freqDays[c.freq]);
-            c.nextDue=nd.toLocaleDateString();c.done=false;// reset with new due date
-            LS.set('chores',chores);renderChores();
+            const nd=new Date(c.scheduleDate||new Date());
+            if(isNaN(nd))nd.setTime(Date.now());
+            if(c.freq==='daily')nd.setDate(nd.getDate()+1);
+            else if(c.freq==='biweekly')nd.setDate(nd.getDate()+14);
+            else if(c.freq==='monthly')nd.setMonth(nd.getMonth()+1);
+            else if(c.freq==='annually')nd.setFullYear(nd.getFullYear()+1);
+            else nd.setDate(nd.getDate()+7);
+            c.scheduleDate=dateValue(nd);c.nextDue=c.scheduleDate;c.done=false;
+            LS.set('chores',chores);
+            if(c.synced)syncChoreToCalendar(c);
+            renderChores();
           });
           const info=mk('div');info.style.flex='1';
           const ci=mk('input','inp');ci.value=c.label;ci.style.cssText='font-size:13px;border:none;background:transparent;padding:2px 4px;font-weight:500;';
-          ci.addEventListener('input',e=>{c.label=e.target.value;LS.set('chores',chores);});
+          ci.addEventListener('input',e=>{c.label=e.target.value;LS.set('chores',chores);if(c.synced)syncChoreToCalendar(c);});
           const csub=mk('div');csub.style.cssText='font-size:10px;color:var(--text3);margin-top:1px;';
-          csub.textContent=c.nextDue?'Next due: '+c.nextDue:'';
+          csub.textContent=c.scheduleDate?'Scheduled: '+c.scheduleDate+(c.synced?' · synced':''):c.nextDue?'Next due: '+c.nextDue:'Pick a day to put this chore on your calendar.';
           info.appendChild(ci);info.appendChild(csub);
-          const ti=mk('input','inp');ti.type='time';ti.value=c.time;ti.style.cssText='width:100px;font-size:11px;';
-          ti.addEventListener('input',e=>{c.time=e.target.value;LS.set('chores',chores);});
-          const csb=calSyncBtn('Sync','chore_'+c.id,{title:c.label,time:c.time,type:'chore',recurring:c.freq});
+          const di=mk('input','inp');di.type='date';di.value=dateValue(c.scheduleDate||c.nextDue)||todayValue();di.style.cssText='width:130px;font-size:11px;';
+          di.addEventListener('input',e=>{c.scheduleDate=e.target.value;c.nextDue=e.target.value;LS.set('chores',chores);if(c.synced)syncChoreToCalendar(c);renderChores();});
+          const ti=mk('input','inp');ti.type='time';ti.value=c.time||'09:00';ti.style.cssText='width:100px;font-size:11px;';
+          ti.addEventListener('input',e=>{c.time=e.target.value;LS.set('chores',chores);if(c.synced)syncChoreToCalendar(c);});
+          const csb=mk('button');csb.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;display:flex;align-items:center;gap:4px;';
+          csb.innerHTML=c.synced?'✓ Synced':'📅 Add to schedule';
+          csb.addEventListener('click',()=>{
+            c.scheduleDate=di.value||todayValue();c.nextDue=c.scheduleDate;c.time=ti.value||'09:00';
+            syncChoreToCalendar(c);
+            csb.style.background='var(--green-light)';csb.style.color='var(--green-dark)';csb.style.borderColor='var(--green)';csb.innerHTML='✓ Synced';
+            renderChores();
+          });
           const del=mk('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;';
-          del.addEventListener('click',()=>{chores=chores.filter(x=>x.id!==c.id);LS.set('chores',chores);renderChores();});
-          row.appendChild(chk);row.appendChild(info);row.appendChild(ti);row.appendChild(csb);row.appendChild(del);cWrap.appendChild(row);
+          del.addEventListener('click',()=>{chores=chores.filter(x=>x.id!==c.id);LS.set('chores',chores);LS.set('cal_events',LS.get('cal_events',[]).filter(e=>e.key!=='chore_'+c.id));renderChores();});
+          row.appendChild(chk);row.appendChild(info);row.appendChild(di);row.appendChild(ti);row.appendChild(csb);row.appendChild(del);cWrap.appendChild(row);
         });
       });
       // Add chore form
@@ -1081,7 +1193,7 @@ function buildHousing(wrap){
       addBtn2.textContent='+ Add';
       addBtn2.addEventListener('click',()=>{
         if(newLabel.value.trim()){
-          chores.push({id:Date.now(),label:newLabel.value.trim(),freq:freqSel.value,time:timeIn.value,done:false,nextDue:''});
+          chores.push({id:Date.now(),label:newLabel.value.trim(),freq:freqSel.value,time:timeIn.value||'09:00',done:false,nextDue:'',scheduleDate:todayValue()});
           LS.set('chores',chores);newLabel.value='';renderChores();
         }
       });
