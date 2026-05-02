@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=5"></script>
+<script src="peakly-config.js?v=6"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -988,8 +988,7 @@ async function loadSubscriptionFromSupabase(){
     _currentSub = result.sub;
     renderSubscriptionUI(result);
     if(window.PeaklySync){
-      try{ window.PeaklySync.startAutoBackup(sb, session.user); }catch(e){}
-      try{ window.PeaklySync.startSyncPolling(sb, session.user); }catch(e){}
+      try{ await window.PeaklySync.init(sb, session.user); }catch(e){}
     }
   }catch(e){ /* ignore — cache UI is already rendered */ }
 }

@@ -169,8 +169,14 @@ window.PeaklySync = {
   _skipKey(k){
     return !k
       || k.startsWith('sb-')
+      || k.includes('supabase.auth')
       || k === 'peakly_logged_out'
       || k === 'peakly_last_user_id'
+      || k === 'peakly_plan'
+      || k === 'peakly_plan_intent'
+      || k === 'peakly_plan_was_trial'
+      || k === 'peakly_pro'
+      || k === 'peakly_trial'
       || k === 'peakly_trial_days_left'
       || k === 'peakly_last_backup_at'
       || k === 'peakly_last_restore_at'
@@ -310,6 +316,8 @@ window.PeaklySync = {
   _userRef: null,
   _isRestoring: false,
   _checkInFlight: false,
+  _hooksInstalled: false,
+  _beforeUnloadInstalled: false,
   scheduleBackup(sb, user){
     this._sbRef = sb;
     this._userRef = user;
@@ -319,30 +327,85 @@ window.PeaklySync = {
     }, this._BACKUP_INTERVAL_MS);
   },
 
-  // Listen for any localStorage change and queue a backup. Call once on
+  _fireRestored(at){
+    try{ window.dispatchEvent(new CustomEvent('peakly:sync-restored', { detail:{ at } })); }catch(e){}
+  },
+
+  // Install hooks on Storage.prototype. Assigning localStorage.setItem directly
+  // is ignored in some browsers, which meant edits were never queued for backup.
+  _installStorageHooks(){
+    if(this._hooksInstalled) return;
+    const self = this;
+    const install = (target, bindTarget) => {
+      const origSet = target.setItem;
+      const origRemove = target.removeItem;
+      const origClear = target.clear;
+      if(typeof origSet !== 'function' || typeof origRemove !== 'function') return false;
+      target.setItem = function(k, v){
+        const storage = bindTarget || this;
+        const oldValue = storage === localStorage ? storage.getItem(k) : null;
+        const result = origSet.call(storage, k, v);
+        if(storage === localStorage && !self._isRestoring && !self._skipKey(k) && oldValue !== String(v)){
+          self.scheduleBackup(self._sbRef, self._userRef);
+        }
+        return result;
+      };
+      target.removeItem = function(k){
+        const storage = bindTarget || this;
+        const hadValue = storage === localStorage && storage.getItem(k) !== null;
+        const result = origRemove.call(storage, k);
+        if(storage === localStorage && !self._isRestoring && !self._skipKey(k) && hadValue){
+          self.scheduleBackup(self._sbRef, self._userRef);
+        }
+        return result;
+      };
+      if(typeof origClear === 'function'){
+        target.clear = function(){
+          const storage = bindTarget || this;
+          let hadSyncableData = false;
+          if(storage === localStorage){
+            for(let i=0; i<storage.length; i++){
+              const k = storage.key(i);
+              if(!self._skipKey(k)){
+                hadSyncableData = true;
+                break;
+              }
+            }
+          }
+          const result = origClear.call(storage);
+          if(storage === localStorage && hadSyncableData && !self._isRestoring){
+            self.scheduleBackup(self._sbRef, self._userRef);
+          }
+          return result;
+        };
+      }
+      return true;
+    };
+    try{
+      const proto = Object.getPrototypeOf(localStorage);
+      if(install(proto, null)){
+        this._hooksInstalled = true;
+        return;
+      }
+    }catch(e){}
+    try{
+      if(install(localStorage, localStorage)) this._hooksInstalled = true;
+    }catch(e){}
+  },
+
+  // Listen for any localStorage change and queue a backup. Call on every
   // page boot after auth is resolved.
   startAutoBackup(sb, user){
     if(!sb || !user) return;
-    if(this._autoBackupStarted) return;
-    this._autoBackupStarted = true;
     this._sbRef = sb;
     this._userRef = user;
-    // Patch setItem/removeItem to schedule a backup on every change.
-    const origSet = localStorage.setItem.bind(localStorage);
-    const origRemove = localStorage.removeItem.bind(localStorage);
+    this._installStorageHooks();
     const self = this;
-    localStorage.setItem = function(k, v){
-      origSet(k, v);
-      if(self._isRestoring) return;
-      if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
-    };
-    localStorage.removeItem = function(k){
-      origRemove(k);
-      if(self._isRestoring) return;
-      if(!self._skipKey(k)) self.scheduleBackup(self._sbRef, self._userRef);
-    };
     // Also push on tab close.
-    window.addEventListener('beforeunload', ()=>{ self.backup(self._sbRef, self._userRef); });
+    if(!this._beforeUnloadInstalled){
+      this._beforeUnloadInstalled = true;
+      window.addEventListener('beforeunload', ()=>{ self.backup(self._sbRef, self._userRef); });
+    }
   },
 
   // Pull from cloud on tab focus, visibility change, and on a periodic
@@ -351,10 +414,10 @@ window.PeaklySync = {
   // `peakly:sync-restored` window event.
   startSyncPolling(sb, user){
     if(!sb || !user) return;
-    if(this._pollingStarted) return;
-    this._pollingStarted = true;
     this._sbRef = sb;
     this._userRef = user;
+    if(this._pollingStarted) return;
+    this._pollingStarted = true;
     const self = this;
     const pull = ()=>{ if(!document.hidden) self.checkAndPull(self._sbRef, self._userRef); };
     // Initial pull
@@ -364,5 +427,37 @@ window.PeaklySync = {
     // Pull when tab gains focus
     document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) self.checkAndPull(self._sbRef, self._userRef); });
     window.addEventListener('focus', ()=>{ self.checkAndPull(self._sbRef, self._userRef); });
+  },
+
+  // Shared page bootstrap: pull newer cloud data first, create the initial
+  // backup when none exists, then watch local edits and poll for remote edits.
+  async init(sb, user, opts = {}){
+    if(!sb || !user) return { ok:false, restored:false, reason:'no-user' };
+    this._sbRef = sb;
+    this._userRef = user;
+    const options = Object.assign({ backupIfMissing:true, reloadOnRestore:false, dispatchOnRestore:true }, opts);
+    let result = { ok:true, restored:false, reason:'up-to-date' };
+    try{
+      const cloudAt = await this.getCloudBackupTime(sb, user);
+      const localAt = localStorage.getItem('peakly_cloud_synced_at');
+      if(cloudAt && (!localAt || new Date(cloudAt).getTime() > new Date(localAt).getTime())){
+        result = await this.restore(sb, user);
+        if(result.restored){
+          if(options.dispatchOnRestore) this._fireRestored(result.at);
+          if(options.reloadOnRestore){
+            window.location.reload();
+            return result;
+          }
+        }
+      } else if(!cloudAt && options.backupIfMissing){
+        result = await this.backup(sb, user);
+      }
+    }catch(e){
+      result = { ok:false, restored:false, reason:e.message };
+    } finally {
+      this.startAutoBackup(sb, user);
+      this.startSyncPolling(sb, user);
+    }
+    return result;
   }
 };
