@@ -218,6 +218,23 @@ body{
   display:block;
 }
 .forgot-link:hover{text-decoration:underline;}
+
+/* Show/hide password toggle */
+.pw-wrap{position:relative;}
+.pw-wrap .inp{padding-right:46px;}
+.pw-toggle{
+  position:absolute;top:50%;right:8px;transform:translateY(-50%);
+  background:none;border:none;cursor:pointer;
+  padding:6px 8px;border-radius:6px;
+  font-size:12px;font-weight:600;color:var(--text3);
+  font-family:inherit;
+}
+.pw-toggle:hover{background:var(--bg2);color:var(--text);}
+
+/* Inline link inside an alert (for "resend confirmation") */
+.alert a.alert-link{
+  color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -342,7 +359,10 @@ body{
       </div>
       <div class="field">
         <label>Password</label>
-        <input class="inp" id="su-password" placeholder="At least 8 characters" type="password" oninput="checkPwStrength(this.value)">
+        <div class="pw-wrap">
+          <input class="inp" id="su-password" placeholder="At least 8 characters" type="password" oninput="checkPwStrength(this.value)">
+          <button type="button" class="pw-toggle" onclick="togglePw('su-password',this)">Show</button>
+        </div>
         <div class="pw-strength" id="pwStrength">
           <div class="pw-bars">
             <div class="pw-bar" id="pwBar1"></div>
@@ -392,7 +412,10 @@ body{
       </div>
       <div class="field">
         <label>Password</label>
-        <input class="inp" id="li-password" placeholder="Your password" type="password">
+        <div class="pw-wrap">
+          <input class="inp" id="li-password" placeholder="Your password" type="password">
+          <button type="button" class="pw-toggle" onclick="togglePw('li-password',this)">Show</button>
+        </div>
       </div>
       <a href="peakly-forgot.html" class="forgot-link">Forgot password?</a>
 
@@ -413,11 +436,17 @@ body{
 
       <div class="field">
         <label>New password</label>
-        <input class="inp" id="rp-password" placeholder="At least 8 characters" type="password">
+        <div class="pw-wrap">
+          <input class="inp" id="rp-password" placeholder="At least 8 characters" type="password">
+          <button type="button" class="pw-toggle" onclick="togglePw('rp-password',this)">Show</button>
+        </div>
       </div>
       <div class="field">
         <label>Confirm password</label>
-        <input class="inp" id="rp-password2" placeholder="Re-enter new password" type="password">
+        <div class="pw-wrap">
+          <input class="inp" id="rp-password2" placeholder="Re-enter new password" type="password">
+          <button type="button" class="pw-toggle" onclick="togglePw('rp-password2',this)">Show</button>
+        </div>
       </div>
 
       <button class="btn-submit" id="resetBtn" onclick="handleResetPassword()">
@@ -541,8 +570,40 @@ function showAlert(msg, type='error'){
   el.textContent = msg;
   el.className = 'alert show alert-' + type;
 }
+// Same as showAlert but accepts HTML so we can embed a clickable resend link.
+function showAlertHTML(html, type='error'){
+  const el = document.getElementById('alertBox');
+  el.innerHTML = html;
+  el.className = 'alert show alert-' + type;
+}
 function hideAlert(){
   document.getElementById('alertBox').className = 'alert';
+}
+
+// Toggle a password field between hidden and visible. Caller passes the input
+// id and the button element so we can flip its label.
+function togglePw(inputId, btn){
+  const el = document.getElementById(inputId);
+  if(!el) return;
+  const showing = el.type === 'text';
+  el.type = showing ? 'password' : 'text';
+  if(btn) btn.textContent = showing ? 'Show' : 'Hide';
+}
+
+// Re-send the signup confirmation email when the user clicks the link inside
+// an "incorrect email or password" alert (Supabase returns the same generic
+// error for wrong-password AND unconfirmed-email, so we offer this as a hint).
+async function resendConfirmation(){
+  const email = document.getElementById('li-email').value.trim();
+  if(!email){ showAlert('Enter your email above first, then click resend.'); return; }
+  hideAlert();
+  const { error } = await sb.auth.resend({
+    type: 'signup',
+    email,
+    options:{ emailRedirectTo: window.location.origin + '/peakly-plan.html' }
+  });
+  if(error){ showAlert(error.message); return; }
+  showAlert('Confirmation email sent to ' + email + '. Check your inbox (and spam) — then come back and log in.', 'success');
 }
 
 // ── Password strength ─────────────────────────────────────────
@@ -637,12 +698,16 @@ async function handleLogin(){
   setLoading('login', false);
 
   if(error){
-    if(error.message.includes('Email not confirmed')){
-      showAlert('Please confirm your email first. Check your inbox for the confirmation link.');
-    } else if(error.message.includes('Invalid login')){
-      showAlert('Incorrect email or password. Please try again.');
+    const msg = error.message || '';
+    if(msg.toLowerCase().includes('email not confirmed')){
+      showAlertHTML('Please confirm your email first. Didn\'t get the email? <a class="alert-link" onclick="resendConfirmation();return false;">Resend confirmation</a>.');
+    } else if(msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('invalid_credentials')){
+      // Supabase returns this same generic error for wrong-password AND for
+      // accounts that haven't confirmed their email yet. Surface both options
+      // so the user isn't stuck thinking they typed the password wrong.
+      showAlertHTML('Incorrect email or password — or your email isn\'t confirmed yet. <a class="alert-link" onclick="resendConfirmation();return false;">Resend confirmation email</a>.');
     } else {
-      showAlert(error.message);
+      showAlert(msg);
     }
     return;
   }
