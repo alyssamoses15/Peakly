@@ -406,6 +406,30 @@ body{
       </p>
     </div>
 
+    <!-- ── RESET PASSWORD FORM ────────────────────── -->
+    <div id="resetForm" style="display:none;">
+      <h1 class="form-heading">Set a new password 🔐</h1>
+      <p class="form-subheading">Pick a strong password and you'll be logged in.</p>
+
+      <div class="field">
+        <label>New password</label>
+        <input class="inp" id="rp-password" placeholder="At least 8 characters" type="password">
+      </div>
+      <div class="field">
+        <label>Confirm password</label>
+        <input class="inp" id="rp-password2" placeholder="Re-enter new password" type="password">
+      </div>
+
+      <button class="btn-submit" id="resetBtn" onclick="handleResetPassword()">
+        <span id="resetBtnText">Update password →</span>
+        <div class="spinner" id="resetSpinner"></div>
+      </button>
+
+      <p class="form-note">
+        Changed your mind? <a href="#" onclick="switchTab('login');return false;">Back to log in</a>
+      </p>
+    </div>
+
   </div>
 </div>
 
@@ -416,10 +440,41 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Check if already logged in — but skip auto-redirect if user explicitly logged out
+// Detect a password-recovery click-through. Supabase puts type=recovery in the
+// URL hash (or ?mode=reset on our redirect) when a user follows the email
+// link. We must NOT auto-redirect those users to home — they need to set a
+// new password first.
+function isRecoveryEntry(){
+  const qs = new URLSearchParams(window.location.search);
+  if(qs.get('mode') === 'reset') return true;
+  const hash = (window.location.hash || '').replace(/^#/, '');
+  if(hash){
+    const hp = new URLSearchParams(hash);
+    if(hp.get('type') === 'recovery') return true;
+  }
+  return false;
+}
+
+let _isRecovery = isRecoveryEntry();
+
+// Show the reset form on PASSWORD_RECOVERY event too — Supabase fires this
+// once it has parsed the recovery tokens from the URL.
+sb.auth.onAuthStateChange((event)=>{
+  if(event === 'PASSWORD_RECOVERY'){
+    _isRecovery = true;
+    switchTab('reset');
+  }
+});
+
+// Check if already logged in — but skip auto-redirect if user explicitly
+// logged out, or if this is a password-recovery click-through.
 (async()=>{
   if(localStorage.getItem('peakly_logged_out')==='1'){
     localStorage.removeItem('peakly_logged_out');
+    return;
+  }
+  if(_isRecovery){
+    switchTab('reset');
     return;
   }
   const { data:{ session } } = await sb.auth.getSession();
@@ -428,15 +483,49 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 })();
 
+async function handleResetPassword(){
+  const pw = document.getElementById('rp-password').value;
+  const pw2 = document.getElementById('rp-password2').value;
+  if(!pw || pw.length < 8){ showAlert('Password must be at least 8 characters.'); return; }
+  if(pw !== pw2){ showAlert('Passwords do not match.'); return; }
+
+  document.getElementById('resetBtn').disabled = true;
+  document.getElementById('resetBtnText').style.display = 'none';
+  document.getElementById('resetSpinner').style.display = 'block';
+
+  const { error } = await sb.auth.updateUser({ password: pw });
+
+  document.getElementById('resetBtn').disabled = false;
+  document.getElementById('resetBtnText').style.display = 'inline';
+  document.getElementById('resetSpinner').style.display = 'none';
+
+  if(error){
+    showAlert(error.message || 'Could not update password — the reset link may have expired. Request a new one.');
+    return;
+  }
+
+  showAlert('Password updated! Logging you in…', 'success');
+  // Strip the recovery hash/query so a refresh doesn't re-trigger reset mode.
+  history.replaceState(null, '', window.location.pathname);
+  setTimeout(()=>{ window.location.href = 'peakly.html'; }, 800);
+}
+
 // ── Tab switching ─────────────────────────────────────────────
 function switchTab(tab){
   const isSignup = tab === 'signup';
+  const isReset  = tab === 'reset';
+  const isLogin  = !isSignup && !isReset;
   document.getElementById('signupForm').style.display = isSignup ? 'block' : 'none';
-  document.getElementById('loginForm').style.display = isSignup ? 'none' : 'block';
+  document.getElementById('loginForm').style.display  = isLogin  ? 'block' : 'none';
+  const resetEl = document.getElementById('resetForm');
+  if(resetEl) resetEl.style.display = isReset ? 'block' : 'none';
+  // Hide the signup/login tab toggles entirely while on the reset flow.
+  const tabsBar = document.querySelector('.auth-tabs');
+  if(tabsBar) tabsBar.style.display = isReset ? 'none' : '';
   document.getElementById('tab-signup').classList.toggle('active', isSignup);
-  document.getElementById('tab-login').classList.toggle('active', !isSignup);
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
   hideAlert();
-  document.title = isSignup ? 'Sign up — Peakly' : 'Log in — Peakly';
+  document.title = isSignup ? 'Sign up — Peakly' : (isReset ? 'Reset password — Peakly' : 'Log in — Peakly');
 }
 
 // Check URL for ?mode=login
