@@ -634,8 +634,9 @@ function buildSmartRow(g,task,dayNum){
       });
       LS.set('peakly_goals',pg2);
     }
-    // Celebration check
+    // Celebration checks: per-goal day-complete + overall daily milestones
     checkDayComplete(g,dayNum);
+    checkOverallMilestones();
   });
   const info=document.createElement('div');info.style.cssText='flex:1;min-width:0;';
   const lbl=document.createElement('div');lbl.style.cssText='font-size:13px;color:'+(done?'var(--text3)':'var(--text)')+';text-decoration:'+(done?'line-through':'none')+';line-height:1.4;';lbl.textContent=task.text;
@@ -866,7 +867,6 @@ function openEditTaskModal(g,ct,rowEl){
 }
 
 
-const _celebratedDays={};
 function checkDayComplete(g,dayNum){
   if(!dayNum)return;
   const freshG=goals.find(x=>String(x.id)===String(g.id))||g;
@@ -877,17 +877,79 @@ function checkDayComplete(g,dayNum){
   const allTasks=[...daily,...planning,...checkin];
   if(!allTasks.length)return;
   const allDone=allTasks.every(t=>isTaskDone(freshG,t.id,t.type||'daily',dayNum)===true);
-  const celebKey=freshG.id+'_day'+dayNum+'_'+dateKey();
-  if(allDone&&!_celebratedDays[celebKey]){
-    _celebratedDays[celebKey]=true;
+  // Shared LS-backed flag — home page uses the same key so the celebration
+  // doesn't double-fire across pages.
+  const celebKey='peakly_celebrated_'+freshG.id+'_day'+dayNum+'_'+dateKey();
+  if(allDone&&!LS.get(celebKey,false)){
+    LS.set(celebKey,true);
     if(dayNum===21){
       const def=getGoalTaskDef(freshG);
       const msg=def.day21msg||'21 days in. You are building something real.';
       setTimeout(()=>{confetti();showCongrats('Day 21 — You showed up! 🌟',msg,'🌟');},400);
     } else {
-      setTimeout(()=>{confetti();showCongrats('Day '+dayNum+' complete! 🎉','Every task for today is done. See you tomorrow! 🏔️','🎉');},400);
+      setTimeout(()=>{confetti();showCongrats('Day '+dayNum+' complete! 🎉','Every task for "'+(freshG.name||'this goal')+'" is done. See you tomorrow! 🏔️','🎉');},400);
     }
   }
+}
+
+// ── Daily milestone popups (25/50/75/100) ──────────────────────────────────
+// Computes overall daily progress across all active goals and fires a single
+// popup the first time today's pct crosses each threshold. The flags live in
+// localStorage so home page and goals page share the same celebration state.
+const MILESTONE_COPY={
+  25:{title:'Started climbing! 🧗',msg:'You started climbing, keep going',emoji:'🧗'},
+  50:{title:'Halfway there! ⛰️',msg:"You're half way there, keep going strong!",emoji:'⛰️'},
+  75:{title:'Almost there! 🌟',msg:"You're almost there! Way to go don't stop now!",emoji:'🌟'},
+  100:{title:'Peak reached! 🏔️',msg:"Congratulations, you're one day closer to reaching your peak",emoji:'🏔️'}
+};
+function computeOverallPct(){
+  let done=0,total=0;
+  goals.forEach(g=>{
+    if(!g.startedDate||g.completed)return;
+    const tasks=g.todayTasks||[];
+    tasks.forEach(t=>{
+      total++;
+      const tid=t.taskId||t.id||'task';
+      const ttype=t.taskType||'daily';
+      const _today=dateKey();
+      const sd=new Date(g.startedDate);sd.setHours(0,0,0,0);
+      const now=new Date();now.setHours(0,0,0,0);
+      const dn=Math.floor((now-sd)/86400000)+1;
+      const k=ttype==='planning'?'plan_'+g.id+'_'+tid+'_d'+dn
+        :ttype==='checkin'?'checkin_'+g.id+'_'+tid+'_d'+dn
+        :'daily_'+g.id+'_'+tid+'_'+_today;
+      if(LS.get(k,false)===true||t.done===true)done++;
+    });
+  });
+  return total?Math.round(done/total*100):0;
+}
+function checkOverallMilestones(){
+  const pct=computeOverallPct();
+  const dk=dateKey();
+  [25,50,75,100].forEach(threshold=>{
+    if(pct<threshold)return;
+    const flagKey='peakly_shown_milestone_'+threshold+'_'+dk;
+    if(LS.get(flagKey,false))return;
+    LS.set(flagKey,true);
+    const m=MILESTONE_COPY[threshold];
+    setTimeout(()=>{
+      if(threshold===100)confetti();
+      showCongrats(m.title,m.msg,m.emoji);
+    },300);
+  });
+}
+
+// ── New-day welcome popup ──────────────────────────────────────────────────
+// Fires the first time the user opens the app each day on either the home
+// or goals page. Shared LS flag so it doesn't fire twice across pages.
+function maybeShowNewDayPopup(){
+  const dk=dateKey();
+  const flagKey='peakly_shown_newday_'+dk;
+  if(LS.get(flagKey,false))return;
+  LS.set(flagKey,true);
+  setTimeout(()=>{
+    showCongrats('A new day awaits ☀️',"It's a new day and time to get climbing to reach your goals! You can do hard things.",'☀️');
+  },600);
 }
 
 // ── switchView / renderTaskView ────────────────────────────────────────────
@@ -4596,6 +4658,10 @@ function saveGoals(){LS.set('peakly_goals',goals);}
 })();
 
 renderGoalsPage();
+// New-day welcome + milestone backfill on page load. Both are gated by
+// shared LS flags, so if the home page already fired today they're no-ops.
+maybeShowNewDayPopup();
+checkOverallMilestones();
 
 // Re-read goals from localStorage and re-render after a remote pull lands.
 window.addEventListener('peakly:sync-restored',()=>{
