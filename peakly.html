@@ -1361,6 +1361,33 @@ const toggleHabit = (goalId, habitId) => {
         return { ...g, todayTasks: updTasks };
       });
       LS.set('peakly_goals', updatedPg);
+
+      // Per-goal day-complete celebration. If this toggle just finished the
+      // last task for this goal today, show the same celebration popup the
+      // goals page shows. The flag is in localStorage so flipping a task
+      // off-then-on or visiting the other page won't re-fire it.
+      const finishedGoal = upd.find(g => g.id === goalId);
+      if (habit.done && finishedGoal && finishedGoal.habits.length > 0
+          && finishedGoal.habits.every(h => h.done)) {
+        const fullGoal = updatedPg.find(g => String(g.id) === String(goalId));
+        if (fullGoal && fullGoal.startedDate) {
+          const sd = new Date(fullGoal.startedDate); sd.setHours(0,0,0,0);
+          const today = new Date(); today.setHours(0,0,0,0);
+          const dayNum = Math.floor((today - sd) / 86400000) + 1;
+          const celebKey = 'peakly_celebrated_' + goalId + '_day' + dayNum + '_' + todayKey();
+          if (!LS.get(celebKey, false)) {
+            LS.set(celebKey, true);
+            setTimeout(() => {
+              setConfetti(true);
+              setCongrats({
+                title: 'Day ' + dayNum + ' complete! 🎉',
+                msg: 'Every task for "' + (fullGoal.name || 'this goal') + '" is done. See you tomorrow! 🏔️',
+                emoji: '🎉'
+              });
+            }, 300);
+          }
+        }
+      }
     }
 
   };
@@ -1416,18 +1443,58 @@ const sickDay = () => {
   const pct=total?Math.round(done/total*100):0;
 
   const lastPctRef=useRef(pct);
+  // Daily milestone messages — fire once per threshold per day. Flag stored
+  // in localStorage so dropping below the threshold and re-crossing it
+  // doesn't re-trigger the popup, and so the goals page won't double-fire
+  // a milestone that already showed here.
+  const MILESTONE_COPY={
+    25:{title:'Started climbing! 🧗',msg:'You started climbing, keep going',emoji:'🧗'},
+    50:{title:'Halfway there! ⛰️',msg:"You're half way there, keep going strong!",emoji:'⛰️'},
+    75:{title:'Almost there! 🌟',msg:"You're almost there! Way to go don't stop now!",emoji:'🌟'},
+    100:{title:'Peak reached! 🏔️',msg:"Congratulations, you're one day closer to reaching your peak",emoji:'🏔️'}
+  };
   useEffect(()=>{
-    if(total>0&&pct===100&&lastPctRef.current<100){
-      setConfetti(true);
-      setCongrats("Congratulations, you're one day closer to reaching your peak");
-    }
+    if(total<=0) return;
+    const dk=todayKey();
+    [25,50,75,100].forEach(threshold=>{
+      if(pct>=threshold && lastPctRef.current<threshold){
+        const flagKey='peakly_shown_milestone_'+threshold+'_'+dk;
+        if(!LS.get(flagKey,false)){
+          LS.set(flagKey,true);
+          if(threshold===100) setConfetti(true);
+          setCongrats({...MILESTONE_COPY[threshold]});
+        }
+      }
+    });
     lastPctRef.current=pct;
   },[pct,total]);
+
+  // New-day welcome popup — fires the first time the user opens the home
+  // page each day. Flag is in localStorage so the popup syncs across
+  // devices via PeaklySync (won't double-fire on phone + laptop same day).
+  useEffect(()=>{
+    const dk=todayKey();
+    const flagKey='peakly_shown_newday_'+dk;
+    if(LS.get(flagKey,false)) return;
+    LS.set(flagKey,true);
+    const t=setTimeout(()=>{
+      setCongrats({
+        title:'A new day awaits ☀️',
+        msg:"It's a new day and time to get climbing to reach your goals! You can do hard things.",
+        emoji:'☀️'
+      });
+    },600);
+    return()=>clearTimeout(t);
+  },[]);
 
   return(
     <div style={{minHeight:'100vh',background:'var(--bg)'}}>
       <Confetti active={confetti} onDone={()=>setConfetti(false)}/>
-      {congrats&&<CongratsModal msg={congrats} onClose={()=>setCongrats(null)}/>}
+      {congrats&&<CongratsModal
+        msg={typeof congrats==='string'?congrats:(congrats.msg||'')}
+        title={typeof congrats==='object'?congrats.title:undefined}
+        emoji={typeof congrats==='object'?congrats.emoji:undefined}
+        onClose={()=>setCongrats(null)}/>}
       {sickModal&&<SickModal onConfirm={sickDay} onCancel={()=>setSickModal(false)}/>}
 
       {/* Nav */}
