@@ -195,6 +195,9 @@ window.onerror = function(msg, src, line, col, err) {
 };
 
 const LS={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}};
+function hasServerProAccess(){
+  return !!(window.PeaklyAuth && window.PeaklyAuth.hasServerAccess && window.PeaklyAuth.hasServerAccess());
+}
 function toast(msg){const t=document.getElementById('toastEl');t.textContent=msg;t.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(()=>t.style.display='none',2800);}
 
 // ── Confetti ──────────────────────────────────────────────────────────────
@@ -242,7 +245,7 @@ function renderGoalsPage(){
   const el=document.getElementById('goalsPage');
   const active=goals.filter(g=>!g.completed);
   const saved=goals.filter(g=>g.completed);
-  const hasProAccess=JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  const hasProAccess=hasServerProAccess();
   const maxFree = hasProAccess ? Infinity : 5;
   el.innerHTML='';
 
@@ -1477,11 +1480,11 @@ function sblock2(title,icon,renderFn,open=false){
 function startGoal(id){
   const g=goals.find(x=>x.id===id);if(!g)return;
   // Free plan: max 5 active goals (Pro/Trial = unlimited)
-  const hasAccess=JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  const hasAccess=hasServerProAccess();
   if(!hasAccess){
     const activeCount=goals.filter(x=>x.startedDate&&!x.completed).length;
     if(activeCount>=5){
-      showToast('Free plan allows 5 active goals. Upgrade to Pro for unlimited! 🚀');
+      toast('Free plan allows 5 active goals. Upgrade to Pro for unlimited! 🚀');
       setTimeout(()=>{
         if(confirm('Upgrade to Pro for unlimited goals?\n\n$6/mo — 14-day free trial, no card required.')){
           window.location.href='peakly-plan.html';
@@ -4666,6 +4669,15 @@ checkOverallMilestones();
 // Re-read goals from localStorage and re-render after a remote pull lands.
 window.addEventListener('peakly:sync-restored',()=>{
   goals = LS.get('peakly_goals', []);
+  if(document.getElementById('goalDetailPage').style.display!=='none'){
+    try{ renderGoalDetail(); }catch(e){ renderGoalsPage(); }
+  } else {
+    renderGoalsPage();
+  }
+});
+
+// Re-render once Supabase has confirmed whether this session has Pro/trial access.
+window.addEventListener('peakly:entitlements-updated',()=>{
   if(document.getElementById('goalDetailPage').style.display!=='none'){
     try{ renderGoalDetail(); }catch(e){ renderGoalsPage(); }
   } else {

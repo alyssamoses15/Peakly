@@ -70,9 +70,30 @@ window.PeaklyConfig = {
 // Returns { plan, hasAccess, trialDaysLeft, sub }. The Supabase row is
 // authoritative — localStorage is only a cache to avoid flash on page nav.
 window.PeaklyAuth = {
+  _serverSubscription: null,
+
+  _publishSubscription(result){
+    const stamped = Object.assign({ fetchedAt: Date.now() }, result || {});
+    this._serverSubscription = stamped;
+    // Keep a simple global for the older static pages, but only from a
+    // subscription row just loaded through Supabase in this page session.
+    window.hasProAccess = !!stamped.hasAccess;
+    try{
+      window.dispatchEvent(new CustomEvent('peakly:entitlements-updated', { detail: stamped }));
+    }catch(e){}
+    return stamped;
+  },
+
+  hasServerAccess(maxAgeMs = null){
+    const sub = this._serverSubscription;
+    if(!sub || !sub.fetchedAt) return false;
+    if(maxAgeMs != null && Date.now() - sub.fetchedAt > maxAgeMs) return false;
+    return !!sub.hasAccess;
+  },
+
   async loadSubscription(sb, user){
     if(!sb || !user){
-      return { plan:'free', hasAccess:false, trialDaysLeft:null, sub:null };
+      return this._publishSubscription({ plan:'free', hasAccess:false, trialDaysLeft:null, sub:null });
     }
     let sub = null;
     try{
@@ -114,7 +135,7 @@ window.PeaklyAuth = {
       else localStorage.removeItem('peakly_trial_days_left');
     }catch(e){}
 
-    return { plan, hasAccess, trialDaysLeft, sub };
+    return this._publishSubscription({ plan, hasAccess, trialDaysLeft, sub });
   },
 
   // Renders a thin banner at the top of the page when a trial is nearing
