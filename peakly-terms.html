@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — Peakly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;
+  --orange:#F97316;
+  --green:#059669;
+  --bg:#F0F4FA;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;
+  --border:#D4E0EE;
+  --display:'Playfair Display',Georgia,serif;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r:10px;--rm:14px;--rl:20px;
+}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.site-header{
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.logo{
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;
+}
+.logo-icon{
+  width:36px;height:36px;background:var(--blue);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:700;color:var(--text);}
+.header-nav{display:flex;gap:8px;}
+.header-nav a{
+  font-size:14px;font-weight:500;color:var(--text2);
+  text-decoration:none;padding:8px 14px;border-radius:var(--r);
+  transition:background 0.15s,color 0.15s;
+}
+.header-nav a:hover{background:var(--bg);color:var(--blue);}
+.header-nav a.active{color:var(--blue);background:var(--blue-light);}
+
+/* ── PAGE CONTENT ─────────────────────────────── */
+.page-wrap{
+  max-width:780px;margin:0 auto;
+  padding:48px 24px 80px;
+}
+.page-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--blue-light);color:var(--blue);
+  font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;
+  padding:4px 12px;border-radius:100px;margin-bottom:20px;
+}
+.page-title{
+  font-family:var(--display);
+  font-size:clamp(32px,5vw,48px);font-weight:900;
+  color:var(--text);line-height:1.1;
+  margin-bottom:12px;
+}
+.page-meta{
+  font-size:14px;color:var(--text3);margin-bottom:48px;
+  padding-bottom:32px;border-bottom:1px solid var(--border);
+}
+
+/* ── LEGAL CONTENT ─────────────────────────────── */
+.legal-body section{margin-bottom:40px;}
+.legal-body h2{
+  font-family:var(--display);
+  font-size:22px;font-weight:700;
+  color:var(--text);margin-bottom:14px;
+  padding-top:8px;
+}
+.legal-body h3{
+  font-size:16px;font-weight:700;color:var(--text);
+  margin-bottom:10px;margin-top:20px;
+}
+.legal-body p{
+  font-size:15px;line-height:1.75;color:var(--text2);
+  margin-bottom:12px;
+}
+.legal-body ul,
+.legal-body ol{
+  padding-left:22px;margin-bottom:12px;
+}
+.legal-body li{
+  font-size:15px;line-height:1.75;color:var(--text2);
+  margin-bottom:6px;
+}
+.callout{
+  background:var(--blue-light);border-left:4px solid var(--blue);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:16px 20px;margin-bottom:20px;
+}
+.callout p{color:var(--blue-dark);margin-bottom:0;}
+.callout strong{color:var(--blue);}
+.warning{
+  background:#FFF7ED;border-left:4px solid var(--orange);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:16px 20px;margin-bottom:20px;
+}
+.warning p{color:#7C2D12;margin-bottom:0;}
+
+/* ── TOC ─────────────────────────────── */
+.toc{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:var(--rl);padding:24px 28px;
+  margin-bottom:48px;
+}
+.toc-title{
+  font-size:13px;font-weight:700;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--text3);margin-bottom:14px;
+}
+.toc ol{padding-left:18px;}
+.toc li{margin-bottom:8px;}
+.toc a{
+  font-size:14px;color:var(--blue);text-decoration:none;font-weight:500;
+}
+.toc a:hover{text-decoration:underline;}
+
+/* ── FOOTER ─────────────────────────────── */
+.legal-footer{
+  margin-top:56px;padding-top:32px;border-top:1px solid var(--border);
+  text-align:center;
+}
+.legal-footer p{font-size:14px;color:var(--text3);margin-bottom:8px;}
+.legal-footer a{color:var(--blue);text-decoration:none;font-weight:500;}
+.legal-footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────── -->
+<header class="site-header">
+  <a href="index.html.html" class="logo">
+    <div class="logo-icon">⛰️</div>
+    <span class="logo-text">Peakly</span>
+  </a>
+  <nav class="header-nav">
+    <a href="peakly-terms.html" class="active">Terms of Service</a>
+    <a href="peakly-privacy.html">Privacy Policy</a>
+    <a href="peakly-auth.html">Sign up</a>
+  </nav>
+</header>
+
+<!-- ── CONTENT ─────────────────────────────── -->
+<main class="page-wrap">
+  <div class="page-badge">Legal</div>
+  <h1 class="page-title">Terms of Service</h1>
+  <p class="page-meta">Effective date: May 10, 2026 &nbsp;·&nbsp; Last updated: May 10, 2026</p>
+
+  <div class="callout">
+    <p><strong>Plain English summary:</strong> Peakly is a subscription tool to help you manage your goals and life. We don't sell your data, we don't show you ads, and we don't target you with anything. Use the service honestly, pay your subscription, and we'll keep the lights on for you. If something goes wrong, our liability is limited to what you've paid us in the past 12 months.</p>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <ol>
+      <li><a href="#acceptance">Acceptance of Terms</a></li>
+      <li><a href="#service">Description of Service</a></li>
+      <li><a href="#accounts">Accounts and Registration</a></li>
+      <li><a href="#subscriptions">Subscriptions and Payments</a></li>
+      <li><a href="#acceptable-use">Acceptable Use</a></li>
+      <li><a href="#ip">Intellectual Property</a></li>
+      <li><a href="#your-data">Your Content and Data</a></li>
+      <li><a href="#third-party">Third-Party Services</a></li>
+      <li><a href="#disclaimers">Disclaimers of Warranties</a></li>
+      <li><a href="#liability">Limitation of Liability</a></li>
+      <li><a href="#indemnification">Indemnification</a></li>
+      <li><a href="#termination">Termination</a></li>
+      <li><a href="#disputes">Dispute Resolution and Governing Law</a></li>
+      <li><a href="#changes">Changes to These Terms</a></li>
+      <li><a href="#contact">Contact Us</a></li>
+    </ol>
+  </div>
+
+  <div class="legal-body">
+
+    <!-- 1 -->
+    <section id="acceptance">
+      <h2>1. Acceptance of Terms</h2>
+      <p>These Terms of Service ("Terms") constitute a legally binding agreement between you ("User," "you," or "your") and Peakly ("Peakly," "we," "us," or "our") governing your access to and use of the Peakly application, website, and related services (collectively, the "Service").</p>
+      <p>By creating an account, clicking "Create free account," or otherwise accessing the Service, you confirm that you have read, understood, and agree to be bound by these Terms and our <a href="peakly-privacy.html">Privacy Policy</a>. If you do not agree, do not use the Service.</p>
+      <p>You must be at least 18 years of age to use the Service. By using the Service, you represent and warrant that you meet this requirement.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="service">
+      <h2>2. Description of Service</h2>
+      <p>Peakly is a personal productivity and life management application that enables users to set and track goals, manage habits and daily tasks, plan schedules, and organize personal information such as meal plans, routines, and life administration tasks (collectively, "Features").</p>
+      <p>We reserve the right to modify, suspend, or discontinue any Feature at any time, with or without notice. We will not be liable to you or any third party for any modification, suspension, or discontinuation of the Service or any Feature.</p>
+      <p>The Service is provided on an "as available" basis. We do not guarantee uninterrupted or error-free access to the Service.</p>
+    </section>
+
+    <!-- 3 -->
+    <section id="accounts">
+      <h2>3. Accounts and Registration</h2>
+      <h3>Creating an Account</h3>
+      <p>To use the Service, you must register for an account. You agree to provide accurate, current, and complete information during registration and to keep that information updated.</p>
+      <h3>Account Security</h3>
+      <p>You are responsible for maintaining the confidentiality of your login credentials. You agree to notify us immediately if you suspect any unauthorized use of your account. We are not liable for any loss resulting from unauthorized access to your account that occurs through no fault of ours.</p>
+      <h3>One Account Per Person</h3>
+      <p>Each account is for a single individual. You may not share your account with others or create multiple accounts to circumvent subscription limits or any restriction we impose.</p>
+    </section>
+
+    <!-- 4 -->
+    <section id="subscriptions">
+      <h2>4. Subscriptions and Payments</h2>
+      <h3>Free Trial</h3>
+      <p>New accounts receive a 14-day free trial of Peakly Pro. No payment information is required to start your trial. At the end of the trial, you must subscribe to a paid plan to continue accessing Pro features.</p>
+      <h3>Paid Plans</h3>
+      <p>We offer monthly and annual subscription plans. Current pricing is displayed on the pricing page within the Service. All prices are in United States dollars (USD) unless otherwise stated.</p>
+      <h3>Billing and Renewal</h3>
+      <p>Subscriptions automatically renew at the end of each billing period (monthly or annually). By subscribing, you authorize us to charge your payment method on a recurring basis. You can cancel auto-renewal at any time through your account settings.</p>
+      <h3>Refunds</h3>
+      <p>All fees paid are non-refundable except as required by applicable law or as expressly stated in these Terms. If you cancel your subscription, you retain access to the Service until the end of your current paid billing period. We do not provide pro-rated refunds for unused time.</p>
+      <h3>Payment Processing</h3>
+      <p>Payments are processed by Stripe, Inc. By providing payment information, you agree to Stripe's terms of service. We do not store your full payment card details on our servers.</p>
+      <h3>Price Changes</h3>
+      <p>We may change subscription pricing at any time. If you are an active subscriber, we will give you at least 30 days' advance notice of any price increase before it takes effect on your account.</p>
+      <h3>Taxes</h3>
+      <p>You are responsible for any applicable taxes associated with your use of the Service. Prices displayed may not include taxes, which may be added at checkout depending on your location.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="acceptable-use">
+      <h2>5. Acceptable Use</h2>
+      <p>You agree not to use the Service to:</p>
+      <ul>
+        <li>Violate any applicable local, state, national, or international law or regulation</li>
+        <li>Upload, transmit, or distribute any content that is unlawful, harmful, defamatory, obscene, or invasive of another's privacy</li>
+        <li>Attempt to gain unauthorized access to any part of the Service, its related systems, or any accounts not belonging to you</li>
+        <li>Use automated tools, bots, scripts, or scrapers to access or interact with the Service without our prior written consent</li>
+        <li>Interfere with or disrupt the integrity or performance of the Service or its underlying infrastructure</li>
+        <li>Reverse engineer, decompile, or attempt to extract the source code of the Service</li>
+        <li>Use the Service to store or process any information on behalf of third parties as a data processor without our written agreement</li>
+        <li>Resell, sublicense, or otherwise commercialize access to the Service without our prior written consent</li>
+        <li>Impersonate any person or entity, or falsely state or misrepresent your affiliation with any person or entity</li>
+      </ul>
+      <p>We reserve the right to investigate and take appropriate legal or technical action against anyone who violates these provisions, including suspending or terminating their account.</p>
+    </section>
+
+    <!-- 6 -->
+    <section id="ip">
+      <h2>6. Intellectual Property</h2>
+      <h3>Our Property</h3>
+      <p>The Service, including its design, graphics, text, software, logos, and all other content created or provided by us, is owned by or licensed to Peakly and is protected by copyright, trademark, and other intellectual property laws. You may not copy, reproduce, distribute, or create derivative works from our content without our express written permission.</p>
+      <h3>Limited License to You</h3>
+      <p>We grant you a limited, non-exclusive, non-transferable, revocable license to access and use the Service solely for your personal, non-commercial productivity purposes in accordance with these Terms.</p>
+      <h3>Feedback</h3>
+      <p>If you provide us with feedback, suggestions, or ideas about the Service, you grant us a perpetual, royalty-free, worldwide license to use that feedback for any purpose without obligation to you.</p>
+    </section>
+
+    <!-- 7 -->
+    <section id="your-data">
+      <h2>7. Your Content and Data</h2>
+      <h3>Ownership</h3>
+      <p>You retain ownership of all content and data you enter into the Service ("Your Content"), including your goals, tasks, notes, and personal information. We do not claim any ownership rights over Your Content.</p>
+      <h3>License to Operate the Service</h3>
+      <p>By using the Service, you grant us a limited, non-exclusive license to store, process, and display Your Content solely to the extent necessary to provide the Service to you. We do not use Your Content for any other purpose.</p>
+      <h3>No Advertising or Targeting</h3>
+      <p>We do not sell, rent, or license Your Content or personal data to third parties for advertising, marketing, or profiling purposes. We do not display advertisements in the Service. We do not use Your Content to target you with third-party products or services.</p>
+      <h3>Your Responsibility</h3>
+      <p>You are solely responsible for the accuracy, legality, and appropriateness of Your Content. Do not enter sensitive information (such as passwords, financial account numbers, or government ID numbers) into the Service beyond what is necessary for account management.</p>
+      <h3>Data Deletion</h3>
+      <p>You may delete Your Content at any time through the Service. Upon account deletion, we will delete or anonymize Your Content within a reasonable period, subject to our legal obligations and our <a href="peakly-privacy.html">Privacy Policy</a>.</p>
+    </section>
+
+    <!-- 8 -->
+    <section id="third-party">
+      <h2>8. Third-Party Services</h2>
+      <p>The Service relies on certain third-party providers to function, including:</p>
+      <ul>
+        <li><strong>Supabase</strong> — database, authentication, and cloud infrastructure</li>
+        <li><strong>Stripe</strong> — payment processing</li>
+        <li><strong>Google</strong> — optional sign-in via Google OAuth</li>
+        <li><strong>Netlify</strong> — web hosting and content delivery</li>
+      </ul>
+      <p>Your use of third-party services is subject to their respective terms and privacy policies. We are not responsible for the practices or content of any third-party service. We carefully select providers and limit the data shared with them to what is necessary to provide the Service.</p>
+      <p>The Service may contain links to external websites for informational purposes. We do not endorse and are not responsible for any third-party websites or their content.</p>
+    </section>
+
+    <!-- 9 -->
+    <section id="disclaimers">
+      <h2>9. Disclaimers of Warranties</h2>
+      <div class="warning">
+        <p><strong>THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.</strong></p>
+      </div>
+      <p>We do not warrant that:</p>
+      <ul>
+        <li>The Service will be uninterrupted, timely, secure, or error-free</li>
+        <li>Any results obtained from using the Service will be accurate or reliable</li>
+        <li>Any errors in the Service will be corrected</li>
+        <li>The Service or any server that makes it available is free of viruses or other harmful components</li>
+      </ul>
+      <p>Peakly is a personal productivity tool. It does not provide medical, psychological, financial, legal, or other professional advice. Any goal-tracking or habit-formation features are for personal organizational purposes only and do not constitute professional guidance of any kind.</p>
+      <p>Some jurisdictions do not allow the exclusion of certain warranties. To the extent such exclusions are not permitted under applicable law, some of the above exclusions may not apply to you.</p>
+    </section>
+
+    <!-- 10 -->
+    <section id="liability">
+      <h2>10. Limitation of Liability</h2>
+      <div class="warning">
+        <p><strong>TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL PEAKLY, ITS OWNERS, OPERATORS, EMPLOYEES, AFFILIATES, LICENSORS, OR SERVICE PROVIDERS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, REVENUE, DATA, GOODWILL, BUSINESS OPPORTUNITIES, OR OTHER INTANGIBLE LOSSES, ARISING OUT OF OR RELATED TO YOUR USE OF OR INABILITY TO USE THE SERVICE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.</strong></p>
+      </div>
+      <p>To the maximum extent permitted by applicable law, our total cumulative liability to you for any claims arising under or related to these Terms or the Service — regardless of the form of action and whether based on contract, tort, negligence, strict liability, or any other legal theory — shall not exceed the greater of:</p>
+      <ul>
+        <li>The total amount you paid us for the Service in the twelve (12) months immediately preceding the claim; or</li>
+        <li>Twenty-five United States dollars (US$25.00).</li>
+      </ul>
+      <p>The limitations in this section apply whether or not we have been informed of the possibility of such damages and even if a remedy is found to have failed of its essential purpose.</p>
+      <p>Some jurisdictions do not allow the limitation or exclusion of liability for certain types of damages. To the extent such limitations are not permitted under applicable law, some of the above limitations may not apply to you.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="indemnification">
+      <h2>11. Indemnification</h2>
+      <p>You agree to defend, indemnify, and hold harmless Peakly and its owners, operators, affiliates, employees, agents, and licensors from and against any and all claims, liabilities, damages, losses, costs, and expenses (including reasonable legal fees) arising out of or related to:</p>
+      <ul>
+        <li>Your use of or inability to use the Service</li>
+        <li>Your violation of these Terms</li>
+        <li>Your violation of any third-party rights, including intellectual property rights or privacy rights</li>
+        <li>Any content you submit, post, or transmit through the Service</li>
+        <li>Your violation of any applicable law or regulation</li>
+      </ul>
+      <p>We reserve the right to assume exclusive control of the defense of any matter subject to indemnification by you, at your expense. You agree to cooperate with our defense of such claims.</p>
+    </section>
+
+    <!-- 12 -->
+    <section id="termination">
+      <h2>12. Termination</h2>
+      <h3>Termination by You</h3>
+      <p>You may cancel your account at any time through your account settings or by contacting us. Upon cancellation, you retain access to the Service through the end of your current paid billing period. We do not provide refunds for unused portions of a billing period unless required by law.</p>
+      <h3>Termination by Us</h3>
+      <p>We may suspend or terminate your access to the Service immediately, without prior notice or liability, if:</p>
+      <ul>
+        <li>You breach any provision of these Terms</li>
+        <li>You engage in fraudulent, abusive, or illegal activity</li>
+        <li>Continued access would pose a security risk to the Service or other users</li>
+        <li>We are required to do so by law</li>
+        <li>We discontinue the Service</li>
+      </ul>
+      <h3>Effect of Termination</h3>
+      <p>Upon termination, your license to use the Service ends immediately. Provisions of these Terms that by their nature should survive termination — including ownership, disclaimers, limitations of liability, indemnification, and dispute resolution — will survive.</p>
+    </section>
+
+    <!-- 13 -->
+    <section id="disputes">
+      <h2>13. Dispute Resolution and Governing Law</h2>
+      <h3>Governing Law</h3>
+      <p>These Terms and any dispute arising out of or related to these Terms or the Service shall be governed by and construed in accordance with the laws of the United States and the State of Texas, without regard to its conflict-of-law principles.</p>
+      <h3>Informal Resolution First</h3>
+      <p>Before filing any formal legal action, you agree to contact us and attempt to resolve the dispute informally by sending a written description of the dispute to our contact email. We will attempt to resolve the dispute within 30 days of receiving your notice.</p>
+      <h3>Binding Arbitration</h3>
+      <p>If we cannot resolve the dispute informally, you agree that any dispute, claim, or controversy arising out of or relating to these Terms or the Service shall be settled by binding individual arbitration administered by the American Arbitration Association ("AAA") under its Consumer Arbitration Rules. The arbitration shall take place on a remote or virtual basis, or in the county of your residence. The arbitrator's decision shall be final and binding.</p>
+      <h3>Class Action Waiver</h3>
+      <p>You agree that any dispute resolution proceedings will be conducted only on an individual basis and not as a class, consolidated, or representative action. If for any reason a claim proceeds in court rather than in arbitration, you waive any right to a jury trial and to participate in a class action lawsuit.</p>
+      <h3>Exceptions</h3>
+      <p>Either party may seek emergency injunctive or other equitable relief from a court of competent jurisdiction to prevent irreparable harm pending arbitration. Claims related to intellectual property rights may be brought in court.</p>
+    </section>
+
+    <!-- 14 -->
+    <section id="changes">
+      <h2>14. Changes to These Terms</h2>
+      <p>We may update these Terms from time to time. When we make material changes, we will notify you by:</p>
+      <ul>
+        <li>Posting a notice within the Service, or</li>
+        <li>Sending an email to the address associated with your account</li>
+      </ul>
+      <p>Your continued use of the Service after the effective date of any updated Terms constitutes your acceptance of the changes. If you do not agree to the updated Terms, you must stop using the Service and cancel your account.</p>
+      <p>We will always post the most current version of the Terms on this page with the effective date indicated at the top.</p>
+    </section>
+
+    <!-- 15 -->
+    <section id="contact">
+      <h2>15. Contact Us</h2>
+      <p>If you have any questions, concerns, or feedback about these Terms, please contact us:</p>
+      <ul>
+        <li><strong>Email:</strong> support@peakly.app</li>
+        <li><strong>Response time:</strong> We aim to respond within 5 business days.</li>
+      </ul>
+      <p>For questions specifically about our data practices, please also see our <a href="peakly-privacy.html">Privacy Policy</a>.</p>
+    </section>
+
+  </div>
+
+  <div class="legal-footer">
+    <p>These Terms of Service were last updated on May 10, 2026.</p>
+    <p><a href="peakly-privacy.html">Privacy Policy</a> &nbsp;·&nbsp; <a href="peakly-auth.html">Sign up</a> &nbsp;·&nbsp; <a href="index.html.html">Home</a></p>
+  </div>
+</main>
+
+</body>
+</html>
