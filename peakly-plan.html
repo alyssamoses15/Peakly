@@ -80,7 +80,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
   <div class="hero">
     <h1>Welcome to Peakly! <em>Choose your path</em> 🏔️</h1>
-    <p>Start free forever, take Pro for a 14-day spin (no card required), or jump straight to Pro and save 17% on yearly.</p>
+    <p>Start free forever, take Pro for a 7-day spin (no card required), or jump straight to Pro and save 17% on yearly.</p>
   </div>
 
   <div class="grid">
@@ -103,7 +103,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="card featured">
       <div class="featured-badge">Most popular</div>
       <div class="name">Try Pro Free</div>
-      <div class="price">$0<small> for 14 days</small></div>
+      <div class="price">$0<small> for 7 days</small></div>
       <div class="sub">No credit card required</div>
       <ul>
         <li>Everything in Pro</li>
@@ -112,7 +112,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <li>All templates</li>
         <li>Auto-reverts to Free at day 15</li>
       </ul>
-      <button class="btn btn-orange" id="trialBtn" onclick="chooseTrial()">Start 14-Day Free Trial</button>
+      <button class="btn btn-orange" id="trialBtn" onclick="chooseTrial()">Start 7-Day Free Trial</button>
     </div>
 
     <!-- PRO -->
@@ -218,9 +218,9 @@ async function chooseFree(){
 
 async function chooseTrial(){
   const user = await requireUser(); if(!user) return;
-  setBtnLoading('trialBtn', true, 'Start 14-Day Free Trial');
+  setBtnLoading('trialBtn', true, 'Start 7-Day Free Trial');
   try{
-    const ends = new Date(); ends.setDate(ends.getDate()+14);
+    const ends = new Date(); ends.setDate(ends.getDate()+7);
     await sb.from('subscriptions').update({
       plan:'trial', trial_ends_at: ends.toISOString(), status:'trialing'
     }).eq('user_id', user.id);
@@ -229,7 +229,7 @@ async function chooseTrial(){
     localStorage.setItem('peakly_trial', JSON.stringify(true));
     window.location.href = 'peakly.html';
   }catch(e){
-    setBtnLoading('trialBtn', false, 'Start 14-Day Free Trial');
+    setBtnLoading('trialBtn', false, 'Start 7-Day Free Trial');
     showToast('Could not start trial — try again.');
   }
 }
