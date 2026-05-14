@@ -1056,8 +1056,38 @@ function upgradeToPro(){
   window.location.href = 'peakly-plan.html';
 }
 
-function manageBilling(){
-  window.location.href = 'peakly-plan.html';
+async function manageBilling(){
+  try{
+    const sb = await getSb();
+    if(!sb){ window.location.href='peakly-plan.html'; return; }
+    const { data:{ session } } = await sb.auth.getSession();
+    if(!session){ window.location.href='peakly-auth.html'; return; }
+
+    const btn = document.querySelector('[onclick="manageBilling()"]');
+    if(btn){ btn.disabled=true; btn.textContent='Loading…'; }
+
+    const res = await fetch(window.PeaklyConfig.CREATE_PORTAL_SESSION_URL, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': window.PeaklyConfig.SUPABASE_KEY
+      },
+      body: JSON.stringify({ userId: session.user.id })
+    });
+    const json = await res.json();
+    if(json.error === 'no_billing_account'){
+      // No Stripe customer yet — send to plan page
+      window.location.href = 'peakly-plan.html';
+      return;
+    }
+    if(!res.ok) throw new Error(json.error || 'Could not open billing portal');
+    window.location.href = json.url;
+  }catch(e){
+    toast(e.message || 'Could not open billing portal');
+    const btn = document.querySelector('[onclick="manageBilling()"]');
+    if(btn){ btn.disabled=false; btn.textContent='Manage billing'; }
+  }
 }
 
 function confirmCancel(){
@@ -1080,7 +1110,15 @@ function confirmCancel(){
           body: JSON.stringify({ userId: session.user.id })
         });
         const json = await res.json();
-        if(!res.ok) throw new Error(json.error || 'Cancel failed');
+        if(!res.ok){
+          if(json.error === 'no active subscription'){
+            // Stripe ID not linked yet — open billing portal instead
+            toast('Redirecting to billing portal to manage your subscription…');
+            setTimeout(()=>manageBilling(), 1200);
+            return;
+          }
+          throw new Error(json.error || 'Cancel failed');
+        }
         toast('Subscription will end at the close of this billing period.');
         loadSubscriptionFromSupabase();
       }catch(e){ toast(e.message || 'Could not cancel subscription.'); }
