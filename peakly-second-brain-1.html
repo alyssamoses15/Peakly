@@ -229,7 +229,10 @@ function ubanner(feat){const d=mk('div','ubanner');d.innerHTML=`<span style="fon
 function addbtn(lbl,cb){const b=mk('button','addbtn');b.innerHTML=`<span style="font-size:16px;line-height:1">+</span> ${lbl}`;if(cb)b.addEventListener('click',cb);return b;}
 function infoBox(html,type='blue'){const d=mk('div','info '+type);d.innerHTML=html;return d;}
 function badge(txt,bg,color){const s=mk('span','tag');s.style.cssText=`background:${bg};color:${color};`;s.textContent=txt;return s;}
-function isPro(){try{return JSON.parse(localStorage.getItem('peakly_pro')||'false');}catch{return false;}}
+function hasServerProAccess(){
+  return !!(window.PeaklyAuth && window.PeaklyAuth.hasServerAccess && window.PeaklyAuth.hasServerAccess());
+}
+function isPro(){return hasServerProAccess();}
 function calSyncBtn(label,dataKey,data){
   const b=mk('button');b.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;display:flex;align-items:center;gap:4px;';
   b.innerHTML='📅 '+label;
@@ -308,8 +311,8 @@ const NAV=[
 let cur='dashboard';
 function buildNav(){
   const n=document.getElementById('snav');n.innerHTML='';
-  // peakly_pro is set to true for both 'pro' and active 'trial' plans
-  const hasAccess=JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  // Server-confirmed Pro/trial access is required before unlocking paid sections.
+  const hasAccess=hasServerProAccess();
   // Free: only first 3 sections (health, vehicle, housing) + dashboard
   // Pro/Trial: all sections + part 2
   const FREE_SECTIONS=['dashboard','health','vehicle','housing'];
@@ -1404,9 +1407,18 @@ window.addEventListener('peakly:sync-restored',()=>{
   try{ loadPage(cur||'dashboard'); }catch(e){}
 });
 
+// Re-render locks once Supabase has confirmed paid entitlement for this session.
+window.addEventListener('peakly:entitlements-updated',()=>{
+  try{
+    const box = document.getElementById('upgradeBox');
+    if(box) box.style.display = hasServerProAccess() ? 'none' : '';
+    loadPage(cur||'dashboard');
+  }catch(e){}
+});
+
 // Hide upgrade box for users with Pro access (paid or trial)
 (function(){
-  const hasAccess = JSON.parse(localStorage.getItem('peakly_pro')||'false');
+  const hasAccess = hasServerProAccess();
   if(hasAccess){
     const box = document.getElementById('upgradeBox');
     if(box) box.style.display = 'none';

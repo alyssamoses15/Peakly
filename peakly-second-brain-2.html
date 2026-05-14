@@ -230,8 +230,11 @@ function getNav(){
 }
 // Free plan: allow professional + finances (2 from part2, 3 from part1 = 5 total)
 const FREE_SECTIONS_P2=['professional','finances'];
+function hasServerProAccess(){
+  return !!(window.PeaklyAuth && window.PeaklyAuth.hasServerAccess && window.PeaklyAuth.hasServerAccess());
+}
 function isSectionLocked(sectionId){
-  if(window.hasProAccess)return false;
+  if(hasServerProAccess())return false;
   return!FREE_SECTIONS_P2.includes(sectionId)&&sectionId!=='part1';
 }
 
@@ -2863,14 +2866,24 @@ function buildCustom(wrap){
 }
 
 const PAGES={professional:buildProfessional,finances:buildFinances,family:buildFamily,pets:buildPets,community:buildCommunity,custom:buildCustom};
-// peakly_pro is true for both 'pro' and active 'trial' plans
-window.hasProAccess = JSON.parse(localStorage.getItem('peakly_pro')||'false');
+// Pro/trial sections unlock only after Supabase confirms entitlement this session.
+window.hasProAccess = hasServerProAccess();
 buildNav();
 loadPage('professional');
 
 // Re-render the current page when fresh data lands from another device.
 window.addEventListener('peakly:sync-restored',()=>{
   try{ loadPage(cur||'professional'); }catch(e){}
+});
+
+// Re-render locks once Supabase has confirmed paid entitlement for this session.
+window.addEventListener('peakly:entitlements-updated',()=>{
+  try{
+    window.hasProAccess = hasServerProAccess();
+    const box = document.getElementById('upgradeBox2');
+    if(box) box.style.display = window.hasProAccess ? 'none' : '';
+    loadPage(cur||'professional');
+  }catch(e){}
 });
 
 // Hide upgrade box for users with Pro access

@@ -57,12 +57,12 @@ window.PeaklyBoot = {
 window.PeaklyConfig = {
   SUPABASE_URL: 'https://rofnthczzpsswdtlpahk.supabase.co',
   SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU',
-  STRIPE_PUBLIC: 'pk_test_51TQX8KE3DQkfgMOI5keC9NahtQyFQP2YNIZbynMHqccp1yrhr6eUePoOFCmdPHsrYd2tufwc9SBmlozxvbVJfhhs00kBbo53rU',
-  PRICE_MONTHLY: 'price_1TQd05E3DQkfgMOIeCTbYMx0',
-  PRICE_YEARLY:  'price_1TQd05E3DQkfgMOImnOouGt8',
+  STRIPE_PUBLIC: 'pk_live_51TQX8KE3DQkfgMOIBAr0rSsCReSMEPICCYFYP37rNPvqyR0FswVP6gdthfdByIou5fuXfmPe42gNUSvwWCZI8qxBffxWx',
+  PRICE_MONTHLY: 'price_1TQaUIE3DQkfgMOIUcCyy9B6',
+  PRICE_YEARLY:  'price_1TQaVnE3DQkfgMOIXA3cUboC',
   SITE_URL: 'https://getpeakly.co',
-  PAYMENT_LINK_MONTHLY: 'https://buy.stripe.com/test_cNi00j2jzafW4fsaD97Zu00',
-  PAYMENT_LINK_YEARLY: 'https://buy.stripe.com/test_7sYaEX2jzafWh2efXt7Zu01',
+  PAYMENT_LINK_MONTHLY: 'https://buy.stripe.com/cNi00j2jzafW4fsaD97Zu00',
+  PAYMENT_LINK_YEARLY: 'https://buy.stripe.com/7sYaEX2jzafWh2efXt7Zu01',
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription'
 };
 
@@ -70,9 +70,30 @@ window.PeaklyConfig = {
 // Returns { plan, hasAccess, trialDaysLeft, sub }. The Supabase row is
 // authoritative — localStorage is only a cache to avoid flash on page nav.
 window.PeaklyAuth = {
+  _serverSubscription: null,
+
+  _publishSubscription(result){
+    const stamped = Object.assign({ fetchedAt: Date.now() }, result || {});
+    this._serverSubscription = stamped;
+    // Keep a simple global for the older static pages, but only from a
+    // subscription row just loaded through Supabase in this page session.
+    window.hasProAccess = !!stamped.hasAccess;
+    try{
+      window.dispatchEvent(new CustomEvent('peakly:entitlements-updated', { detail: stamped }));
+    }catch(e){}
+    return stamped;
+  },
+
+  hasServerAccess(maxAgeMs = null){
+    const sub = this._serverSubscription;
+    if(!sub || !sub.fetchedAt) return false;
+    if(maxAgeMs != null && Date.now() - sub.fetchedAt > maxAgeMs) return false;
+    return !!sub.hasAccess;
+  },
+
   async loadSubscription(sb, user){
     if(!sb || !user){
-      return { plan:'free', hasAccess:false, trialDaysLeft:null, sub:null };
+      return this._publishSubscription({ plan:'free', hasAccess:false, trialDaysLeft:null, sub:null });
     }
     let sub = null;
     try{
@@ -114,7 +135,7 @@ window.PeaklyAuth = {
       else localStorage.removeItem('peakly_trial_days_left');
     }catch(e){}
 
-    return { plan, hasAccess, trialDaysLeft, sub };
+    return this._publishSubscription({ plan, hasAccess, trialDaysLeft, sub });
   },
 
   // Renders a thin banner at the top of the page when a trial is nearing
