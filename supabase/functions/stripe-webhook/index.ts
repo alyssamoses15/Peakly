@@ -64,15 +64,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const sub = await stripe.subscriptions.retrieve(subId);
   const row = subToRow(sub);
 
-  const { error } = await supaAdmin.from('subscriptions').update({
+  console.log(`[webhook] checkout completed — userId=${userId} subId=${subId} status=${sub.status}`);
+
+  const { error } = await supaAdmin.from('subscriptions').upsert({
+    user_id: userId,
     ...row,
     stripe_customer_id: session.customer as string,
-  }).eq('user_id', userId);
+  }, { onConflict: 'user_id' });
 
   if (error) {
-    console.error('[webhook] failed to update subscriptions on checkout:', error.message);
+    console.error('[webhook] failed to upsert subscriptions on checkout:', error.message);
   } else {
-    console.log(`[webhook] ✓ checkout completed for user ${userId} — plan set to pro`);
+    console.log(`[webhook] ✓ checkout completed for user ${userId} — plan set to ${row.plan}, status=${row.status}`);
   }
 }
 
