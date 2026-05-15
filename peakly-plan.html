@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="peakly-config.js?v=8"></script>
+<script src="peakly-config.js?v=9"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -203,17 +203,26 @@ async function chooseFree(){
   const user = await requireUser(); if(!user) return;
   setBtnLoading('freeBtn', true, 'Continue with Free');
   try{
-    const { error } = await sb.from('subscriptions').upsert({
-      user_id:user.id, plan:'free', trial_ends_at:null, status:'active'
-    }, { onConflict:'user_id' });
-    if(error) throw error;
+    const session = currentSession || (await sb.auth.getSession()).data.session;
+    if(!session) throw new Error('Please log in first.');
+    const res = await window.PeaklyEdge.postJson(cfg.SET_FREE_PLAN_URL, {
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': cfg.SUPABASE_KEY
+      },
+      body: { userId:user.id },
+      missingMessage: 'Free plan service is not deployed yet. Please try again later.'
+    });
+    const json = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(json.error || 'Could not save plan.');
     localStorage.setItem('peakly_plan','free');
     localStorage.setItem('peakly_pro', JSON.stringify(false));
     localStorage.setItem('peakly_trial', JSON.stringify(false));
     window.location.href = 'peakly.html';
   }catch(e){
     setBtnLoading('freeBtn', false, 'Continue with Free');
-    showToast('Could not save plan — try again.');
+    showToast(e.message || 'Could not save plan — try again.');
   }
 }
 
@@ -221,28 +230,36 @@ async function chooseTrial(){
   const user = await requireUser(); if(!user) return;
   setBtnLoading('trialBtn', true, 'Start 7-Day Free Trial');
   try{
-    // Server-side guard: if trial_ends_at was ever set this account already used its trial.
-    const { data: existing } = await sb.from('subscriptions')
-      .select('trial_ends_at').eq('user_id', user.id).maybeSingle();
-    if(existing?.trial_ends_at){
-      setBtnLoading('trialBtn', false, 'Trial already used');
-      document.getElementById('trialBtn').disabled = true;
-      document.getElementById('trialBtn').className = 'btn btn-outline';
-      showToast('Your free trial has already been used. Subscribe to continue with Pro.');
-      return;
+    const session = currentSession || (await sb.auth.getSession()).data.session;
+    if(!session) throw new Error('Please log in first.');
+    const res = await window.PeaklyEdge.postJson(cfg.START_TRIAL_URL, {
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': cfg.SUPABASE_KEY
+      },
+      body: { userId:user.id },
+      missingMessage: 'Trial service is not deployed yet. Please try again later.'
+    });
+    const json = await res.json().catch(()=>({}));
+    if(!res.ok){
+      if(json.error === 'trial_already_used'){
+        setBtnLoading('trialBtn', false, 'Trial already used');
+        document.getElementById('trialBtn').disabled = true;
+        document.getElementById('trialBtn').className = 'btn btn-outline';
+        showToast('Your free trial has already been used. Subscribe to continue with Pro.');
+        return;
+      }
+      throw new Error(json.error || 'Could not start trial.');
     }
-    const ends = new Date(); ends.setDate(ends.getDate()+7);
-    const { error } = await sb.from('subscriptions').upsert({
-      user_id:user.id, plan:'trial', trial_ends_at: ends.toISOString(), status:'trialing'
-    }, { onConflict:'user_id' });
-    if(error) throw error;
     localStorage.setItem('peakly_plan','trial');
     localStorage.setItem('peakly_pro', JSON.stringify(true));
     localStorage.setItem('peakly_trial', JSON.stringify(true));
+    if(json.trial_ends_at) localStorage.setItem('peakly_trial_days_left', '7');
     window.location.href = 'peakly.html';
   }catch(e){
     setBtnLoading('trialBtn', false, 'Start 7-Day Free Trial');
-    showToast('Could not start trial — try again.');
+    showToast(e.message || 'Could not start trial — try again.');
   }
 }
 
