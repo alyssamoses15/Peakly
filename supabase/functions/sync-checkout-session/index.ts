@@ -77,6 +77,11 @@ Deno.serve(async (req) => {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    if (session.status !== 'complete' || !['paid', 'no_payment_required'].includes(session.payment_status ?? '')) {
+      return new Response(JSON.stringify({ error: 'checkout session is not paid yet' }), {
+        status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     if (!session.subscription) {
       return new Response(JSON.stringify({ error: 'checkout session has no subscription' }), {
         status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
