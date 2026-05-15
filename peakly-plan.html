@@ -80,7 +80,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
   <div class="hero">
     <h1>Welcome to Peakly! <em>Choose your path</em> 🏔️</h1>
-    <p>Start free forever, take Pro for a 14-day spin (no card required), or jump straight to Pro and save 17% on yearly.</p>
+    <p>Start free forever, take Pro for a 7-day spin (no card required), or jump straight to Pro and save 17% on yearly.</p>
   </div>
 
   <div class="grid">
@@ -103,16 +103,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <div class="card featured">
       <div class="featured-badge">Most popular</div>
       <div class="name">Try Pro Free</div>
-      <div class="price">$0<small> for 14 days</small></div>
+      <div class="price">$0<small> for 7 days</small></div>
       <div class="sub">No credit card required</div>
       <ul>
         <li>Everything in Pro</li>
         <li>Unlimited goals</li>
         <li>All Life Admin sections</li>
         <li>All templates</li>
-        <li>Auto-reverts to Free at day 15</li>
+        <li>Auto-reverts to Free after 7 days</li>
       </ul>
-      <button class="btn btn-orange" id="trialBtn" onclick="chooseTrial()">Start 14-Day Free Trial</button>
+      <button class="btn btn-orange" id="trialBtn" onclick="chooseTrial()">Start 7-Day Free Trial</button>
     </div>
 
     <!-- PRO -->
@@ -218,9 +218,19 @@ async function chooseFree(){
 
 async function chooseTrial(){
   const user = await requireUser(); if(!user) return;
-  setBtnLoading('trialBtn', true, 'Start 14-Day Free Trial');
+  setBtnLoading('trialBtn', true, 'Start 7-Day Free Trial');
   try{
-    const ends = new Date(); ends.setDate(ends.getDate()+14);
+    // Server-side guard: if trial_ends_at was ever set this account already used its trial.
+    const { data: existing } = await sb.from('subscriptions')
+      .select('trial_ends_at').eq('user_id', user.id).single();
+    if(existing?.trial_ends_at){
+      setBtnLoading('trialBtn', false, 'Trial already used');
+      document.getElementById('trialBtn').disabled = true;
+      document.getElementById('trialBtn').className = 'btn btn-outline';
+      showToast('Your free trial has already been used. Subscribe to continue with Pro.');
+      return;
+    }
+    const ends = new Date(); ends.setDate(ends.getDate()+7);
     await sb.from('subscriptions').update({
       plan:'trial', trial_ends_at: ends.toISOString(), status:'trialing'
     }).eq('user_id', user.id);
@@ -229,7 +239,7 @@ async function chooseTrial(){
     localStorage.setItem('peakly_trial', JSON.stringify(true));
     window.location.href = 'peakly.html';
   }catch(e){
-    setBtnLoading('trialBtn', false, 'Start 14-Day Free Trial');
+    setBtnLoading('trialBtn', false, 'Start 7-Day Free Trial');
     showToast('Could not start trial — try again.');
   }
 }
@@ -270,10 +280,20 @@ async function chooseProCheckout(){
   // If user already has an active PAID plan, skip the picker. Trial and free
   // users intentionally come here to upgrade — don't bounce them to home.
   try{
-    const { data:sub } = await sb.from('subscriptions').select('plan,status').eq('user_id', session.user.id).single();
+    const { data:sub } = await sb.from('subscriptions')
+      .select('plan,status,trial_ends_at').eq('user_id', session.user.id).single();
     if(sub?.plan === 'pro' && sub?.status !== 'canceled'){
       window.location.href='peakly.html';
       return;
+    }
+    // If trial_ends_at was ever set the trial is used — disable the button immediately
+    // so returning users don't see an active "Start Trial" option.
+    if(sub?.trial_ends_at){
+      const btn = document.getElementById('trialBtn');
+      btn.disabled = true;
+      btn.textContent = 'Trial already used';
+      btn.className = 'btn btn-outline';
+      document.querySelector('.card.featured .sub').textContent = 'Subscribe below to keep Pro features';
     }
   }catch(e){}
   // Handle ?checkout=canceled

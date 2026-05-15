@@ -63,7 +63,8 @@ window.PeaklyConfig = {
   SITE_URL: 'https://getpeakly.co',
   PAYMENT_LINK_MONTHLY: 'https://buy.stripe.com/cNi00j2jzafW4fsaD97Zu00',
   PAYMENT_LINK_YEARLY: 'https://buy.stripe.com/7sYaEX2jzafWh2efXt7Zu01',
-  CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription'
+  CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription',
+  CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session'
 };
 
 // ─ Loads the user's subscription row and writes cache keys to localStorage.
