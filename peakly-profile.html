@@ -1077,7 +1077,10 @@ async function manageBilling(){
     });
     const json = await res.json();
     if(json.error === 'no_billing_account'){
-      // No Stripe customer yet — send to plan page
+      if(_currentSub?.plan === 'pro' || localStorage.getItem('peakly_plan') === 'pro'){
+        throw new Error('No Stripe billing account is linked to this Pro account yet. Try again after the latest billing functions finish syncing, or contact support.');
+      }
+      // No Stripe customer yet — send free/trial users to the plan page
       window.location.href = 'peakly-plan.html';
       return;
     }
@@ -1112,7 +1115,9 @@ function confirmCancel(){
         const json = await res.json();
         if(!res.ok){
           if(json.error === 'no active subscription'){
-            // Stripe ID not linked yet — open billing portal instead
+            if(_currentSub?.plan === 'pro' || localStorage.getItem('peakly_plan') === 'pro'){
+              throw new Error('No active Stripe subscription is linked to this Pro account yet. Try Manage billing again after billing sync finishes.');
+            }
             toast('Redirecting to billing portal to manage your subscription…');
             setTimeout(()=>manageBilling(), 1200);
             return;

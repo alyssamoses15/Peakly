@@ -22,6 +22,39 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+function subToRow(sub: Stripe.Subscription) {
+  const interval = (sub.items.data[0]?.plan?.interval === 'year') ? 'year' : 'month';
+  const status = sub.status;
+  const plan = (status === 'active' || status === 'trialing') ? 'pro' : 'free';
+
+  return {
+    plan,
+    status,
+    billing_interval: interval,
+    stripe_subscription_id: sub.id,
+    current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+    cancel_at_period_end: sub.cancel_at_period_end,
+    trial_ends_at: null,
+  };
+}
+
+async function findActiveSubscriptionByEmail(email?: string) {
+  if (!email) return null;
+  const customers = await stripe.customers.list({ email, limit: 10 });
+  for (const customer of customers.data) {
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'all',
+      limit: 10,
+    });
+    const subscription = subscriptions.data.find((sub: Stripe.Subscription) =>
+      ['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)
+    );
+    if (subscription) return { customerId: customer.id, subscription };
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method === 'GET') {
@@ -57,13 +90,27 @@ Deno.serve(async (req) => {
     );
     const { data: sub } = await supaAdmin.from('subscriptions')
       .select('stripe_subscription_id').eq('user_id', userId).single();
-    if (!sub?.stripe_subscription_id) {
+    let subscriptionId = sub?.stripe_subscription_id;
+
+    if (!subscriptionId) {
+      const repaired = await findActiveSubscriptionByEmail(user.email);
+      if (repaired?.subscription) {
+        subscriptionId = repaired.subscription.id;
+        await supaAdmin.from('subscriptions').upsert({
+          user_id: userId,
+          stripe_customer_id: repaired.customerId,
+          ...subToRow(repaired.subscription),
+        }, { onConflict: 'user_id' });
+      }
+    }
+
+    if (!subscriptionId) {
       return new Response(JSON.stringify({ error: 'no active subscription' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const updated = await stripe.subscriptions.update(sub.stripe_subscription_id, {
+    const updated = await stripe.subscriptions.update(subscriptionId, {
       cancel_at_period_end: !reactivate,
     });
 
