@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=7"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -137,7 +137,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
   <div class="foot">
     Already have a plan? <a href="peakly.html">Go to your dashboard →</a><br/>
-    <span style="color:var(--text4);">Test mode — use card 4242 4242 4242 4242 with any future date and CVC.</span>
+    <span style="color:var(--text4);">Secure checkout is handled by Stripe.</span>
   </div>
 </div>
 
@@ -203,9 +203,10 @@ async function chooseFree(){
   const user = await requireUser(); if(!user) return;
   setBtnLoading('freeBtn', true, 'Continue with Free');
   try{
-    await sb.from('subscriptions').update({
-      plan:'free', trial_ends_at:null, status:'active'
-    }).eq('user_id', user.id);
+    const { error } = await sb.from('subscriptions').upsert({
+      user_id:user.id, plan:'free', trial_ends_at:null, status:'active'
+    }, { onConflict:'user_id' });
+    if(error) throw error;
     localStorage.setItem('peakly_plan','free');
     localStorage.setItem('peakly_pro', JSON.stringify(false));
     localStorage.setItem('peakly_trial', JSON.stringify(false));
@@ -222,7 +223,7 @@ async function chooseTrial(){
   try{
     // Server-side guard: if trial_ends_at was ever set this account already used its trial.
     const { data: existing } = await sb.from('subscriptions')
-      .select('trial_ends_at').eq('user_id', user.id).single();
+      .select('trial_ends_at').eq('user_id', user.id).maybeSingle();
     if(existing?.trial_ends_at){
       setBtnLoading('trialBtn', false, 'Trial already used');
       document.getElementById('trialBtn').disabled = true;
@@ -231,9 +232,10 @@ async function chooseTrial(){
       return;
     }
     const ends = new Date(); ends.setDate(ends.getDate()+7);
-    await sb.from('subscriptions').update({
-      plan:'trial', trial_ends_at: ends.toISOString(), status:'trialing'
-    }).eq('user_id', user.id);
+    const { error } = await sb.from('subscriptions').upsert({
+      user_id:user.id, plan:'trial', trial_ends_at: ends.toISOString(), status:'trialing'
+    }, { onConflict:'user_id' });
+    if(error) throw error;
     localStorage.setItem('peakly_plan','trial');
     localStorage.setItem('peakly_pro', JSON.stringify(true));
     localStorage.setItem('peakly_trial', JSON.stringify(true));
@@ -248,13 +250,25 @@ async function chooseProCheckout(){
   const user = await requireUser(); if(!user) return;
   setBtnLoading('proBtn', true, 'Subscribe to Pro');
   try{
-    const paymentLink = interval==='year' ? cfg.PAYMENT_LINK_YEARLY : cfg.PAYMENT_LINK_MONTHLY;
-    if(!paymentLink){
-      throw new Error('Payment link not configured — contact support.');
+    const session = currentSession || (await sb.auth.getSession()).data.session;
+    if(!session) throw new Error('Please log in first.');
+    const priceId = interval==='year' ? cfg.PRICE_YEARLY : cfg.PRICE_MONTHLY;
+    if(!priceId || !cfg.CREATE_CHECKOUT_URL){
+      throw new Error('Checkout is not configured — contact support.');
     }
-    // Redirect to Stripe Payment Link with user context
-    const linkWithParams = `${paymentLink}?client_reference_id=${encodeURIComponent(user.id)}&prefilled[email]=${encodeURIComponent(user.email)}`;
-    window.location.href = linkWithParams;
+    const res = await fetch(cfg.CREATE_CHECKOUT_URL, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': cfg.SUPABASE_KEY
+      },
+      body: JSON.stringify({ priceId, userId:user.id, email:user.email })
+    });
+    const json = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(json.error || 'Could not start checkout.');
+    if(!json.url) throw new Error('Checkout did not return a redirect URL.');
+    window.location.href = json.url;
   }catch(e){
     setBtnLoading('proBtn', false, 'Subscribe to Pro');
     const msg = String(e.message||'');

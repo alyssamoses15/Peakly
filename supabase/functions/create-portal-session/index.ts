@@ -47,7 +47,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: sub } = await supa.from('subscriptions')
+    const supaAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+    const { data: sub } = await supaAdmin.from('subscriptions')
       .select('stripe_customer_id').eq('user_id', userId).single();
 
     if (!sub?.stripe_customer_id) {
