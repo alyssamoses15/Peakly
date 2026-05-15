@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=8"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1066,14 +1066,14 @@ async function manageBilling(){
     const btn = document.querySelector('[onclick="manageBilling()"]');
     if(btn){ btn.disabled=true; btn.textContent='Loading…'; }
 
-    const res = await fetch(window.PeaklyConfig.CREATE_PORTAL_SESSION_URL, {
-      method:'POST',
+    const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CREATE_PORTAL_SESSION_URL, {
       headers:{
         'Content-Type':'application/json',
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': window.PeaklyConfig.SUPABASE_KEY
       },
-      body: JSON.stringify({ userId: session.user.id })
+      body: { userId: session.user.id },
+      missingMessage: 'Billing portal is not deployed yet. Deploy the create-portal-session Supabase function, then try again.'
     });
     const json = await res.json();
     if(json.error === 'no_billing_account'){
@@ -1100,14 +1100,14 @@ function confirmCancel(){
         if(!sb){ toast('Sync library not loaded — try refresh.'); return; }
         const { data:{ session } } = await sb.auth.getSession();
         if(!session){ toast('Please log in again.'); return; }
-        const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
-          method:'POST',
+        const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
           headers:{
             'Content-Type':'application/json',
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': window.PeaklyConfig.SUPABASE_KEY
           },
-          body: JSON.stringify({ userId: session.user.id })
+          body: { userId: session.user.id },
+          missingMessage: 'Subscription cancel is not deployed yet. Deploy the cancel-subscription Supabase function, then try again.'
         });
         const json = await res.json();
         if(!res.ok){
@@ -1132,14 +1132,14 @@ async function reactivateSubscription(){
     if(!sb) return;
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ toast('Please log in again.'); return; }
-    const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
-      method:'POST',
+    const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
       headers:{
         'Content-Type':'application/json',
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': window.PeaklyConfig.SUPABASE_KEY
       },
-      body: JSON.stringify({ userId: session.user.id, reactivate: true })
+      body: { userId: session.user.id, reactivate: true },
+      missingMessage: 'Subscription reactivation is not deployed yet. Deploy the cancel-subscription Supabase function, then try again.'
     });
     const json = await res.json();
     if(!res.ok) throw new Error(json.error || 'Reactivate failed');

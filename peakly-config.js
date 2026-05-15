@@ -69,6 +69,45 @@ window.PeaklyConfig = {
   CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session'
 };
 
+window.PeaklyEdge = {
+  async isMissing(url){
+    try{
+      const res = await fetch(url, { method:'GET', cache:'no-store' });
+      if(res.status !== 404) return false;
+      const body = await res.text().catch(()=>'');
+      return res.headers.get('sb-error-code') === 'NOT_FOUND'
+        || body.includes('Requested function was not found');
+    }catch(e){
+      return false;
+    }
+  },
+
+  async postJson(url, { headers = {}, body = {}, missingMessage = '' } = {}){
+    if(await this.isMissing(url)){
+      const err = new Error(missingMessage || 'Billing server is not deployed yet. Please deploy the Supabase Edge Function and try again.');
+      err.code = 'edge_function_missing';
+      throw err;
+    }
+
+    try{
+      return await fetch(url, {
+        method:'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+    }catch(e){
+      const msg = String(e?.message || e || '');
+      if(msg.includes('Failed to fetch') || msg.includes('NetworkError')){
+        const err = new Error(missingMessage || 'Billing server is not reachable. Please deploy the Supabase Edge Function and try again.');
+        err.code = 'edge_function_fetch_failed';
+        err.cause = e;
+        throw err;
+      }
+      throw e;
+    }
+  }
+};
+
 // ─ Loads the user's subscription row and writes cache keys to localStorage.
 // Returns { plan, hasAccess, trialDaysLeft, sub }. The Supabase row is
 // authoritative — localStorage is only a cache to avoid flash on page nav.
