@@ -65,6 +65,9 @@ window.PeaklyConfig = {
   PAYMENT_LINK_YEARLY: 'https://buy.stripe.com/7sYaEX2jzafWh2efXt7Zu01',
   CREATE_CHECKOUT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-checkout',
   SYNC_CHECKOUT_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/sync-checkout-session',
+  SET_FREE_PLAN_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/set-free-plan',
+  START_TRIAL_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/start-trial',
+  EXPIRE_TRIAL_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/expire-trial',
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription',
   CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session',
   DELETE_ACCOUNT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/delete-account'
@@ -165,7 +168,19 @@ window.PeaklyAuth = {
           // trial expired — flip to free server-side
           plan = 'free';
           hasAccess = false;
-          try{ await sb.from('subscriptions').update({ plan:'free' }).eq('user_id', user.id); }catch(e){}
+          try{
+            await window.PeaklyEdge.postJson(window.PeaklyConfig.EXPIRE_TRIAL_URL, {
+              headers:{
+                'Content-Type':'application/json',
+                'Authorization': `Bearer ${(await sb.auth.getSession()).data.session?.access_token || ''}`,
+                'apikey': window.PeaklyConfig.SUPABASE_KEY
+              },
+              body:{ userId:user.id },
+              missingMessage:'Trial expiry service is not deployed yet.'
+            });
+          }catch(e){
+            try{ await sb.from('subscriptions').update({ plan:'free', status:'expired' }).eq('user_id', user.id); }catch(_){}
+          }
         }
       }
     }
