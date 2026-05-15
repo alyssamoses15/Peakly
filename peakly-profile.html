@@ -1250,35 +1250,33 @@ function confirmDelete(){
     'This permanently deletes your Peakly account and all your data. Your subscription will be cancelled immediately. This cannot be undone.',
     async ()=>{
       try{
-        const sb2 = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const sb2 = await getSb();
+        if(!sb2) throw new Error('Billing/account services are not loaded. Please refresh and try again.');
         const { data:{ session } } = await sb2.auth.getSession();
         if(!session) throw new Error('Not logged in');
 
-        const res = await fetch(
-          `${SUPABASE_URL.replace('supabase.co','supabase.co')}/functions/v1/delete-account`,
-          {
-            method:'POST',
-            headers:{
-              'Content-Type':'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ userId: session.user.id }),
-          }
-        );
+        const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.DELETE_ACCOUNT_URL, {
+          headers:{
+            'Content-Type':'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': window.PeaklyConfig.SUPABASE_KEY
+          },
+          body: { userId: session.user.id },
+          missingMessage: 'Account deletion is not deployed yet. Please contact support before deleting your local data.'
+        });
         const json = await res.json();
         if(!res.ok) throw new Error(json.error || 'Deletion failed');
-      }catch(e){
-        // Even if the server call fails, clear local state and sign out
-        console.error('delete-account error:', e);
-      }finally{
+
         localStorage.clear();
         try{
-          const sb3 = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-          await sb3.auth.signOut();
+          await sb2.auth.signOut();
         }catch(_){}
+        toast('Account deleted. Redirecting…');
+        setTimeout(()=>window.location.href='peakly-auth.html', 2000);
+      }catch(e){
+        console.error('delete-account error:', e);
+        toast(e.message || 'Could not delete account. Your subscription was not changed — please try again or contact support.');
       }
-      toast('Account deleted. Redirecting…');
-      setTimeout(()=>window.location.href='peakly-auth.html', 2000);
     }
   );
 }

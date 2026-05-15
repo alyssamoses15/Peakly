@@ -66,7 +66,8 @@ window.PeaklyConfig = {
   CREATE_CHECKOUT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-checkout',
   SYNC_CHECKOUT_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/sync-checkout-session',
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription',
-  CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session'
+  CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session',
+  DELETE_ACCOUNT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/delete-account'
 };
 
 window.PeaklyEdge = {
