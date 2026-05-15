@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Peakly</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#1A5FA8;--blue-light:#EFF6FF;--blue-dark:#0F3D6E;
+  --orange:#F97316;
+  --green:#059669;--green-light:#ECFDF5;
+  --bg:#F0F4FA;--white:#FFFFFF;
+  --text:#0F1C2E;--text2:#3D5068;--text3:#7A93B0;
+  --border:#D4E0EE;
+  --display:'Playfair Display',Georgia,serif;
+  --font:'Plus Jakarta Sans',system-ui,sans-serif;
+  --r:10px;--rm:14px;--rl:20px;
+}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+
+/* ── HEADER ─────────────────────────────── */
+.site-header{
+  background:var(--white);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;
+  height:64px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.logo{
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;
+}
+.logo-icon{
+  width:36px;height:36px;background:var(--blue);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.logo-text{font-family:var(--display);font-size:20px;font-weight:700;color:var(--text);}
+.header-nav{display:flex;gap:8px;}
+.header-nav a{
+  font-size:14px;font-weight:500;color:var(--text2);
+  text-decoration:none;padding:8px 14px;border-radius:var(--r);
+  transition:background 0.15s,color 0.15s;
+}
+.header-nav a:hover{background:var(--bg);color:var(--blue);}
+.header-nav a.active{color:var(--blue);background:var(--blue-light);}
+
+/* ── PAGE CONTENT ─────────────────────────────── */
+.page-wrap{
+  max-width:780px;margin:0 auto;
+  padding:48px 24px 80px;
+}
+.page-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--blue-light);color:var(--blue);
+  font-size:12px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;
+  padding:4px 12px;border-radius:100px;margin-bottom:20px;
+}
+.page-title{
+  font-family:var(--display);
+  font-size:clamp(32px,5vw,48px);font-weight:900;
+  color:var(--text);line-height:1.1;
+  margin-bottom:12px;
+}
+.page-meta{
+  font-size:14px;color:var(--text3);margin-bottom:48px;
+  padding-bottom:32px;border-bottom:1px solid var(--border);
+}
+
+/* ── LEGAL CONTENT ─────────────────────────────── */
+.legal-body section{margin-bottom:40px;}
+.legal-body h2{
+  font-family:var(--display);
+  font-size:22px;font-weight:700;
+  color:var(--text);margin-bottom:14px;
+  padding-top:8px;
+}
+.legal-body h3{
+  font-size:16px;font-weight:700;color:var(--text);
+  margin-bottom:10px;margin-top:20px;
+}
+.legal-body p{
+  font-size:15px;line-height:1.75;color:var(--text2);
+  margin-bottom:12px;
+}
+.legal-body ul,
+.legal-body ol{
+  padding-left:22px;margin-bottom:12px;
+}
+.legal-body li{
+  font-size:15px;line-height:1.75;color:var(--text2);
+  margin-bottom:6px;
+}
+.callout{
+  background:var(--blue-light);border-left:4px solid var(--blue);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:16px 20px;margin-bottom:20px;
+}
+.callout p{color:var(--blue-dark);margin-bottom:0;}
+.callout strong{color:var(--blue);}
+.promise{
+  background:var(--green-light);border-left:4px solid var(--green);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:16px 20px;margin-bottom:20px;
+}
+.promise p{color:#064E3B;margin-bottom:0;}
+.promise strong{color:var(--green);}
+
+/* ── PROMISE GRID ─────────────────────────────── */
+.promise-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:16px;margin-bottom:32px;
+}
+.promise-card{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:var(--rm);padding:20px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.promise-card-icon{font-size:24px;}
+.promise-card-title{font-size:14px;font-weight:700;color:var(--text);}
+.promise-card-desc{font-size:13px;color:var(--text2);line-height:1.6;}
+
+/* ── TOC ─────────────────────────────── */
+.toc{
+  background:var(--white);border:1px solid var(--border);
+  border-radius:var(--rl);padding:24px 28px;
+  margin-bottom:48px;
+}
+.toc-title{
+  font-size:13px;font-weight:700;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--text3);margin-bottom:14px;
+}
+.toc ol{padding-left:18px;}
+.toc li{margin-bottom:8px;}
+.toc a{
+  font-size:14px;color:var(--blue);text-decoration:none;font-weight:500;
+}
+.toc a:hover{text-decoration:underline;}
+
+/* ── DATA TABLE ─────────────────────────────── */
+.data-table{
+  width:100%;border-collapse:collapse;margin-bottom:20px;
+  font-size:14px;
+}
+.data-table th{
+  text-align:left;padding:10px 14px;
+  background:var(--bg);color:var(--text);font-weight:700;
+  border-bottom:2px solid var(--border);
+}
+.data-table td{
+  padding:10px 14px;color:var(--text2);
+  border-bottom:1px solid var(--border);vertical-align:top;
+  line-height:1.6;
+}
+.data-table tr:last-child td{border-bottom:none;}
+
+/* ── FOOTER ─────────────────────────────── */
+.legal-footer{
+  margin-top:56px;padding-top:32px;border-top:1px solid var(--border);
+  text-align:center;
+}
+.legal-footer p{font-size:14px;color:var(--text3);margin-bottom:8px;}
+.legal-footer a{color:var(--blue);text-decoration:none;font-weight:500;}
+.legal-footer a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ─────────────────────────────── -->
+<header class="site-header">
+  <a href="index.html.html" class="logo">
+    <div class="logo-icon">⛰️</div>
+    <span class="logo-text">Peakly</span>
+  </a>
+  <nav class="header-nav">
+    <a href="peakly-terms.html">Terms of Service</a>
+    <a href="peakly-privacy.html" class="active">Privacy Policy</a>
+    <a href="peakly-auth.html">Sign up</a>
+  </nav>
+</header>
+
+<!-- ── CONTENT ─────────────────────────────── -->
+<main class="page-wrap">
+  <div class="page-badge">Legal</div>
+  <h1 class="page-title">Privacy Policy</h1>
+  <p class="page-meta">Effective date: May 10, 2026 &nbsp;·&nbsp; Last updated: May 10, 2026</p>
+
+  <div class="callout">
+    <p><strong>Plain English summary:</strong> Peakly collects only what it needs to run the app and process your subscription. We do not sell your data. We do not show ads. We do not use your data to target you or profile you for third parties. Your goals and personal information are yours.</p>
+  </div>
+
+  <!-- Promise cards -->
+  <div class="promise-grid">
+    <div class="promise-card">
+      <div class="promise-card-icon">🚫</div>
+      <div class="promise-card-title">No Ads. Ever.</div>
+      <div class="promise-card-desc">We don't run ads inside Peakly and never will. Your attention is yours.</div>
+    </div>
+    <div class="promise-card">
+      <div class="promise-card-icon">🔒</div>
+      <div class="promise-card-title">We Don't Sell Your Data</div>
+      <div class="promise-card-desc">We never sell, rent, or trade your personal information to any third party.</div>
+    </div>
+    <div class="promise-card">
+      <div class="promise-card-icon">🎯</div>
+      <div class="promise-card-title">No Targeting</div>
+      <div class="promise-card-desc">We don't profile you or share your data for behavioral advertising.</div>
+    </div>
+    <div class="promise-card">
+      <div class="promise-card-icon">🗑️</div>
+      <div class="promise-card-title">Delete Anytime</div>
+      <div class="promise-card-desc">You can delete your account and data at any time, no questions asked.</div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Table of Contents</div>
+    <ol>
+      <li><a href="#who-we-are">Who We Are</a></li>
+      <li><a href="#data-we-collect">Data We Collect</a></li>
+      <li><a href="#how-we-use">How We Use Your Data</a></li>
+      <li><a href="#no-selling">What We Will Never Do With Your Data</a></li>
+      <li><a href="#sharing">When We Share Data</a></li>
+      <li><a href="#third-party-providers">Third-Party Providers</a></li>
+      <li><a href="#cookies">Cookies and Local Storage</a></li>
+      <li><a href="#retention">Data Retention</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#your-rights">Your Rights and Choices</a></li>
+      <li><a href="#children">Children's Privacy</a></li>
+      <li><a href="#international">International Users</a></li>
+      <li><a href="#changes">Changes to This Policy</a></li>
+      <li><a href="#contact">Contact Us</a></li>
+    </ol>
+  </div>
+
+  <div class="legal-body">
+
+    <!-- 1 -->
+    <section id="who-we-are">
+      <h2>1. Who We Are</h2>
+      <p>Peakly ("Peakly," "we," "us," or "our") operates the Peakly application and website (the "Service"). This Privacy Policy explains how we collect, use, store, and protect your personal information when you use the Service.</p>
+      <p>This Policy applies to all users of the Service, including visitors to our website and subscribers. By using the Service, you consent to the practices described in this Policy.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="data-we-collect">
+      <h2>2. Data We Collect</h2>
+      <p>We collect only what is necessary to provide and improve the Service.</p>
+
+      <h3>Information You Provide Directly</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Data</th><th>Why We Collect It</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>First and last name</td><td>To personalize your experience in the app</td></tr>
+          <tr><td>Email address</td><td>Account creation, login, and service communications</td></tr>
+          <tr><td>Password (hashed)</td><td>Account authentication — we never store plain-text passwords</td></tr>
+          <tr><td>Goals, tasks, habits, notes, schedules</td><td>Core app functionality — to display and sync your data across sessions</td></tr>
+          <tr><td>Meal plans, routines, vehicle info, chore lists</td><td>Second Brain features — stored to provide the Service to you</td></tr>
+          <tr><td>Subscription and billing information</td><td>To process payments (handled by Stripe; we do not see full card details)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Information Collected Automatically</h3>
+      <table class="data-table">
+        <thead>
+          <tr><th>Data</th><th>Why We Collect It</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Authentication tokens and session data</td><td>To keep you securely logged in</td></tr>
+          <tr><td>Browser type and operating system (general)</td><td>To troubleshoot technical issues</td></tr>
+          <tr><td>Timestamps of app activity</td><td>For security auditing and to detect unauthorized access</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Information from Third-Party Sign-In</h3>
+      <p>If you sign in using Google OAuth, we receive your name and email address from Google. We do not receive your Google password or any other Google account data beyond what is needed to authenticate you.</p>
+
+      <h3>What We Do NOT Collect</h3>
+      <ul>
+        <li>We do not collect data about your behavior across other websites or apps</li>
+        <li>We do not purchase or import data about you from data brokers or other third parties</li>
+        <li>We do not use tracking pixels, cross-site cookies, or fingerprinting techniques</li>
+        <li>We do not collect sensitive personal data such as race, religion, health information, or political views</li>
+      </ul>
+    </section>
+
+    <!-- 3 -->
+    <section id="how-we-use">
+      <h2>3. How We Use Your Data</h2>
+      <p>We use the data we collect for the following purposes only:</p>
+      <ul>
+        <li><strong>Providing the Service:</strong> Storing and displaying your goals, tasks, habits, schedules, and other app content across sessions and devices</li>
+        <li><strong>Account management:</strong> Creating and managing your account, authenticating your identity, and enabling account recovery</li>
+        <li><strong>Payment processing:</strong> Facilitating subscription billing and renewals through Stripe</li>
+        <li><strong>Service communications:</strong> Sending transactional emails such as account verification, password reset, and subscription receipts — these are not marketing emails</li>
+        <li><strong>Security and fraud prevention:</strong> Detecting and responding to unauthorized access, abuse, or other harmful activity</li>
+        <li><strong>Service improvement:</strong> Identifying and fixing bugs and improving the reliability and performance of the Service, using aggregated and anonymized usage patterns only</li>
+        <li><strong>Legal compliance:</strong> Meeting our obligations under applicable laws and regulations</li>
+      </ul>
+      <p>We do not use your personal data for any other purpose without your explicit consent.</p>
+    </section>
+
+    <!-- 4 -->
+    <section id="no-selling">
+      <h2>4. What We Will Never Do With Your Data</h2>
+      <div class="promise">
+        <p><strong>These are firm commitments, not just policies.</strong> If we ever change our minds, we will give you advance notice and the ability to delete your account before any change takes effect.</p>
+      </div>
+      <ul>
+        <li><strong>We will never sell your personal data</strong> to any company, broker, advertiser, or other third party</li>
+        <li><strong>We will never rent or license your personal data</strong> for marketing or advertising purposes</li>
+        <li><strong>We will never use your data to show you advertisements</strong> inside or outside of the Service</li>
+        <li><strong>We will never build a behavioral profile of you</strong> for the purpose of targeted advertising</li>
+        <li><strong>We will never share your goals, notes, tasks, or other personal content</strong> with anyone except as necessary to provide the Service to you</li>
+        <li><strong>We will never use your data for political targeting</strong> or share it with political organizations</li>
+      </ul>
+    </section>
+
+    <!-- 5 -->
+    <section id="sharing">
+      <h2>5. When We Share Data</h2>
+      <p>We share your personal information only in the following limited circumstances:</p>
+      <h3>With Service Providers</h3>
+      <p>We share data with third-party companies that help us operate the Service (listed in Section 6). These providers are contractually restricted to using your data only to perform services for us and may not use it for their own purposes.</p>
+      <h3>For Legal Reasons</h3>
+      <p>We may disclose your information if required to do so by law or in good-faith belief that such action is necessary to:</p>
+      <ul>
+        <li>Comply with a legal obligation, court order, or valid government request</li>
+        <li>Protect and defend our legal rights or property</li>
+        <li>Prevent or investigate possible wrongdoing in connection with the Service</li>
+        <li>Protect the personal safety of users of the Service or the public</li>
+      </ul>
+      <p>Where possible and permitted by law, we will notify you before complying with such a request.</p>
+      <h3>Business Transfers</h3>
+      <p>If Peakly is involved in a merger, acquisition, or sale of all or a portion of its assets, your data may be transferred as part of that transaction. We will notify you via email or a prominent notice on the Service before your data is transferred and becomes subject to a different privacy policy. You will have the right to delete your account before any transfer takes effect.</p>
+      <h3>With Your Consent</h3>
+      <p>We may share your information for any other purpose with your explicit prior consent.</p>
+    </section>
+
+    <!-- 6 -->
+    <section id="third-party-providers">
+      <h2>6. Third-Party Providers</h2>
+      <p>The following third-party providers receive some of your data as necessary to operate the Service. We share only the minimum data required for each provider to perform their function.</p>
+      <table class="data-table">
+        <thead>
+          <tr><th>Provider</th><th>Purpose</th><th>Data Shared</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Supabase</strong></td>
+            <td>Database, authentication, and cloud infrastructure</td>
+            <td>All app data you create (goals, tasks, etc.), email, name, hashed password</td>
+          </tr>
+          <tr>
+            <td><strong>Stripe</strong></td>
+            <td>Payment processing</td>
+            <td>Email, payment card details (processed directly by Stripe; we see only the last 4 digits and expiry)</td>
+          </tr>
+          <tr>
+            <td><strong>Google</strong></td>
+            <td>Optional sign-in via Google OAuth</td>
+            <td>Name and email only (if you choose Google sign-in)</td>
+          </tr>
+          <tr>
+            <td><strong>Netlify</strong></td>
+            <td>Web hosting and content delivery</td>
+            <td>Standard web request logs (IP address, browser type, page accessed)</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Each of these providers has their own privacy policy. We encourage you to review them. We select providers based on their data security and privacy practices.</p>
+    </section>
+
+    <!-- 7 -->
+    <section id="cookies">
+      <h2>7. Cookies and Local Storage</h2>
+      <p>We use a minimal set of browser-based storage mechanisms to operate the Service:</p>
+      <ul>
+        <li><strong>Authentication tokens (session storage / local storage):</strong> Used to keep you logged in across page reloads. These are not used for tracking.</li>
+        <li><strong>Preference storage:</strong> We may store small amounts of app preferences (such as view settings) in your browser's local storage.</li>
+      </ul>
+      <p>We do not use third-party advertising cookies, tracking pixels, or cross-site cookies of any kind.</p>
+      <p>You can clear your browser's local storage and cookies at any time through your browser settings. Doing so will log you out of the Service.</p>
+    </section>
+
+    <!-- 8 -->
+    <section id="retention">
+      <h2>8. Data Retention</h2>
+      <p>We retain your personal data for as long as your account is active or as needed to provide the Service.</p>
+      <ul>
+        <li><strong>Active accounts:</strong> We retain your data as long as your account exists so you can access the Service.</li>
+        <li><strong>After cancellation:</strong> If you cancel your subscription, your account and data remain available until the end of your paid period. After that, your account becomes inactive but data is retained for 90 days to allow re-activation.</li>
+        <li><strong>After account deletion:</strong> When you delete your account, we will delete or anonymize your personal data within 30 days, except where we are required to retain certain records by law (for example, payment records for tax compliance, which are typically kept for 7 years).</li>
+        <li><strong>Aggregated/anonymized data:</strong> We may retain anonymized, non-identifiable aggregate data (such as feature usage counts) indefinitely for product improvement purposes.</li>
+      </ul>
+    </section>
+
+    <!-- 9 -->
+    <section id="security">
+      <h2>9. Security</h2>
+      <p>We take the security of your personal data seriously and implement industry-standard safeguards, including:</p>
+      <ul>
+        <li>Encryption of data in transit using TLS (HTTPS)</li>
+        <li>Encryption of data at rest via our infrastructure provider (Supabase)</li>
+        <li>Passwords are hashed and salted — we cannot read your password</li>
+        <li>Access to production data is restricted to authorized personnel only</li>
+        <li>Payments are handled entirely by Stripe and are subject to PCI-DSS compliance</li>
+      </ul>
+      <p>However, no security measure is perfect. We cannot guarantee the absolute security of your data. In the event of a data breach that affects your personal information, we will notify you as required by applicable law.</p>
+      <p>You are responsible for keeping your account credentials secure. Do not share your password with anyone.</p>
+    </section>
+
+    <!-- 10 -->
+    <section id="your-rights">
+      <h2>10. Your Rights and Choices</h2>
+      <p>Depending on your location, you may have certain rights regarding your personal data. We honor these rights for all users regardless of jurisdiction:</p>
+      <ul>
+        <li><strong>Access:</strong> You may request a copy of the personal data we hold about you.</li>
+        <li><strong>Correction:</strong> You may update or correct inaccurate information through your account settings or by contacting us.</li>
+        <li><strong>Deletion:</strong> You may request deletion of your account and personal data. See Section 8 for retention details.</li>
+        <li><strong>Portability:</strong> You may request an export of your data in a machine-readable format.</li>
+        <li><strong>Objection / Restriction:</strong> You may object to certain processing of your data or request that we restrict processing while a complaint is under investigation.</li>
+        <li><strong>Withdraw consent:</strong> Where processing is based on consent, you may withdraw that consent at any time without affecting the lawfulness of prior processing.</li>
+      </ul>
+      <p>To exercise any of these rights, contact us at <strong>support@peakly.app</strong>. We will respond within 30 days. We will not discriminate against you for exercising any of these rights.</p>
+      <h3>California Residents (CCPA)</h3>
+      <p>California residents have additional rights under the California Consumer Privacy Act (CCPA). We do not sell personal information as defined under the CCPA. You have the right to know what personal information we collect, to delete it, and to opt out of any sale (we do not sell data). To submit a request, contact us at support@peakly.app.</p>
+      <h3>EEA, UK, and Swiss Users (GDPR)</h3>
+      <p>If you are located in the European Economic Area, United Kingdom, or Switzerland, you have rights under the General Data Protection Regulation (GDPR) or equivalent law. Our legal basis for processing your data is primarily:</p>
+      <ul>
+        <li><strong>Contract performance</strong> — processing necessary to provide the Service you have subscribed to</li>
+        <li><strong>Legitimate interests</strong> — security, fraud prevention, and service improvement</li>
+        <li><strong>Legal obligation</strong> — compliance with applicable law</li>
+      </ul>
+      <p>You also have the right to lodge a complaint with your local data protection authority.</p>
+    </section>
+
+    <!-- 11 -->
+    <section id="children">
+      <h2>11. Younger Users and Children's Privacy</h2>
+      <p>Peakly is designed to be a helpful tool for users of all ages — including high schoolers managing college goals, sports, activities, and friendships, as well as parents who use the app alongside their older children. We welcome these users.</p>
+      <h3>Minimum Age: 13</h3>
+      <p>Users must be at least 13 years old to create an account. We do not knowingly collect personal information from children under the age of 13. If you believe a child under 13 has created an account or provided us personal information, please contact us at support@peakly.app and we will delete that information promptly.</p>
+      <h3>Users Ages 13–17 (Minors)</h3>
+      <p>Users between the ages of 13 and 17 are welcome to use Peakly with the knowledge and consent of a parent or legal guardian. We encourage parents to use Peakly together with their teenagers as a shared goal-setting and life-management tool.</p>
+      <p>We collect the same minimum data from Minor users as we do from adult users (name, email, app content). We do not collect additional data from Minors, we do not target Minors with advertising, and we do not sell any data relating to Minor users.</p>
+      <h3>Parental Controls</h3>
+      <p>Parents or guardians may contact us at support@peakly.app to request access to, correction of, or deletion of their minor child's account and data. We will verify the request and respond within 30 days.</p>
+    </section>
+
+    <!-- 12 -->
+    <section id="international">
+      <h2>12. International Users</h2>
+      <p>Peakly is operated from the United States. If you access the Service from outside the United States, please be aware that your information may be transferred to, stored, and processed in the United States, where data protection laws may differ from those in your country.</p>
+      <p>By using the Service, you consent to this transfer. We take steps to ensure that appropriate safeguards are in place to protect your data in accordance with this Policy.</p>
+    </section>
+
+    <!-- 13 -->
+    <section id="changes">
+      <h2>13. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. When we make material changes, we will notify you by:</p>
+      <ul>
+        <li>Posting a prominent notice within the Service, or</li>
+        <li>Sending an email to the address associated with your account</li>
+      </ul>
+      <p>We will always indicate the effective date of the most recent version at the top of this page. Your continued use of the Service after the effective date of any updated Policy constitutes your acceptance of the changes.</p>
+      <p>We will never retroactively apply changes that reduce your privacy protections without providing you an opportunity to delete your account first.</p>
+    </section>
+
+    <!-- 14 -->
+    <section id="contact">
+      <h2>14. Contact Us</h2>
+      <p>If you have questions, concerns, or requests related to this Privacy Policy or our data practices, please contact us:</p>
+      <ul>
+        <li><strong>Email:</strong> support@peakly.app</li>
+        <li><strong>Response time:</strong> We aim to respond within 5 business days.</li>
+      </ul>
+      <p>For questions about billing or your subscription, please include your account email so we can assist you efficiently.</p>
+    </section>
+
+  </div>
+
+  <div class="legal-footer">
+    <p>This Privacy Policy was last updated on May 10, 2026.</p>
+    <p><a href="peakly-terms.html">Terms of Service</a> &nbsp;·&nbsp; <a href="peakly-auth.html">Sign up</a> &nbsp;·&nbsp; <a href="index.html.html">Home</a></p>
+  </div>
+</main>
+
+</body>
+</html>

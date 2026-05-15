@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=7"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1308,12 +1308,30 @@ function App(){
   useEffect(()=>{
     const params=new URLSearchParams(window.location.search);
     if(params.get('checkout')!=='success')return;
+    const checkoutSessionId=params.get('session_id');
     let tries=0;
+    let syncedCheckout=false;
     const refresh=async()=>{
       tries++;
       if(!window.sb||!window.PeaklyAuth)return;
       const { data:{ session } } = await window.sb.auth.getSession();
       if(!session)return;
+      if(checkoutSessionId&&!syncedCheckout&&window.PeaklyConfig?.SYNC_CHECKOUT_SESSION_URL){
+        try{
+          const res=await fetch(window.PeaklyConfig.SYNC_CHECKOUT_SESSION_URL,{
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              'Authorization':`Bearer ${session.access_token}`,
+              'apikey':window.PeaklyConfig.SUPABASE_KEY
+            },
+            body:JSON.stringify({sessionId:checkoutSessionId,userId:session.user.id})
+          });
+          if(res.ok) syncedCheckout=true;
+        }catch(e){
+          // Keep polling below; the Stripe webhook may still sync the row.
+        }
+      }
       const result = await window.PeaklyAuth.loadSubscription(window.sb, session.user);
       if(result.plan==='pro'){
         setCongrats({title:'Welcome to Pro! 🏔️',msg:'Your subscription is active. Time to lock in those goals.',emoji:'⭐'});

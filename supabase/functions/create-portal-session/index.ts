@@ -1,17 +1,11 @@
-// supabase/functions/create-checkout/index.ts
+// supabase/functions/create-portal-session/index.ts
 //
-// Creates a Stripe Checkout Session for a Peakly Pro subscription.
-// Frontend calls this with { priceId, userId } and the function returns
-// { url } which the client redirects the user to.
+// Creates a Stripe Customer Portal session so users can manage billing,
+// update payment methods, and cancel subscriptions directly on Stripe.
 //
-// Deploy:
-//   npx supabase functions deploy create-checkout
-//
-// Required Supabase secrets:
-//   STRIPE_SECRET_KEY  — sk_test_... or sk_live_...
-//   SITE_URL           — e.g. https://getpeakly.co
-//
-// CORS: allows the frontend origin to POST. Adjust ALLOWED_ORIGIN in prod.
+// Requires: STRIPE_SECRET_KEY, SITE_URL secrets in Supabase.
+// The Stripe Customer Portal must be enabled in:
+//   Stripe Dashboard → Settings → Billing → Customer portal
 
 import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
@@ -33,14 +27,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { priceId, userId, email } = await req.json();
-    if (!priceId || !userId) {
-      return new Response(JSON.stringify({ error: 'priceId and userId required' }), {
+    const { userId } = await req.json();
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'userId required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Verify the caller is the user they claim to be via JWT.
     const authHeader = req.headers.get('Authorization') ?? '';
     const supa = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -54,28 +47,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Reuse an existing Stripe customer for this user if we have one.
-    let customerId: string | undefined;
     const supaAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
-    const { data: subRow } = await supaAdmin.from('subscriptions')
+    const { data: sub } = await supaAdmin.from('subscriptions')
       .select('stripe_customer_id').eq('user_id', userId).single();
-    if (subRow?.stripe_customer_id) customerId = subRow.stripe_customer_id;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      customer: customerId,
-      customer_email: customerId ? undefined : (email || user.email),
-      client_reference_id: userId,
-      metadata: { user_id: userId },
-      subscription_data: { metadata: { user_id: userId } },
-      success_url: `${SITE_URL}/peakly.html?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${SITE_URL}/peakly-plan.html?checkout=canceled`,
-      allow_promotion_codes: true,
+    if (!sub?.stripe_customer_id) {
+      return new Response(JSON.stringify({ error: 'no_billing_account' }), {
+        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: sub.stripe_customer_id,
+      return_url: `${SITE_URL}/peakly-profile.html`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
