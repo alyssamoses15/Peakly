@@ -46,6 +46,7 @@ function subToRow(sub: Stripe.Subscription) {
     stripe_subscription_id: sub.id,
     current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
     cancel_at_period_end: sub.cancel_at_period_end,
+    trial_ends_at: null,
   };
 }
 
@@ -63,13 +64,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
   const sub = await stripe.subscriptions.retrieve(subId);
   const row = subToRow(sub);
+  const customerId = typeof session.customer === 'string'
+    ? session.customer
+    : typeof sub.customer === 'string'
+      ? sub.customer
+      : sub.customer.id;
 
   console.log(`[webhook] checkout completed — userId=${userId} subId=${subId} status=${sub.status}`);
 
   const { error } = await supaAdmin.from('subscriptions').upsert({
     user_id: userId,
     ...row,
-    stripe_customer_id: session.customer as string,
+    stripe_customer_id: customerId,
   }, { onConflict: 'user_id' });
 
   if (error) {
@@ -93,7 +99,12 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription) {
     return;
   }
 
-  const { error } = await supaAdmin.from('subscriptions').update(subToRow(sub)).eq('user_id', userId);
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+  const { error } = await supaAdmin.from('subscriptions').upsert({
+    user_id: userId,
+    ...subToRow(sub),
+    stripe_customer_id: customerId,
+  }, { onConflict: 'user_id' });
   if (error) {
     console.error('[webhook] failed to update subscription:', error.message);
   } else {
