@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="peakly-config.js?v=7"></script>
+<script src="peakly-config.js?v=8"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -256,14 +256,14 @@ async function chooseProCheckout(){
     if(!priceId || !cfg.CREATE_CHECKOUT_URL){
       throw new Error('Checkout is not configured — contact support.');
     }
-    const res = await fetch(cfg.CREATE_CHECKOUT_URL, {
-      method:'POST',
+    const res = await window.PeaklyEdge.postJson(cfg.CREATE_CHECKOUT_URL, {
       headers:{
         'Content-Type':'application/json',
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': cfg.SUPABASE_KEY
       },
-      body: JSON.stringify({ priceId, userId:user.id, email:user.email })
+      body: { priceId, userId:user.id, email:user.email },
+      missingMessage: 'Checkout is not deployed yet. Deploy the create-checkout Supabase function, then try again.'
     });
     const json = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(json.error || 'Could not start checkout.');

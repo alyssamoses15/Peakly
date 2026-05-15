@@ -38,6 +38,11 @@ function subToRow(sub: Stripe.Subscription) {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ ok: true, function: 'sync-checkout-session' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
