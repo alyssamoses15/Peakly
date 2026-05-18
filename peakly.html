@@ -659,7 +659,10 @@ function GoalList({goals,onToggle}){
             {done&&<svg width="8" height="6" viewBox="0 0 8 6"><path d="M1 3l2 2 4-4" stroke="white" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
           </div>
           <span style={{flex:1,fontSize:12,fontWeight:done?400:600,color:done?'var(--text3)':'var(--text)',textDecoration:done?'line-through':'none',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{ev.title}</span>
-          {ev.time&&<span style={{fontSize:10,color:'var(--text4)',flexShrink:0,fontWeight:500}}>{fmtHour(parseInt(ev.time.split(':')[0]))}</span>}
+          {editingTimeId===ev.id
+            ?<input type="time" defaultValue={ev.time} autoFocus style={{width:78,fontSize:10,border:'1px solid var(--border)',borderRadius:4,padding:'1px 3px',fontFamily:'var(--font)',flexShrink:0}} onClick={e=>e.stopPropagation()} onBlur={e=>{setEditingTimeId(null);if(e.target.value)changeTime(ev,e.target.value);}}/>
+            :ev.time&&<span onClick={e=>{e.stopPropagation();setEditingTimeId(ev.id);}} title="Tap to change time" style={{fontSize:10,color:'var(--blue)',flexShrink:0,fontWeight:600,cursor:'pointer',textDecoration:'underline dotted'}}>⏰{fmtHour(parseInt(ev.time.split(':')[0]))}</span>
+          }
           <span style={{fontSize:10,flexShrink:0}}>{typeMap[ev.type]||'📌'}</span>
         </div>
         {(ev.type==='lifeadmin'||ev.type==='manual')&&<button onClick={handleDelete}
@@ -811,7 +814,7 @@ function getCalendarEvents(){
     if(cfg.days&&cfg.days[dow]===false)return;
     const isNight=rk.includes('Night');
     const evId='r_'+rk+'_'+todayStr;
-    evs.push({id:evId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',time:cfg.time,dur:LS.get('cal_dur_'+evId,parseInt(cfg.duration)||30),color:'#F97316',checkKey:'routine_done_'+rk+'_'+todayStr,page:'peakly-second-brain-1.html'});
+    evs.push({id:evId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',time:LS.get('routine_'+rk+'_time_'+todayStr,null)||cfg.time,dur:LS.get('cal_dur_'+evId,parseInt(cfg.duration)||30),color:'#F97316',checkKey:'routine_done_'+rk+'_'+todayStr,routineKey:rk,page:'peakly-second-brain-1.html'});
   });
 
   // 4. Work shifts — support multiple jobs per day by cycling through them
@@ -877,6 +880,40 @@ function HourCal(){
     },60000);
     return()=>clearInterval(interval);
   },[]);
+
+  const [editingTimeId,setEditingTimeId]=useState(null);
+
+  const changeTime=(ev,newTime)=>{
+    if(!newTime)return;
+    const tod=new Date().toDateString();
+    if(ev.type==='goal'&&ev.goalId&&ev.taskId){
+      LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
+      const pg=LS.get('peakly_goals',[]);
+      const gi=pg.findIndex(g=>String(g.id)===String(ev.goalId));
+      if(gi>-1&&pg[gi].todayTasks){
+        const ti=pg[gi].todayTasks.findIndex(t=>String(t.taskId)===String(ev.taskId));
+        if(ti>-1){pg[gi].todayTasks[ti].time=newTime;LS.set('peakly_goals',pg);}
+      }
+    }else if(ev.type==='routine'&&ev.routineKey){
+      LS.set('routine_'+ev.routineKey+'_time_'+tod,newTime);
+    }else if(ev.type==='work'&&ev.shiftKey){
+      const sh=LS.get('work_shifts',{});
+      const sd=sh[ev.shiftKey];
+      if(sd){
+        const parts=(ev.id||'').split('_');const idx=parseInt(parts[parts.length-1])||0;
+        if(Array.isArray(sd)){if(sd[idx])sd[idx].start=newTime;}
+        else sd.start=newTime;
+        LS.set('work_shifts',sh);
+      }
+    }else if(ev.type==='lifeadmin'){
+      const laIdx=parseInt((ev.id||'').replace('la_',''));
+      if(!isNaN(laIdx)){const ce=LS.get('cal_events',[]);if(ce[laIdx]){ce[laIdx].time=newTime;LS.set('cal_events',ce);}}
+    }else if(ev.type==='manual'&&ev.srcId){
+      const me=LS.get('cal_manual_events',[]);const mi=me.findIndex(m=>String(m.id)===String(ev.srcId));
+      if(mi>-1){me[mi].time=newTime;LS.set('cal_manual_events',me);}
+    }
+    setEvents(getCalendarEvents());
+  };
 
   const toggleDone=(ev)=>{
     const newVal=!doneMap[ev.checkKey];
