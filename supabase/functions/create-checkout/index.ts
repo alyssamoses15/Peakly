@@ -31,6 +31,11 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ ok: true, function: 'create-checkout' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
     const { priceId, userId, email } = await req.json();
@@ -56,7 +61,11 @@ Deno.serve(async (req) => {
 
     // Reuse an existing Stripe customer for this user if we have one.
     let customerId: string | undefined;
-    const { data: subRow } = await supa.from('subscriptions')
+    const supaAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+    const { data: subRow } = await supaAdmin.from('subscriptions')
       .select('stripe_customer_id').eq('user_id', userId).single();
     if (subRow?.stripe_customer_id) customerId = subRow.stripe_customer_id;
 

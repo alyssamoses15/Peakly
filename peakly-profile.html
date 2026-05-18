@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=6"></script>
+<script src="peakly-config.js?v=9"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1066,18 +1066,21 @@ async function manageBilling(){
     const btn = document.querySelector('[onclick="manageBilling()"]');
     if(btn){ btn.disabled=true; btn.textContent='Loading…'; }
 
-    const res = await fetch(window.PeaklyConfig.CREATE_PORTAL_SESSION_URL, {
-      method:'POST',
+    const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CREATE_PORTAL_SESSION_URL, {
       headers:{
         'Content-Type':'application/json',
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': window.PeaklyConfig.SUPABASE_KEY
       },
-      body: JSON.stringify({ userId: session.user.id })
+      body: { userId: session.user.id },
+      missingMessage: 'Billing portal is not deployed yet. Deploy the create-portal-session Supabase function, then try again.'
     });
     const json = await res.json();
     if(json.error === 'no_billing_account'){
-      // No Stripe customer yet — send to plan page
+      if(_currentSub?.plan === 'pro' || localStorage.getItem('peakly_plan') === 'pro'){
+        throw new Error('No Stripe billing account is linked to this Pro account yet. Try again after the latest billing functions finish syncing, or contact support.');
+      }
+      // No Stripe customer yet — send free/trial users to the plan page
       window.location.href = 'peakly-plan.html';
       return;
     }
@@ -1100,19 +1103,21 @@ function confirmCancel(){
         if(!sb){ toast('Sync library not loaded — try refresh.'); return; }
         const { data:{ session } } = await sb.auth.getSession();
         if(!session){ toast('Please log in again.'); return; }
-        const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
-          method:'POST',
+        const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
           headers:{
             'Content-Type':'application/json',
             'Authorization': `Bearer ${session.access_token}`,
             'apikey': window.PeaklyConfig.SUPABASE_KEY
           },
-          body: JSON.stringify({ userId: session.user.id })
+          body: { userId: session.user.id },
+          missingMessage: 'Subscription cancel is not deployed yet. Deploy the cancel-subscription Supabase function, then try again.'
         });
         const json = await res.json();
         if(!res.ok){
           if(json.error === 'no active subscription'){
-            // Stripe ID not linked yet — open billing portal instead
+            if(_currentSub?.plan === 'pro' || localStorage.getItem('peakly_plan') === 'pro'){
+              throw new Error('No active Stripe subscription is linked to this Pro account yet. Try Manage billing again after billing sync finishes.');
+            }
             toast('Redirecting to billing portal to manage your subscription…');
             setTimeout(()=>manageBilling(), 1200);
             return;
@@ -1132,14 +1137,14 @@ async function reactivateSubscription(){
     if(!sb) return;
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ toast('Please log in again.'); return; }
-    const res = await fetch(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
-      method:'POST',
+    const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
       headers:{
         'Content-Type':'application/json',
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': window.PeaklyConfig.SUPABASE_KEY
       },
-      body: JSON.stringify({ userId: session.user.id, reactivate: true })
+      body: { userId: session.user.id, reactivate: true },
+      missingMessage: 'Subscription reactivation is not deployed yet. Deploy the cancel-subscription Supabase function, then try again.'
     });
     const json = await res.json();
     if(!res.ok) throw new Error(json.error || 'Reactivate failed');
@@ -1245,35 +1250,33 @@ function confirmDelete(){
     'This permanently deletes your Peakly account and all your data. Your subscription will be cancelled immediately. This cannot be undone.',
     async ()=>{
       try{
-        const sb2 = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const sb2 = await getSb();
+        if(!sb2) throw new Error('Billing/account services are not loaded. Please refresh and try again.');
         const { data:{ session } } = await sb2.auth.getSession();
         if(!session) throw new Error('Not logged in');
 
-        const res = await fetch(
-          `${SUPABASE_URL.replace('supabase.co','supabase.co')}/functions/v1/delete-account`,
-          {
-            method:'POST',
-            headers:{
-              'Content-Type':'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ userId: session.user.id }),
-          }
-        );
+        const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.DELETE_ACCOUNT_URL, {
+          headers:{
+            'Content-Type':'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': window.PeaklyConfig.SUPABASE_KEY
+          },
+          body: { userId: session.user.id },
+          missingMessage: 'Account deletion is not deployed yet. Please contact support before deleting your local data.'
+        });
         const json = await res.json();
         if(!res.ok) throw new Error(json.error || 'Deletion failed');
-      }catch(e){
-        // Even if the server call fails, clear local state and sign out
-        console.error('delete-account error:', e);
-      }finally{
+
         localStorage.clear();
         try{
-          const sb3 = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-          await sb3.auth.signOut();
+          await sb2.auth.signOut();
         }catch(_){}
+        toast('Account deleted. Redirecting…');
+        setTimeout(()=>window.location.href='peakly-auth.html', 2000);
+      }catch(e){
+        console.error('delete-account error:', e);
+        toast(e.message || 'Could not delete account. Your subscription was not changed — please try again or contact support.');
       }
-      toast('Account deleted. Redirecting…');
-      setTimeout(()=>window.location.href='peakly-auth.html', 2000);
     }
   );
 }

@@ -63,8 +63,53 @@ window.PeaklyConfig = {
   SITE_URL: 'https://getpeakly.co',
   PAYMENT_LINK_MONTHLY: 'https://buy.stripe.com/cNi00j2jzafW4fsaD97Zu00',
   PAYMENT_LINK_YEARLY: 'https://buy.stripe.com/7sYaEX2jzafWh2efXt7Zu01',
+  CREATE_CHECKOUT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-checkout',
+  SYNC_CHECKOUT_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/sync-checkout-session',
+  SET_FREE_PLAN_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/set-free-plan',
+  START_TRIAL_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/start-trial',
+  EXPIRE_TRIAL_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/expire-trial',
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription',
-  CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session'
+  CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session',
+  DELETE_ACCOUNT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/delete-account'
+};
+
+window.PeaklyEdge = {
+  async isMissing(url){
+    try{
+      const res = await fetch(url, { method:'GET', cache:'no-store' });
+      if(res.status !== 404) return false;
+      const body = await res.text().catch(()=>'');
+      return res.headers.get('sb-error-code') === 'NOT_FOUND'
+        || body.includes('Requested function was not found');
+    }catch(e){
+      return false;
+    }
+  },
+
+  async postJson(url, { headers = {}, body = {}, missingMessage = '' } = {}){
+    if(await this.isMissing(url)){
+      const err = new Error(missingMessage || 'Billing server is not deployed yet. Please deploy the Supabase Edge Function and try again.');
+      err.code = 'edge_function_missing';
+      throw err;
+    }
+
+    try{
+      return await fetch(url, {
+        method:'POST',
+        headers,
+        body: JSON.stringify(body)
+      });
+    }catch(e){
+      const msg = String(e?.message || e || '');
+      if(msg.includes('Failed to fetch') || msg.includes('NetworkError')){
+        const err = new Error(missingMessage || 'Billing server is not reachable. Please deploy the Supabase Edge Function and try again.');
+        err.code = 'edge_function_fetch_failed';
+        err.cause = e;
+        throw err;
+      }
+      throw e;
+    }
+  }
 };
 
 // ─ Loads the user's subscription row and writes cache keys to localStorage.
@@ -123,7 +168,19 @@ window.PeaklyAuth = {
           // trial expired — flip to free server-side
           plan = 'free';
           hasAccess = false;
-          try{ await sb.from('subscriptions').update({ plan:'free' }).eq('user_id', user.id); }catch(e){}
+          try{
+            await window.PeaklyEdge.postJson(window.PeaklyConfig.EXPIRE_TRIAL_URL, {
+              headers:{
+                'Content-Type':'application/json',
+                'Authorization': `Bearer ${(await sb.auth.getSession()).data.session?.access_token || ''}`,
+                'apikey': window.PeaklyConfig.SUPABASE_KEY
+              },
+              body:{ userId:user.id },
+              missingMessage:'Trial expiry service is not deployed yet.'
+            });
+          }catch(e){
+            try{ await sb.from('subscriptions').update({ plan:'free', status:'expired' }).eq('user_id', user.id); }catch(_){}
+          }
         }
       }
     }

@@ -1,2 +1,26 @@
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.sync-checkout-session]
+verify_jwt = false
+
+[functions.set-free-plan]
+verify_jwt = false
+
+[functions.start-trial]
+verify_jwt = false
+
+[functions.expire-trial]
+verify_jwt = false
+
+[functions.create-portal-session]
+verify_jwt = false
+
+[functions.cancel-subscription]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
 [functions.stripe-webhook]
 verify_jwt = false
