@@ -644,25 +644,36 @@ function getAllEvents(){
     const d=new Date(e.date);if(isNaN(d))return;
     evs.push({id:'m_'+e.id,type:'manual',title:e.title,date:d,time:e.time||'',dur:e.dur||e.duration||60,color:e.color||TYPE.manual.color,notes:e.notes||'',srcId:e.id,scheduled:!!(e.time),sourcePage:null});
   });
-  // Goal tasks — read weekTasks for multi-day calendar display
+  // Goal tasks — use weekTasks (pre-computed by goals page) when available,
+  // fall back to showing todayTasks across the next 14 days so calendar works
+  // even if the user hasn't visited the goals page yet.
   const goals = LS.get('peakly_goals', []);
   goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
-    // weekTasks: { [dateString]: [{task,time,taskId,taskType,...}] }
-    // Fall back to todayTasks for today if weekTasks not yet computed
-    const allDateTasks=Object.assign({},g.weekTasks||{});
-    const todayDk=today.toDateString();
-    if(!allDateTasks[todayDk]&&g.todayTasks&&g.todayTasks.length){
-      allDateTasks[todayDk]=g.todayTasks;
-    }
-    Object.entries(allDateTasks).forEach(([dk,tasks])=>{
-      const d=new Date(dk);if(isNaN(d.getTime()))return;
-      (tasks||[]).forEach(t=>{
-        const tid=t.taskId||t.id||'task';
-        const gEvId='daily_'+g.id+'_'+tid+'_'+dk;
-        const gDur=LS.get('cal_dur_'+gEvId,30);
-        evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:t.time||'09:00',dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+    const wt=g.weekTasks;
+    if(wt&&Object.keys(wt).length>0){
+      Object.entries(wt).forEach(([dateStr,tasks])=>{
+        const d=new Date(dateStr);if(isNaN(d.getTime()))return;
+        (tasks||[]).forEach(t=>{
+          const tid=t.taskId||t.id||'task';
+          const gEvId='daily_'+g.id+'_'+tid+'_'+dateStr;
+          const gDur=LS.get('cal_dur_'+gEvId,30);
+          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:t.time||'09:00',dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+        });
       });
-    });
+    } else {
+      // Fallback: repeat todayTasks for the next 14 days
+      const t0=new Date(today);
+      for(let off=0;off<14;off++){
+        const d=new Date(t0);d.setDate(t0.getDate()+off);
+        const dStr=d.toDateString();
+        (g.todayTasks||[]).forEach(t=>{
+          const tid=t.taskId||t.id||'task';
+          const gEvId='daily_'+g.id+'_'+tid+'_'+dStr;
+          const gDur=LS.get('cal_dur_'+gEvId,30);
+          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:t.time||'09:00',dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+        });
+      }
+    }
   });
   // Routines
   ['Morning_routine','Night_routine'].forEach(rk=>{
