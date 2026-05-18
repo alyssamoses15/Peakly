@@ -644,33 +644,26 @@ function getAllEvents(){
     const d=new Date(e.date);if(isNaN(d))return;
     evs.push({id:'m_'+e.id,type:'manual',title:e.title,date:d,time:e.time||'',dur:e.dur||e.duration||60,color:e.color||TYPE.manual.color,notes:e.notes||'',srcId:e.id,scheduled:!!(e.time),sourcePage:null});
   });
-  // Goal tasks
-  // Load goal tasks from actual goal definitions (not hardcoded)
+  // Goal tasks — read weekTasks for multi-day calendar display
   const goals = LS.get('peakly_goals', []);
-goals.filter(g => g.startedDate && !g.completed).forEach(g => {
-    const todayTasks = g.todayTasks || [];
-    
-    todayTasks.forEach(t => {
-        const tid = t.taskId || t.id || 'task';
-        // Matches the "checkKey" on Peakly home page for syncing
-        const gEvId = `daily_${g.id}_${tid}_${today.toDateString()}`;
-        const gDur = LS.get('cal_dur_' + gEvId, 30);
-        
-        evs.push({
-            id: gEvId,
-            type: 'goal',
-            title: `${g.name}: ${t.task || t.name || 'Task'}`,
-            date: new Date(today), 
-            time: t.time || '09:00',
-            dur: gDur,
-            color: g.color || TYPE.goal.color,
-            goalId: g.id,
-            taskId: tid,
-            scheduled: true,
-            sourcePage: 'peakly-goals.html'
-        });
+  goals.filter(g=>g.startedDate&&!g.completed).forEach(g=>{
+    // weekTasks: { [dateString]: [{task,time,taskId,taskType,...}] }
+    // Fall back to todayTasks for today if weekTasks not yet computed
+    const allDateTasks=Object.assign({},g.weekTasks||{});
+    const todayDk=today.toDateString();
+    if(!allDateTasks[todayDk]&&g.todayTasks&&g.todayTasks.length){
+      allDateTasks[todayDk]=g.todayTasks;
+    }
+    Object.entries(allDateTasks).forEach(([dk,tasks])=>{
+      const d=new Date(dk);if(isNaN(d.getTime()))return;
+      (tasks||[]).forEach(t=>{
+        const tid=t.taskId||t.id||'task';
+        const gEvId='daily_'+g.id+'_'+tid+'_'+dk;
+        const gDur=LS.get('cal_dur_'+gEvId,30);
+        evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:t.time||'09:00',dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+      });
     });
-});
+  });
   // Routines
   ['Morning_routine','Night_routine'].forEach(rk=>{
     const cfg=LS.get('routine_'+rk+'_cal',null);

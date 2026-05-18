@@ -215,7 +215,7 @@ function confetti(){
 
 // ── GOALS GRID PAGE ───────────────────────────────────────────────────────
 
-// ── Refresh todayTasks for ALL goals so home page always has current data ──
+// ── Refresh todayTasks + weekTasks for ALL goals so home/calendar always have current data ──
 function refreshAllTodayTasks(){
   let changed=false;
   goals.forEach(g=>{
@@ -233,6 +233,23 @@ function refreshAllTodayTasks(){
       taskType:t.type||'daily',
       homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
     }));
+    // Build weekTasks map (next 14 days) for calendar sync
+    const wt={};
+    const todayD=new Date();todayD.setHours(0,0,0,0);
+    for(let off=0;off<14;off++){
+      const fd=new Date(todayD);fd.setDate(todayD.getDate()+off);
+      const fdn=dayNum+off;if(fdn>totalDays)break;
+      const{daily:fd2,planning:fp,checkin:fc}=getTasksForDay(g,fdn);
+      const ftasks=[...fd2,...fp,...fc];
+      const fdk=fd.toDateString();
+      wt[fdk]=ftasks.map(t=>({
+        task:t.task||t.name||t.text||'',
+        time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
+        taskId:t.id,taskType:t.type||'daily',
+        homeKey:'home_task_'+g.id+'_'+t.id+'_'+fdk
+      }));
+    }
+    g.weekTasks=wt;
     changed=true;
   });
   if(changed)saveGoals();
@@ -314,6 +331,35 @@ function renderGoalsPage(){
     emptyState.style.cssText='text-align:center;padding:60px 24px;';
     emptyState.innerHTML=`<div style="font-size:60px;margin-bottom:16px;">🏔️</div><div style="font-family:var(--display);font-size:24px;font-weight:700;color:var(--text);margin-bottom:8px;">No goals yet</div><p style="font-size:14px;color:var(--text3);line-height:1.7;max-width:360px;margin:0 auto 24px;">Every peak starts with a single step. Set your first goal and we'll build the path to get there.</p><button class="btn-blue" onclick="openCreate()" style="padding:12px 28px;font-size:14px;">Set my first goal 🏔️</button>`;
     main.appendChild(emptyState);
+  }
+
+  // Week Ahead section
+  const startedGoals=active.filter(g=>g.startedDate&&g.weekTasks);
+  if(startedGoals.length){
+    const weekSec=document.createElement('div');
+    weekSec.style.cssText='margin-bottom:32px;';
+    const weekLbl=document.createElement('div');
+    weekLbl.style.cssText='font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text4);margin-bottom:12px;';
+    weekLbl.textContent='📅 Week Ahead';
+    weekSec.appendChild(weekLbl);
+    const weekGrid=document.createElement('div');
+    weekGrid.style.cssText='display:grid;grid-template-columns:repeat(7,1fr);gap:6px;';
+    const todayD=new Date();todayD.setHours(0,0,0,0);
+    for(let i=0;i<7;i++){
+      const d=new Date(todayD);d.setDate(todayD.getDate()+i);
+      const dk=d.toDateString();
+      const isToday=i===0;
+      const dayCard=document.createElement('div');
+      dayCard.style.cssText=`background:var(--white);border-radius:var(--rl);border:${isToday?'2px solid var(--blue)':'1px solid var(--border2)'};padding:8px 6px;min-height:90px;overflow:hidden;`;
+      const dayTasks=[];
+      startedGoals.forEach(g=>{
+        (g.weekTasks[dk]||[]).forEach(t=>dayTasks.push({...t,goalName:g.name,color:g.color||'#0891B2'}));
+      });
+      dayCard.innerHTML=`<div style="font-size:9px;font-weight:700;color:${isToday?'var(--blue)':'var(--text3)'};text-align:center;margin-bottom:5px;text-transform:uppercase;">${d.toLocaleDateString('en-US',{weekday:'short'})}</div><div style="font-size:16px;font-weight:700;color:${isToday?'var(--blue)':'var(--text)'};text-align:center;margin-bottom:6px;">${d.getDate()}</div>${dayTasks.length===0?'<div style="font-size:9px;color:var(--text4);text-align:center;margin-top:8px;">—</div>':dayTasks.map(t=>`<div style="font-size:9px;padding:2px 4px;border-radius:3px;background:${t.color}22;border-left:2px solid ${t.color};color:var(--text2);margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:default;" title="${t.goalName}: ${t.task}">${t.task}</div>`).join('')}`;
+      weekGrid.appendChild(dayCard);
+    }
+    weekSec.appendChild(weekGrid);
+    main.appendChild(weekSec);
   }
 
   // Completed goals
