@@ -622,6 +622,35 @@ function GoalList({goals,onToggle}){
 
   const doneCount=events.filter(e=>doneMap[e.checkKey]).length;
 
+  const [editingTimeId,setEditingTimeId]=useSt(null);
+  const changeTime=(ev,newTime)=>{
+    if(!newTime)return;
+    const tod=new Date().toDateString();
+    if(ev.type==='goal'&&ev.goalId&&ev.taskId){
+      LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
+      const pg=LS.get('peakly_goals',[]);
+      const gi=pg.findIndex(g=>String(g.id)===String(ev.goalId));
+      if(gi>-1&&pg[gi].todayTasks){
+        const ti=pg[gi].todayTasks.findIndex(t=>String(t.taskId)===String(ev.taskId));
+        if(ti>-1){pg[gi].todayTasks[ti].time=newTime;LS.set('peakly_goals',pg);}
+      }
+    }else if(ev.type==='routine'&&ev.routineKey){
+      LS.set('routine_'+ev.routineKey+'_time_'+tod,newTime);
+    }else if(ev.type==='work'&&ev.shiftKey){
+      const sh=LS.get('work_shifts',{});const sd=sh[ev.shiftKey];
+      if(sd){const parts=(ev.id||'').split('_');const idx=parseInt(parts[parts.length-1])||0;
+        if(Array.isArray(sd)){if(sd[idx])sd[idx].start=newTime;}else sd.start=newTime;
+        LS.set('work_shifts',sh);}
+    }else if(ev.type==='lifeadmin'){
+      const laIdx=parseInt((ev.id||'').replace('la_',''));
+      if(!isNaN(laIdx)){const ce=LS.get('cal_events',[]);if(ce[laIdx]){ce[laIdx].time=newTime;LS.set('cal_events',ce);}}
+    }else if(ev.type==='manual'&&ev.srcId){
+      const me=LS.get('cal_manual_events',[]);const mi=me.findIndex(m=>String(m.id)===String(ev.srcId));
+      if(mi>-1){me[mi].time=newTime;LS.set('cal_manual_events',me);}
+    }
+    setEvs(getCalendarEvents());
+  };
+
   const EventPill=({ev})=>{
     const done=doneMap[ev.checkKey]||false;
     const goalColor=ev.color||'#0891B2';
