@@ -680,7 +680,7 @@ goals.filter(g => g.startedDate && !g.completed).forEach(g => {
       const d=new Date(today);d.setDate(today.getDate()+i);
       const dow=['sun','mon','tue','wed','thu','fri','sat'][d.getDay()];
       if(cfg.days&&cfg.days[dow]===false)continue;
-      const rEvId='r_'+rk+'_'+dk(d);const rDur=LS.get('cal_dur_'+rEvId,parseInt(cfg.duration)||30);evs.push({id:rEvId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',date:new Date(d),time:cfg.time||'07:00',dur:rDur,color:TYPE.routine.color,routineKey:rk,scheduled:true,sourcePage:'peakly-second-brain-1.html'});
+      const rEvId='r_'+rk+'_'+dk(d);const rDur=LS.get('cal_dur_'+rEvId,parseInt(cfg.duration)||30);evs.push({id:rEvId,type:'routine',title:(isNight?'🌙 Night':'🌄 Morning')+' Routine',date:new Date(d),time:LS.get('routine_'+rk+'_time_'+dk(d),null)||cfg.time||'07:00',dur:rDur,color:TYPE.routine.color,routineKey:rk,scheduled:true,sourcePage:'peakly-second-brain-1.html'});
     }
   });
   // Work shifts (now supports multiple jobs per day)
@@ -1039,7 +1039,7 @@ function dropEvent(date,mins){
       if(tIdx>-1){pg[gIdx].todayTasks[tIdx].time=newTime;LS.set('peakly_goals',pg);}
     }
   } else if(e.type==='routine'&&e.routineKey){
-    const cfg=LS.get('routine_'+e.routineKey+'_cal',{});cfg.time=newTime;LS.set('routine_'+e.routineKey+'_cal',cfg);
+    LS.set('routine_'+e.routineKey+'_time_'+dk(e.date),newTime);
   } else if(e.type==='work'&&e.shiftKey){
     const sh=LS.get('work_shifts',{});if(sh[e.shiftKey]){sh[e.shiftKey].start=newTime;LS.set('work_shifts',sh);}
   } else if(e.type==='lifeadmin'){
@@ -1273,8 +1273,7 @@ function openEdit(e){
           if(tIdx>-1){pg[gIdx].todayTasks[tIdx].time=newTime;LS.set('peakly_goals',pg);}
         }
       } else if(e.type==='routine'&&e.routineKey){
-        const cfg=LS.get('routine_'+e.routineKey+'_cal',{});
-        cfg.time=newTime;LS.set('routine_'+e.routineKey+'_cal',cfg);
+        LS.set('routine_'+e.routineKey+'_time_'+dk(newDate),newTime);
       } else if(e.type==='work'&&e.shiftKey){
         const sh=LS.get('work_shifts',{});
         if(sh[e.shiftKey]){
