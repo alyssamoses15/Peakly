@@ -230,6 +230,21 @@ async function chooseTrial(){
   const user = await requireUser(); if(!user) return;
   setBtnLoading('trialBtn', true, 'Start 7-Day Free Trial');
   try{
+    // Server-side guard: block restart only if trial actually ran (trial_ends_at in the past)
+    // or is actively running (plan === 'trial'). Ignore trigger-set future dates on new accounts.
+    const { data: existing } = await sb.from('subscriptions')
+      .select('plan,trial_ends_at').eq('user_id', user.id).single();
+    if(existing?.plan === 'trial'){
+      // Already on active trial — send to app
+      window.location.href = 'peakly.html'; return;
+    }
+    if(existing?.trial_ends_at && new Date(existing.trial_ends_at) <= new Date()){
+      // Trial genuinely expired
+      setBtnLoading('trialBtn', false, 'Trial already used');
+      document.getElementById('trialBtn').disabled = true;
+      document.getElementById('trialBtn').className = 'btn btn-outline';
+      showToast('Your free trial has already been used. Subscribe to continue with Pro.');
+      return;
     const session = currentSession || (await sb.auth.getSession()).data.session;
     if(!session) throw new Error('Please log in first.');
     const res = await window.PeaklyEdge.postJson(cfg.START_TRIAL_URL, {
@@ -317,9 +332,12 @@ async function chooseProCheckout(){
       window.location.href='peakly.html';
       return;
     }
-    // If trial_ends_at was ever set the trial is used — disable the button immediately
-    // so returning users don't see an active "Start Trial" option.
-    if(sub?.trial_ends_at){
+    // Disable trial button only when the trial genuinely expired:
+    // trial_ends_at must be in the past AND plan is no longer 'trial'.
+    // Ignore trial_ends_at set by DB signup triggers for users who never chose to start a trial.
+    if(sub?.plan === 'trial'){
+      // Trial is actively running — let them upgrade, don't touch the button
+    } else if(sub?.trial_ends_at && new Date(sub.trial_ends_at) <= new Date()){
       const btn = document.getElementById('trialBtn');
       btn.disabled = true;
       btn.textContent = 'Trial already used';
