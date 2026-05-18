@@ -228,7 +228,7 @@ function refreshAllTodayTasks(){
     const allTasks=[...daily,...planning,...checkin];
     g.todayTasks=allTasks.map(t=>({
       task:t.task||t.name||t.text||'',
-      time:t.time||t.defTime||'09:00',
+      time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
       taskId:t.id,
       taskType:t.type||'daily',
       homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
@@ -404,7 +404,16 @@ function getWeekNum(g){
   return Math.ceil(dayNum/7);
 }
 function getTimePref(g,taskId){return LS.get('time_'+g.id+'_'+taskId,'');}
-function setTimePref(g,taskId,time){LS.set('time_'+g.id+'_'+taskId,time);}
+function setTimePref(g,taskId,time){
+  LS.set('time_'+g.id+'_'+taskId,time);
+  // Sync to peakly_goals so home page and calendar pick up the change
+  const goals=LS.get('peakly_goals',[]);
+  const gIdx=goals.findIndex(pg=>String(pg.id)===String(g.id));
+  if(gIdx>-1&&goals[gIdx].todayTasks){
+    const tIdx=goals[gIdx].todayTasks.findIndex(t=>String(t.taskId)===String(taskId));
+    if(tIdx>-1){goals[gIdx].todayTasks[tIdx].time=time;LS.set('peakly_goals',goals);}
+  }
+}
 
 // ── isTaskDone / setTaskDone ───────────────────────────────────────────────
 const PLANNING_DAYS=[1,8,16,24,32,40,48,56,64,72,80,88];
@@ -1565,7 +1574,7 @@ function renderGoalDetail(){
     // Each task gets a unique homeKey so home page can check done state independently
     g.todayTasks=allTasks.map(t=>({
       task:t.task||t.name||t.text||'',
-      time:t.time||t.defTime||'09:00',
+      time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
       taskId:t.id,
       taskType:t.type||'daily',
       homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
