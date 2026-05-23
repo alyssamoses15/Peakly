@@ -239,6 +239,176 @@ window.PeaklyAuth = {
   }
 };
 
+// Shared goal/task cache helpers. Goal pages keep denormalized today/week task
+// caches in peakly_goals so the static pages can render quickly from storage.
+window.PeaklyGoals = {
+  get(k, d){
+    try{
+      const v = localStorage.getItem(k);
+      return v ? JSON.parse(v) : d;
+    }catch(e){
+      return d;
+    }
+  },
+
+  set(k, v){
+    try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
+  },
+
+  dateKey(date = new Date()){
+    return date.toDateString();
+  },
+
+  customTaskId(ct){
+    return 'ct_' + String(ct && ct.id != null ? ct.id : '');
+  },
+
+  taskId(t){
+    return String((t && (t.taskId != null ? t.taskId : t.id)) || '');
+  },
+
+  notifyChange(detail = {}){
+    try{
+      window.dispatchEvent(new CustomEvent('peakly:data-changed', {
+        detail: Object.assign({ keys:['peakly_goals'] }, detail)
+      }));
+    }catch(e){}
+  },
+
+  customCacheTasks(goal, dateStr){
+    const tasks = this.get('custom_tasks_' + goal.id, []);
+    if(!Array.isArray(tasks) || !tasks.length) return [];
+    return tasks
+      .filter(ct => ct && !ct.deleted && (ct.text || ct.task || ct.name))
+      .map(ct => {
+        const tid = this.customTaskId(ct);
+        const savedTime = this.get('time_' + goal.id + '_' + tid, '');
+        return {
+          task: ct.text || ct.task || ct.name || 'Custom task',
+          time: savedTime || ct.time || '09:00',
+          taskId: tid,
+          taskType: 'custom',
+          customTaskId: ct.id,
+          note: ct.note || '',
+          homeKey: 'home_task_' + goal.id + '_' + tid + '_' + dateStr
+        };
+      });
+  },
+
+  mergeCustomTasks(goal){
+    if(!goal || !goal.id) return false;
+    let changed = false;
+    const today = this.dateKey();
+    const merge = (existing, dateStr) => {
+      const base = Array.isArray(existing) ? existing.filter(t => t && t.taskType !== 'custom') : [];
+      const custom = this.customCacheTasks(goal, dateStr);
+      return base.concat(custom);
+    };
+
+    const nextToday = merge(goal.todayTasks, today);
+    if(JSON.stringify(goal.todayTasks || []) !== JSON.stringify(nextToday)){
+      goal.todayTasks = nextToday;
+      changed = true;
+    }
+
+    if(goal.weekTasks && typeof goal.weekTasks === 'object'){
+      Object.keys(goal.weekTasks).forEach(dateStr => {
+        const next = merge(goal.weekTasks[dateStr], dateStr);
+        if(JSON.stringify(goal.weekTasks[dateStr] || []) !== JSON.stringify(next)){
+          goal.weekTasks[dateStr] = next;
+          changed = true;
+        }
+      });
+    }
+
+    return changed;
+  },
+
+  syncCustomTasks(goalId, opts = {}){
+    const goals = this.get('peakly_goals', []);
+    if(!Array.isArray(goals)) return false;
+    let changed = false;
+    goals.forEach(g => {
+      if(goalId != null && String(g.id) !== String(goalId)) return;
+      if(this.mergeCustomTasks(g)) changed = true;
+    });
+    if(changed) this.set('peakly_goals', goals);
+    if(changed && opts.notify !== false) this.notifyChange({ source:'custom-tasks', goalId });
+    return changed;
+  },
+
+  applyTaskTime(goalId, taskId, time, opts = {}){
+    if(goalId == null || taskId == null) return false;
+    const tid = String(taskId);
+    this.set('time_' + goalId + '_' + tid, time || '');
+
+    const goals = this.get('peakly_goals', []);
+    let changed = false;
+    if(Array.isArray(goals)){
+      const goal = goals.find(g => String(g.id) === String(goalId));
+      if(goal){
+        const updateList = list => {
+          if(!Array.isArray(list)) return false;
+          let listChanged = false;
+          list.forEach(t => {
+            if(this.taskId(t) === tid && t.time !== time){
+              t.time = time;
+              listChanged = true;
+            }
+          });
+          return listChanged;
+        };
+        if(updateList(goal.todayTasks)) changed = true;
+        if(goal.weekTasks && typeof goal.weekTasks === 'object'){
+          Object.values(goal.weekTasks).forEach(tasks => {
+            if(updateList(tasks)) changed = true;
+          });
+        }
+      }
+    }
+
+    const customKey = 'custom_tasks_' + goalId;
+    const customTasks = this.get(customKey, []);
+    if(Array.isArray(customTasks) && customTasks.length){
+      let customChanged = false;
+      customTasks.forEach(ct => {
+        if(String(ct.id) === tid || this.customTaskId(ct) === tid){
+          if(ct.time !== time){
+            ct.time = time || '';
+            customChanged = true;
+          }
+        }
+      });
+      if(customChanged){
+        this.set(customKey, customTasks);
+        changed = true;
+      }
+    }
+
+    if(changed && Array.isArray(goals)) this.set('peakly_goals', goals);
+    if(opts.notify !== false) this.notifyChange({ source:'task-time', goalId, taskId:tid });
+    return changed;
+  },
+
+  applyTaskDone(goalId, taskId, done, opts = {}){
+    const goals = this.get('peakly_goals', []);
+    if(!Array.isArray(goals)) return false;
+    let changed = false;
+    goals.forEach(g => {
+      if(String(g.id) !== String(goalId)) return;
+      (g.todayTasks || []).forEach(t => {
+        if(this.taskId(t) === String(taskId) && t.done !== done){
+          t.done = done;
+          changed = true;
+        }
+      });
+    });
+    if(changed) this.set('peakly_goals', goals);
+    if(changed && opts.notify !== false) this.notifyChange({ source:'task-done', goalId, taskId });
+    return changed;
+  }
+};
+
 // ─────────────────────────────────────────────────────────────────────────
 // Cross-device data sync via JSONB backup of localStorage to Supabase.
 // Phase 1 of the cross-device strategy — covers everything in one shot.

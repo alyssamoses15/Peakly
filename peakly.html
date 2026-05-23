@@ -570,13 +570,21 @@ function GoalList({goals,onToggle}){
   useEff(()=>{
     // Scroll to current hour on mount
     if(calRef.current)calRef.current.scrollTop=Math.max(0,(curH-1)*60);
-    // Poll for updates every 3s
-    const iv=setInterval(()=>{
+    const refreshEvents=()=>{
       const fresh=getCalendarEvents();
       setEvs(fresh);
       const m={};fresh.forEach(e=>{m[e.checkKey]=LS.get(e.checkKey,false);});setDone(m);
-    },3000);
-    return()=>clearInterval(iv);
+    };
+    // Poll for updates every 3s, and refresh immediately when shared task data
+    // changes in this tab.
+    const iv=setInterval(refreshEvents,3000);
+    window.addEventListener('peakly:data-changed',refreshEvents);
+    window.addEventListener('peakly:sync-restored',refreshEvents);
+    return()=>{
+      clearInterval(iv);
+      window.removeEventListener('peakly:data-changed',refreshEvents);
+      window.removeEventListener('peakly:sync-restored',refreshEvents);
+    };
   },[]);
 
   const toggle=(ev)=>{
@@ -627,13 +635,8 @@ function GoalList({goals,onToggle}){
     if(!newTime)return;
     const tod=new Date().toDateString();
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
-      const pg=LS.get('peakly_goals',[]);
-      const gi=pg.findIndex(g=>String(g.id)===String(ev.goalId));
-      if(gi>-1&&pg[gi].todayTasks){
-        const ti=pg[gi].todayTasks.findIndex(t=>String(t.taskId)===String(ev.taskId));
-        if(ti>-1){pg[gi].todayTasks[ti].time=newTime;LS.set('peakly_goals',pg);}
-      }
+      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(ev.goalId,ev.taskId,newTime);
+      else LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
     }else if(ev.type==='routine'&&ev.routineKey){
       LS.set('routine_'+ev.routineKey+'_time_'+tod,newTime);
     }else if(ev.type==='work'&&ev.shiftKey){
@@ -826,7 +829,7 @@ function getCalendarEvents(){
       const checkKey=taskType==='planning'?'plan_'+g.id+'_'+tid+'_d'+dayNum
         :taskType==='checkin'?'checkin_'+g.id+'_'+tid+'_d'+dayNum
         :'daily_'+g.id+'_'+tid+'_'+_today;
-      const time=t.time||'09:00';
+      const time=LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
       const evId='g_'+g.id+'_d'+dayNum+'_'+tid;
       // If goals page already marked t.done=true, mirror it into the storeKey
       // so the same value is read no matter which side updated last.
@@ -916,13 +919,8 @@ function HourCal(){
     if(!newTime)return;
     const tod=new Date().toDateString();
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
-      const pg=LS.get('peakly_goals',[]);
-      const gi=pg.findIndex(g=>String(g.id)===String(ev.goalId));
-      if(gi>-1&&pg[gi].todayTasks){
-        const ti=pg[gi].todayTasks.findIndex(t=>String(t.taskId)===String(ev.taskId));
-        if(ti>-1){pg[gi].todayTasks[ti].time=newTime;LS.set('peakly_goals',pg);}
-      }
+      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(ev.goalId,ev.taskId,newTime);
+      else LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
     }else if(ev.type==='routine'&&ev.routineKey){
       LS.set('routine_'+ev.routineKey+'_time_'+tod,newTime);
     }else if(ev.type==='work'&&ev.shiftKey){
@@ -1314,6 +1312,7 @@ function App(){
                 :'daily_'+_gid+'_'+_tid+'_'+_today;
               return {
                 id:g.id+'_'+ti,
+                taskId:_tid,
                 homeKey:t.homeKey||('home_task_'+g.id+'_'+ti+'_'+new Date().toDateString()),
                 storeKey:_storeKey,
                 name:t.task||t.name||String(t),
@@ -1353,7 +1352,7 @@ function App(){
                 :_type==='checkin'?'checkin_'+_gid+'_'+_tid+'_d'+_dayNum
                 :'daily_'+_gid+'_'+_tid+'_'+_today;
               const _done=LS.get(_storeKey,false)===true||t.done===true;
-              return {id:g.id+'_'+ti,homeKey:t.homeKey||('home_task_'+g.id+'_'+ti+'_'+new Date().toDateString()),
+              return {id:g.id+'_'+ti,taskId:_tid,homeKey:t.homeKey||('home_task_'+g.id+'_'+ti+'_'+new Date().toDateString()),
                 storeKey:_storeKey,name:t.task||t.name||String(t),time:t.time||'',taskType:_type,done:_done};
             })
           };
@@ -1361,13 +1360,21 @@ function App(){
         setGoals(updated);
       }
     };
+    const onVisible=()=>{if(!document.hidden)reload();};
     window.addEventListener('focus',reload);
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reload();});
+    document.addEventListener('visibilitychange',onVisible);
     // Reload immediately when fresh data lands from another device.
     window.addEventListener('peakly:sync-restored',reload);
+    window.addEventListener('peakly:data-changed',reload);
     // Poll every 3s so task checks on goals page show here without switching tabs
     const interval=setInterval(reload,3000);
-    return()=>{window.removeEventListener('focus',reload);window.removeEventListener('peakly:sync-restored',reload);clearInterval(interval);};
+    return()=>{
+      window.removeEventListener('focus',reload);
+      document.removeEventListener('visibilitychange',onVisible);
+      window.removeEventListener('peakly:sync-restored',reload);
+      window.removeEventListener('peakly:data-changed',reload);
+      clearInterval(interval);
+    };
   },[]);
 
   // Handle ?checkout=success after Stripe redirect — webhook may need a moment.
@@ -1429,15 +1436,15 @@ const toggleHabit = (goalId, habitId) => {
       // 2. Save the checkmark to the unique Master Storage Key
       if (habit.storeKey) LS.set(habit.storeKey, habit.done);
       if (habit.homeKey) LS.set(habit.homeKey, habit.done);
+      const habitTaskId = habit.taskId || habitId;
 
-      // 3. Update 'peakly_goals' using the unique habitId (not index)
+      // 3. Update 'peakly_goals' using the task id, so row reordering does not
+      // write the checkmark to the wrong goal task.
       const pg = LS.get('peakly_goals', []);
       const updatedPg = pg.map(g => {
         if (String(g.id) !== String(goalId)) return g;
-        const updTasks = (g.todayTasks || []).map((t, ti) => {
-          // Recreate the ID using the same logic as the loading section
-          const taskUniqueId = g.id + '_' + ti;
-          if (taskUniqueId === habitId) {
+        const updTasks = (g.todayTasks || []).map((t) => {
+          if (String(t.taskId || t.id) === String(habitTaskId)) {
             return { ...t, done: habit.done };
           }
           return t;
@@ -1445,6 +1452,12 @@ const toggleHabit = (goalId, habitId) => {
         return { ...g, todayTasks: updTasks };
       });
       LS.set('peakly_goals', updatedPg);
+      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskDone){
+        const changed=window.PeaklyGoals.applyTaskDone(goalId,habitTaskId,habit.done,{notify:false});
+        window.PeaklyGoals.notifyChange({source:'task-done',goalId,taskId:habitTaskId,changed,keys:['peakly_goals']});
+      }else{
+        try{window.dispatchEvent(new CustomEvent('peakly:data-changed',{detail:{source:'task-done',goalId,taskId:habitTaskId,keys:['peakly_goals']}}));}catch(e){}
+      }
 
       // Per-goal day-complete celebration. If this toggle just finished the
       // last task for this goal today, show the same celebration popup the

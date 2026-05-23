@@ -226,13 +226,8 @@ function refreshAllTodayTasks(){
     if(dayNum>totalDays)dayNum=totalDays;
     const{daily,planning,checkin}=getTasksForDay(g,dayNum);
     const allTasks=[...daily,...planning,...checkin];
-    g.todayTasks=allTasks.map(t=>({
-      task:t.task||t.name||t.text||'',
-      time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
-      taskId:t.id,
-      taskType:t.type||'daily',
-      homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
-    }));
+    g.todayTasks=allTasks.map(t=>cacheTaskForDate(g,t,dateKey()))
+      .concat(customCacheTasksForGoal(g,dateKey()));
     // Build weekTasks map (next 14 days) for calendar sync
     const wt={};
     const todayD=new Date();todayD.setHours(0,0,0,0);
@@ -242,12 +237,8 @@ function refreshAllTodayTasks(){
       const{daily:fd2,planning:fp,checkin:fc}=getTasksForDay(g,fdn);
       const ftasks=[...fd2,...fp,...fc];
       const fdk=fd.toDateString();
-      wt[fdk]=ftasks.map(t=>({
-        task:t.task||t.name||t.text||'',
-        time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
-        taskId:t.id,taskType:t.type||'daily',
-        homeKey:'home_task_'+g.id+'_'+t.id+'_'+fdk
-      }));
+      wt[fdk]=ftasks.map(t=>cacheTaskForDate(g,t,fdk))
+        .concat(customCacheTasksForGoal(g,fdk));
     }
     g.weekTasks=wt;
     changed=true;
@@ -449,16 +440,59 @@ function getWeekNum(g){
   const dayNum=getDayNum(g)||1;
   return Math.ceil(dayNum/7);
 }
+function publishGoalDataChanged(detail){
+  if(window.PeaklyGoals&&window.PeaklyGoals.notifyChange){
+    window.PeaklyGoals.notifyChange(detail||{});
+    return;
+  }
+  try{window.dispatchEvent(new CustomEvent('peakly:data-changed',{detail:detail||{keys:['peakly_goals']}}));}catch(e){}
+}
+function customTaskCacheId(ct){
+  if(window.PeaklyGoals&&window.PeaklyGoals.customTaskId)return window.PeaklyGoals.customTaskId(ct);
+  return 'ct_'+String(ct&&ct.id!=null?ct.id:'');
+}
+function cacheTaskForDate(g,t,dateStr){
+  return {
+    task:t.task||t.name||t.text||'',
+    time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
+    taskId:t.id,
+    taskType:t.type||'daily',
+    homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateStr
+  };
+}
+function customCacheTasksForGoal(g,dateStr){
+  if(window.PeaklyGoals&&window.PeaklyGoals.customCacheTasks)return window.PeaklyGoals.customCacheTasks(g,dateStr);
+  return getCustomTasks(g.id).map(ct=>{
+    const tid=customTaskCacheId(ct);
+    return {
+      task:ct.text||ct.name||'Custom task',
+      time:LS.get('time_'+g.id+'_'+tid,'')||ct.time||'09:00',
+      taskId:tid,
+      taskType:'custom',
+      customTaskId:ct.id,
+      note:ct.note||'',
+      homeKey:'home_task_'+g.id+'_'+tid+'_'+dateStr
+    };
+  });
+}
 function getTimePref(g,taskId){return LS.get('time_'+g.id+'_'+taskId,'');}
 function setTimePref(g,taskId,time){
-  LS.set('time_'+g.id+'_'+taskId,time);
-  // Sync to peakly_goals so home page and calendar pick up the change
-  const goals=LS.get('peakly_goals',[]);
-  const gIdx=goals.findIndex(pg=>String(pg.id)===String(g.id));
-  if(gIdx>-1&&goals[gIdx].todayTasks){
-    const tIdx=goals[gIdx].todayTasks.findIndex(t=>String(t.taskId)===String(taskId));
-    if(tIdx>-1){goals[gIdx].todayTasks[tIdx].time=time;LS.set('peakly_goals',goals);}
+  if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime){
+    window.PeaklyGoals.applyTaskTime(g.id,taskId,time);
+    goals=LS.get('peakly_goals',goals);
+    const fresh=goals.find(pg=>String(pg.id)===String(g.id));
+    if(fresh)Object.assign(g,fresh);
+    return;
   }
+  LS.set('time_'+g.id+'_'+taskId,time);
+  const cachedGoals=LS.get('peakly_goals',[]);
+  const gIdx=cachedGoals.findIndex(pg=>String(pg.id)===String(g.id));
+  if(gIdx>-1){
+    (cachedGoals[gIdx].todayTasks||[]).forEach(t=>{if(String(t.taskId)===String(taskId))t.time=time;});
+    Object.values(cachedGoals[gIdx].weekTasks||{}).forEach(ts=>(ts||[]).forEach(t=>{if(String(t.taskId)===String(taskId))t.time=time;}));
+    LS.set('peakly_goals',cachedGoals);
+  }
+  publishGoalDataChanged({source:'task-time',goalId:g.id,taskId});
 }
 
 // ── isTaskDone / setTaskDone ───────────────────────────────────────────────
@@ -545,6 +579,11 @@ function setTaskDone(g,taskId,taskType,dayNum,val){
   }
   else if(taskType==='planning'){LS.set('plan_'+g.id+'_'+taskId+'_d'+dayNum,val);}
   else if(taskType==='checkin'){LS.set('checkin_'+g.id+'_'+taskId+'_d'+dayNum,val);}
+  if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskDone){
+    window.PeaklyGoals.applyTaskDone(g.id,taskId,val);
+  }else{
+    publishGoalDataChanged({source:'task-done',goalId:g.id,taskId});
+  }
 }
 const CUSTOM_TASK_DEF={
   totalDays:90,
@@ -745,11 +784,22 @@ function getCustomTasks(goalId){
   return LS.get('custom_tasks_'+goalId,[]);
 }
 function saveCustomTasks(goalId,tasks){
+  (tasks||[]).forEach(ct=>{
+    const tid=customTaskCacheId(ct);
+    LS.set('time_'+goalId+'_'+tid,ct.time||'');
+  });
   LS.set('custom_tasks_'+goalId,tasks);
+  refreshAllTodayTasks();
+  if(window.PeaklyGoals&&window.PeaklyGoals.syncCustomTasks){
+    window.PeaklyGoals.syncCustomTasks(goalId,{notify:false});
+  }
+  goals=LS.get('peakly_goals',goals);
+  publishGoalDataChanged({source:'custom-tasks',goalId,keys:['peakly_goals','custom_tasks_'+goalId]});
 }
 
 function buildCustomRow(g,ct,dayNum){
-  const done=LS.get('daily_'+g.id+'_ct_'+ct.id+'_'+dateKey(),false)===true;
+  const tid=customTaskCacheId(ct);
+  const done=LS.get('daily_'+g.id+'_'+tid+'_'+dateKey(),false)===true;
   const row=document.createElement('div');
   row.className='task-row';
   row.style.cssText='flex-direction:column;align-items:flex-start;padding-bottom:10px;position:relative;';
@@ -766,6 +816,21 @@ function buildCustomRow(g,ct,dayNum){
   lbl.style.cssText='flex:1;font-size:13px;color:'+(done?'var(--text3)':'var(--text)')+';text-decoration:'+(done?'line-through':'none')+';line-height:1.4;';
   lbl.textContent=ct.text;
 
+  const timeInp=document.createElement('input');
+  timeInp.type='time';
+  timeInp.value=LS.get('time_'+g.id+'_'+tid,'')||ct.time||'';
+  timeInp.style.cssText='width:86px;font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);color:var(--text2);outline:none;font-family:var(--font);cursor:pointer;flex-shrink:0;';
+  timeInp.onchange=e=>{
+    const tasks=getCustomTasks(g.id);
+    const idx=tasks.findIndex(t=>String(t.id)===String(ct.id));
+    if(idx>-1){
+      tasks[idx]={...tasks[idx],time:e.target.value||''};
+      saveCustomTasks(g.id,tasks);
+    }else if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime){
+      window.PeaklyGoals.applyTaskTime(g.id,tid,e.target.value||'');
+    }
+  };
+
   // Edit button
   const editBtn=document.createElement('button');
   editBtn.style.cssText='font-size:11px;padding:3px 8px;border-radius:var(--r);background:var(--bg);color:var(--text3);border:1px solid var(--border);cursor:pointer;white-space:nowrap;flex-shrink:0;';
@@ -776,15 +841,17 @@ function buildCustomRow(g,ct,dayNum){
   };
 
   chk.addEventListener('click',()=>{
-    const nd=!( LS.get('daily_'+g.id+'_ct_'+ct.id+'_'+dateKey(),false)===true);
-    LS.set('daily_'+g.id+'_ct_'+ct.id+'_'+dateKey(),nd);
+    const nd=!( LS.get('daily_'+g.id+'_'+tid+'_'+dateKey(),false)===true);
+    LS.set('daily_'+g.id+'_'+tid+'_'+dateKey(),nd);
+    if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskDone)window.PeaklyGoals.applyTaskDone(g.id,tid,nd);
+    else publishGoalDataChanged({source:'task-done',goalId:g.id,taskId:tid});
     chk.className='chk'+(nd?' done':'');
     chk.innerHTML=nd?'<svg width="10" height="8" viewBox="0 0 10 8"><path d="M1 4l3 3L9 1" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>':'';
     lbl.style.textDecoration=nd?'line-through':'none';
     lbl.style.color=nd?'var(--text3)':'var(--text)';
   });
 
-  topRow.appendChild(chk);topRow.appendChild(lbl);topRow.appendChild(editBtn);
+  topRow.appendChild(chk);topRow.appendChild(lbl);topRow.appendChild(timeInp);topRow.appendChild(editBtn);
   row.appendChild(topRow);
   if(ct.note){
     const noteEl=document.createElement('div');
@@ -1618,13 +1685,8 @@ function renderGoalDetail(){
     pct=allTasks.length>0?Math.round(doneTasks/allTasks.length*100):0;
     // Write today's tasks onto goal object so home page can read them
     // Each task gets a unique homeKey so home page can check done state independently
-    g.todayTasks=allTasks.map(t=>({
-      task:t.task||t.name||t.text||'',
-      time:LS.get('time_'+g.id+'_'+t.id,'')||t.time||t.defTime||'09:00',
-      taskId:t.id,
-      taskType:t.type||'daily',
-      homeKey:'home_task_'+g.id+'_'+t.id+'_'+dateKey()
-    }));
+    g.todayTasks=allTasks.map(t=>cacheTaskForDate(g,t,dateKey()))
+      .concat(customCacheTasksForGoal(g,dateKey()));
     saveGoals();
   } else {
     allTasks=g.milestones.flatMap(m=>m.tasks);
@@ -4721,13 +4783,22 @@ renderGoalsPage();
 maybeShowNewDayPopup();
 checkOverallMilestones();
 
-// Re-read goals from localStorage and re-render after a remote pull lands.
-window.addEventListener('peakly:sync-restored',()=>{
+function reloadGoalsAndRender(){
   goals = LS.get('peakly_goals', []);
   if(document.getElementById('goalDetailPage').style.display!=='none'){
     try{ renderGoalDetail(); }catch(e){ renderGoalsPage(); }
   } else {
     renderGoalsPage();
+  }
+}
+
+// Re-read goals from localStorage and re-render after local, cross-tab, or
+// remote changes land.
+window.addEventListener('peakly:sync-restored',reloadGoalsAndRender);
+window.addEventListener('peakly:data-changed',reloadGoalsAndRender);
+window.addEventListener('storage',ev=>{
+  if(ev.key==='peakly_goals'||(ev.key&&ev.key.startsWith('time_'))||(ev.key&&ev.key.startsWith('custom_tasks_'))){
+    reloadGoalsAndRender();
   }
 });
 

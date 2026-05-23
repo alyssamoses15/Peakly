@@ -657,7 +657,8 @@ function getAllEvents(){
           const tid=t.taskId||t.id||'task';
           const gEvId='daily_'+g.id+'_'+tid+'_'+dateStr;
           const gDur=LS.get('cal_dur_'+gEvId,30);
-          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:t.time||'09:00',dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+          const gTime=LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
+          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:gTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
         });
       });
     } else {
@@ -670,7 +671,8 @@ function getAllEvents(){
           const tid=t.taskId||t.id||'task';
           const gEvId='daily_'+g.id+'_'+tid+'_'+dStr;
           const gDur=LS.get('cal_dur_'+gEvId,30);
-          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:t.time||'09:00',dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+          const gTime=LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
+          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:gTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
         });
       }
     }
@@ -1035,13 +1037,8 @@ function dropEvent(date,mins){
     const idx=manualEvents.findIndex(m=>String(m.id)===String(e.srcId));
     if(idx>-1){manualEvents[idx].time=newTime;manualEvents[idx].date=date.toISOString();LS.set('cal_manual_events',manualEvents);}
   } else if(e.type==='goal'&&e.taskId){
-    LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
-    const pg=LS.get('peakly_goals',[]);
-    const gIdx=pg.findIndex(x=>String(x.id)===String(e.goalId));
-    if(gIdx>-1){
-      const tIdx=(pg[gIdx].todayTasks||[]).findIndex(t=>(t.taskId||t.id)===e.taskId);
-      if(tIdx>-1){pg[gIdx].todayTasks[tIdx].time=newTime;LS.set('peakly_goals',pg);}
-    }
+    if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(e.goalId,e.taskId,newTime);
+    else LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
   } else if(e.type==='routine'&&e.routineKey){
     LS.set('routine_'+e.routineKey+'_time_'+dk(e.date),newTime);
   } else if(e.type==='work'&&e.shiftKey){
@@ -1269,13 +1266,8 @@ function openEdit(e){
       LS.set('cal_dur_'+e.id, newDur);
       // Update time + date on source pages
       if(e.type==='goal'&&e.taskId){
-        LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
-        const pg=LS.get('peakly_goals',[]);
-        const gIdx=pg.findIndex(x=>String(x.id)===String(e.goalId));
-        if(gIdx>-1){
-          const tIdx=(pg[gIdx].todayTasks||[]).findIndex(t=>(t.taskId||t.id)===e.taskId);
-          if(tIdx>-1){pg[gIdx].todayTasks[tIdx].time=newTime;LS.set('peakly_goals',pg);}
-        }
+        if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(e.goalId,e.taskId,newTime);
+        else LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
       } else if(e.type==='routine'&&e.routineKey){
         LS.set('routine_'+e.routineKey+'_time_'+dk(newDate),newTime);
       } else if(e.type==='work'&&e.shiftKey){
@@ -1360,6 +1352,10 @@ document.addEventListener('visibilitychange',()=>{
 
 // Refresh when fresh data lands from another device via cloud sync
 window.addEventListener('peakly:sync-restored',()=>{
+  manualEvents=LS.get('cal_manual_events',[]);
+  renderCal();renderMini();renderUpcoming();renderUnscheduled();
+});
+window.addEventListener('peakly:data-changed',()=>{
   manualEvents=LS.get('cal_manual_events',[]);
   renderCal();renderMini();renderUpcoming();renderUnscheduled();
 });
