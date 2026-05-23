@@ -636,6 +636,10 @@ function initBanner(){
 const PLANNING_DAYS=[1,8,16,24,32,40,48,56,64,72,80,88];
 const CHECKIN_DAYS=[30,60,90];
 
+function getGoalTaskTime(goalId,taskId,dateStr,fallback){
+  if(window.PeaklyGoals&&window.PeaklyGoals.getTaskTime)return window.PeaklyGoals.getTaskTime(goalId,taskId,dateStr,fallback||'');
+  return LS.get('time_'+goalId+'_'+taskId+'_'+dateStr,'')||LS.get('time_'+goalId+'_'+taskId,'')||fallback||'';
+}
 function getAllEvents(){
   const evs=[];
   const today=new Date();today.setHours(0,0,0,0);
@@ -657,8 +661,8 @@ function getAllEvents(){
           const tid=t.taskId||t.id||'task';
           const gEvId='daily_'+g.id+'_'+tid+'_'+dateStr;
           const gDur=LS.get('cal_dur_'+gEvId,30);
-          const gTime=LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
-          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:gTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+          const gTime=getGoalTaskTime(g.id,tid,dateStr,t.time||'09:00');
+          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:gTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,dateStr,scheduled:true,sourcePage:'peakly-goals.html'});
         });
       });
     } else {
@@ -671,8 +675,8 @@ function getAllEvents(){
           const tid=t.taskId||t.id||'task';
           const gEvId='daily_'+g.id+'_'+tid+'_'+dStr;
           const gDur=LS.get('cal_dur_'+gEvId,30);
-          const gTime=LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
-          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:gTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,scheduled:true,sourcePage:'peakly-goals.html'});
+          const gTime=getGoalTaskTime(g.id,tid,dStr,t.time||'09:00');
+          evs.push({id:gEvId,type:'goal',title:g.name+': '+(t.task||t.name||'Task'),date:new Date(d),time:gTime,dur:gDur,color:g.color||TYPE.goal.color,goalId:g.id,taskId:tid,dateStr:dStr,scheduled:true,sourcePage:'peakly-goals.html'});
         });
       }
     }
@@ -1037,8 +1041,9 @@ function dropEvent(date,mins){
     const idx=manualEvents.findIndex(m=>String(m.id)===String(e.srcId));
     if(idx>-1){manualEvents[idx].time=newTime;manualEvents[idx].date=date.toISOString();LS.set('cal_manual_events',manualEvents);}
   } else if(e.type==='goal'&&e.taskId){
-    if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(e.goalId,e.taskId,newTime);
-    else LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
+    const dateStr=date.toDateString();
+    if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(e.goalId,e.taskId,newTime,{dateStr});
+    else LS.set('time_'+e.goalId+'_'+e.taskId+'_'+dateStr,newTime);
   } else if(e.type==='routine'&&e.routineKey){
     LS.set('routine_'+e.routineKey+'_time_'+dk(e.date),newTime);
   } else if(e.type==='work'&&e.shiftKey){
@@ -1266,8 +1271,9 @@ function openEdit(e){
       LS.set('cal_dur_'+e.id, newDur);
       // Update time + date on source pages
       if(e.type==='goal'&&e.taskId){
-        if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(e.goalId,e.taskId,newTime);
-        else LS.set('time_'+e.goalId+'_'+e.taskId,newTime);
+        const dateStr=newDate.toDateString();
+        if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(e.goalId,e.taskId,newTime,{dateStr});
+        else LS.set('time_'+e.goalId+'_'+e.taskId+'_'+dateStr,newTime);
       } else if(e.type==='routine'&&e.routineKey){
         LS.set('routine_'+e.routineKey+'_time_'+dk(newDate),newTime);
       } else if(e.type==='work'&&e.shiftKey){

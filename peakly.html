@@ -635,8 +635,9 @@ function GoalList({goals,onToggle}){
     if(!newTime)return;
     const tod=new Date().toDateString();
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(ev.goalId,ev.taskId,newTime);
-      else LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
+      const dateStr=ev.dateStr||todayKey();
+      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(ev.goalId,ev.taskId,newTime,{dateStr});
+      else LS.set('time_'+ev.goalId+'_'+ev.taskId+'_'+dateStr,newTime);
     }else if(ev.type==='routine'&&ev.routineKey){
       LS.set('routine_'+ev.routineKey+'_time_'+tod,newTime);
     }else if(ev.type==='work'&&ev.shiftKey){
@@ -829,12 +830,14 @@ function getCalendarEvents(){
       const checkKey=taskType==='planning'?'plan_'+g.id+'_'+tid+'_d'+dayNum
         :taskType==='checkin'?'checkin_'+g.id+'_'+tid+'_d'+dayNum
         :'daily_'+g.id+'_'+tid+'_'+_today;
-      const time=LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
+      const time=window.PeaklyGoals&&window.PeaklyGoals.getTaskTime
+        ? window.PeaklyGoals.getTaskTime(g.id,tid,todayStr,t.time||'09:00')
+        : LS.get('time_'+g.id+'_'+tid+'_'+todayStr,'')||LS.get('time_'+g.id+'_'+tid,'')||t.time||'09:00';
       const evId='g_'+g.id+'_d'+dayNum+'_'+tid;
       // If goals page already marked t.done=true, mirror it into the storeKey
       // so the same value is read no matter which side updated last.
       if(t.done===true&&LS.get(checkKey,false)!==true)LS.set(checkKey,true);
-      evs.push({id:evId,type:'goal',title:(t.task||t.name||'Task'),time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:tid,taskType,goalName:g.name,page:'peakly-goals.html'});
+      evs.push({id:evId,type:'goal',title:(t.task||t.name||'Task'),time,dur:LS.get('cal_dur_'+evId,30),color:g.color||'#0891B2',checkKey,goalId:g.id,taskId:tid,taskType,dateStr:todayStr,goalName:g.name,page:'peakly-goals.html'});
     });
   });
 
@@ -919,8 +922,9 @@ function HourCal(){
     if(!newTime)return;
     const tod=new Date().toDateString();
     if(ev.type==='goal'&&ev.goalId&&ev.taskId){
-      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(ev.goalId,ev.taskId,newTime);
-      else LS.set('time_'+ev.goalId+'_'+ev.taskId,newTime);
+      const dateStr=ev.dateStr||todayKey();
+      if(window.PeaklyGoals&&window.PeaklyGoals.applyTaskTime)window.PeaklyGoals.applyTaskTime(ev.goalId,ev.taskId,newTime,{dateStr});
+      else LS.set('time_'+ev.goalId+'_'+ev.taskId+'_'+dateStr,newTime);
     }else if(ev.type==='routine'&&ev.routineKey){
       LS.set('routine_'+ev.routineKey+'_time_'+tod,newTime);
     }else if(ev.type==='work'&&ev.shiftKey){
