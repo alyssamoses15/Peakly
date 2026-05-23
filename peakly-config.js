@@ -256,7 +256,23 @@ window.PeaklyGoals = {
   },
 
   dateKey(date = new Date()){
-    return date.toDateString();
+    if(date instanceof Date && !isNaN(date)) return date.toDateString();
+    if(typeof date === 'string'){
+      const parsed = new Date(date);
+      return isNaN(parsed) ? date : parsed.toDateString();
+    }
+    return new Date().toDateString();
+  },
+
+  timeKey(goalId, taskId, dateStr){
+    const tid = String(taskId);
+    return dateStr ? 'time_' + goalId + '_' + tid + '_' + dateStr : 'time_' + goalId + '_' + tid;
+  },
+
+  getTaskTime(goalId, taskId, dateStr, fallback = ''){
+    const dayTime = dateStr ? this.get(this.timeKey(goalId, taskId, dateStr), '') : '';
+    if(dayTime) return dayTime;
+    return this.get(this.timeKey(goalId, taskId), '') || fallback;
   },
 
   customTaskId(ct){
@@ -282,11 +298,12 @@ window.PeaklyGoals = {
       .filter(ct => ct && !ct.deleted && (ct.text || ct.task || ct.name))
       .map(ct => {
         const tid = this.customTaskId(ct);
-        const savedTime = this.get('time_' + goal.id + '_' + tid, '');
+        const savedTime = this.getTaskTime(goal.id, tid, dateStr, ct.time || '09:00');
         return {
           task: ct.text || ct.task || ct.name || 'Custom task',
-          time: savedTime || ct.time || '09:00',
+          time: savedTime,
           taskId: tid,
+          date: dateStr,
           taskType: 'custom',
           customTaskId: ct.id,
           note: ct.note || '',
@@ -340,7 +357,8 @@ window.PeaklyGoals = {
   applyTaskTime(goalId, taskId, time, opts = {}){
     if(goalId == null || taskId == null) return false;
     const tid = String(taskId);
-    this.set('time_' + goalId + '_' + tid, time || '');
+    const dateStr = opts.dateStr || opts.dateKey || this.dateKey(opts.date || new Date());
+    this.set(this.timeKey(goalId, tid, dateStr), time || '');
 
     const goals = this.get('peakly_goals', []);
     let changed = false;
@@ -353,40 +371,19 @@ window.PeaklyGoals = {
           list.forEach(t => {
             if(this.taskId(t) === tid && t.time !== time){
               t.time = time;
+              t.date = dateStr;
               listChanged = true;
             }
           });
           return listChanged;
         };
-        if(updateList(goal.todayTasks)) changed = true;
-        if(goal.weekTasks && typeof goal.weekTasks === 'object'){
-          Object.values(goal.weekTasks).forEach(tasks => {
-            if(updateList(tasks)) changed = true;
-          });
-        }
-      }
-    }
-
-    const customKey = 'custom_tasks_' + goalId;
-    const customTasks = this.get(customKey, []);
-    if(Array.isArray(customTasks) && customTasks.length){
-      let customChanged = false;
-      customTasks.forEach(ct => {
-        if(String(ct.id) === tid || this.customTaskId(ct) === tid){
-          if(ct.time !== time){
-            ct.time = time || '';
-            customChanged = true;
-          }
-        }
-      });
-      if(customChanged){
-        this.set(customKey, customTasks);
-        changed = true;
+        if(dateStr === this.dateKey() && updateList(goal.todayTasks)) changed = true;
+        if(goal.weekTasks && typeof goal.weekTasks === 'object' && updateList(goal.weekTasks[dateStr])) changed = true;
       }
     }
 
     if(changed && Array.isArray(goals)) this.set('peakly_goals', goals);
-    if(opts.notify !== false) this.notifyChange({ source:'task-time', goalId, taskId:tid });
+    if(opts.notify !== false) this.notifyChange({ source:'task-time', goalId, taskId:tid, dateStr });
     return changed;
   },
 
