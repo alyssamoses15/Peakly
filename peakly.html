@@ -1411,12 +1411,9 @@ function UserAvatar(){
   React.useEffect(()=>{
     // Only check auth on real domain, not local files
     if(window.location.protocol==='file:')return;
-    ensureSb().then(client=>{
+    ensureSb().then(async client=>{
       if(!client){return;}
-      return client.auth.getSession();
-    }).then(async (sessionResult)=>{
-      if(!sessionResult) return;
-      const session = sessionResult.data?.session;
+      const session=await(window.PeaklyAuth?.robustGetSession?window.PeaklyAuth.robustGetSession(client):client.auth.getSession().then(r=>r.data.session));
       if(!session&&window.location.protocol!=='file:'){window.location.href='peakly-auth.html';return;}
       if(!session)return;
       const user=session.user;
@@ -1431,16 +1428,15 @@ function UserAvatar(){
       // Cross-device sync: pull newer cloud data, then back up local edits.
       if(window.PeaklySync){
         try{
-          const r = await window.PeaklySync.init(sb, user, { reloadOnRestore:true });
+          const r = await window.PeaklySync.init(client, user, { reloadOnRestore:true });
           if(r.restored) return;
         }catch(e){}
       }
       // Load subscription state from Supabase and render trial banner if needed
       if(window.PeaklyAuth){
         try{
-          const result = await window.PeaklyAuth.loadSubscription(sb, user);
+          const result = await window.PeaklyAuth.loadSubscription(client, user);
           window.PeaklyAuth.renderTrialBanner(result);
-          // If a fresh trial just expired, mark sessionStorage so banner shows
           if(result.plan==='free' && localStorage.getItem('peakly_plan_was_trial')==='1'){
             sessionStorage.setItem('peakly_trial_just_expired','1');
             localStorage.removeItem('peakly_plan_was_trial');
@@ -1458,7 +1454,6 @@ function UserAvatar(){
       if(first&&last) ini=(first[0]+last[0]).toUpperCase();
       else if(first) ini=first.slice(0,2).toUpperCase();
       setInitials(ini);
-      // Save to localStorage for profile page
       LS.set('peakly_profile',{
         firstName:meta.first_name||meta.full_name?.split(' ')[0]||'',
         lastName:meta.last_name||meta.full_name?.split(' ')[1]||'',
@@ -1927,5 +1922,116 @@ const sickDay = () => {
     }
     setTimeout(syncCheckmarksFromCloud, 1500);
   </script>
+
+<!-- ── Onboarding Tour ─────────────────────────────────────────────────── -->
+<style>
+#tourOverlay{position:fixed;inset:0;z-index:9000;pointer-events:none;}
+#tourOverlay.active{pointer-events:all;}
+#tourBackdrop{position:fixed;inset:0;background:rgba(15,20,35,.55);z-index:9001;transition:opacity .3s;}
+#tourCard{position:fixed;z-index:9002;background:#fff;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.22);padding:28px 28px 22px;max-width:340px;width:calc(100vw - 40px);transition:all .35s cubic-bezier(.22,.9,.36,1);}
+#tourCard .tc-step{font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--blue);text-transform:uppercase;margin-bottom:6px;}
+#tourCard .tc-icon{font-size:36px;margin-bottom:10px;}
+#tourCard .tc-title{font-family:var(--display);font-size:19px;font-weight:800;color:var(--text);margin-bottom:8px;line-height:1.2;}
+#tourCard .tc-body{font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:18px;}
+#tourCard .tc-dots{display:flex;gap:6px;margin-bottom:16px;}
+#tourCard .tc-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:background .2s;}
+#tourCard .tc-dot.on{background:var(--blue);}
+#tourCard .tc-actions{display:flex;justify-content:space-between;align-items:center;}
+#tourCard .tc-skip{font-size:12px;color:var(--text4);background:none;border:none;cursor:pointer;padding:0;}
+#tourCard .tc-skip:hover{color:var(--text2);}
+#tourCard .tc-next{padding:9px 22px;border-radius:30px;background:var(--blue);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:opacity .15s;}
+#tourCard .tc-next:hover{opacity:.88;}
+#tourSpotlight{position:fixed;z-index:9000;border-radius:14px;box-shadow:0 0 0 9999px rgba(15,20,35,.55);transition:all .35s cubic-bezier(.22,.9,.36,1);pointer-events:none;}
+</style>
+<div id="tourOverlay">
+  <div id="tourBackdrop" style="display:none;" onclick="tourSkip()"></div>
+  <div id="tourSpotlight" style="display:none;"></div>
+  <div id="tourCard" style="display:none;">
+    <div class="tc-step" id="tourStep"></div>
+    <div class="tc-icon" id="tourIcon"></div>
+    <div class="tc-title" id="tourTitle"></div>
+    <div class="tc-body" id="tourBody"></div>
+    <div class="tc-dots" id="tourDots"></div>
+    <div class="tc-actions">
+      <button class="tc-skip" onclick="tourSkip()">Skip tour</button>
+      <button class="tc-next" id="tourNextBtn" onclick="tourNext()">Next →</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  if(localStorage.getItem('peakly_tour_done')==='1')return;
+
+  const STEPS=[
+    {icon:'🌿',title:'Welcome to Peakly',body:'Peakly is your all-in-one goal tracker, life organizer, and wellness companion. Let us show you around in 30 seconds.',target:null,position:'center'},
+    {icon:'🎯',title:'Set Your Goals',body:'Head to the Goals page to pick from 100+ goal templates — fitness, mental health, business, relationships — or build your own. Your daily tasks will automatically appear here on the home page.',target:'[href="peakly-goals.html"]',position:'below'},
+    {icon:'📅',title:'Your Calendar',body:'Everything syncs to your Calendar automatically — goal tasks, routines, appointments from Life Admin. You can also add one-off or recurring events.',target:'[href="peakly-calendar.html"]',position:'below'},
+    {icon:'🗂️',title:'Life Admin',body:'Track health, finances, home, vehicle, meals, and more in Life Admin. It\'s your whole life in one place — and it all feeds into your calendar.',target:'[href="peakly-second-brain-1.html"]',position:'below'},
+    {icon:'✅',title:'You\'re all set!',body:'Check off your daily tasks here on the home page, watch your garden grow with your streak, and review your week every Saturday. You\'ve got this.',target:null,position:'center'},
+  ];
+
+  let cur=0;
+
+  function render(){
+    const s=STEPS[cur];
+    const overlay=document.getElementById('tourOverlay');
+    const backdrop=document.getElementById('tourBackdrop');
+    const card=document.getElementById('tourCard');
+    const spotlight=document.getElementById('tourSpotlight');
+    overlay.classList.add('active');
+    backdrop.style.display='block';
+    card.style.display='block';
+    document.getElementById('tourStep').textContent='Step '+(cur+1)+' of '+STEPS.length;
+    document.getElementById('tourIcon').textContent=s.icon;
+    document.getElementById('tourTitle').textContent=s.title;
+    document.getElementById('tourBody').textContent=s.body;
+    document.getElementById('tourNextBtn').textContent=cur===STEPS.length-1?'Get started ✓':'Next →';
+    const dots=document.getElementById('tourDots');
+    dots.innerHTML=STEPS.map((_,i)=>`<div class="tc-dot${i===cur?' on':''}"></div>`).join('');
+
+    if(s.target){
+      const el=document.querySelector(s.target);
+      if(el){
+        const r=el.getBoundingClientRect();
+        const pad=10;
+        spotlight.style.cssText=`display:block;left:${r.left-pad}px;top:${r.top-pad}px;width:${r.width+pad*2}px;height:${r.height+pad*2}px;box-shadow:0 0 0 9999px rgba(15,20,35,.55);border-radius:14px;transition:all .35s;`;
+        // Position card below the spotlight
+        const cardTop=r.bottom+pad+16;
+        card.style.cssText=`display:block;left:50%;top:${Math.min(cardTop,window.innerHeight-280)}px;transform:translateX(-50%);`;
+      } else {
+        spotlight.style.display='none';
+        centerCard();
+      }
+    } else {
+      spotlight.style.display='none';
+      centerCard();
+    }
+  }
+
+  function centerCard(){
+    const card=document.getElementById('tourCard');
+    card.style.cssText='display:block;left:50%;top:50%;transform:translate(-50%,-50%);';
+  }
+
+  window.tourNext=function(){
+    cur++;
+    if(cur>=STEPS.length){tourDone();return;}
+    render();
+  };
+
+  window.tourSkip=function(){tourDone();};
+
+  function tourDone(){
+    localStorage.setItem('peakly_tour_done','1');
+    document.getElementById('tourOverlay').classList.remove('active');
+    document.getElementById('tourBackdrop').style.display='none';
+    document.getElementById('tourCard').style.display='none';
+    document.getElementById('tourSpotlight').style.display='none';
+  }
+
+  // Start after a short delay so the page renders first
+  setTimeout(render, 900);
+})();
+</script>
 </body>
 </html>

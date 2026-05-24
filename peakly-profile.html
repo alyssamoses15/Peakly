@@ -1004,7 +1004,7 @@ async function getSb(){
     return null;
   }
   const cfg = window.PeaklyConfig;
-  try{ _sbClient = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY); }catch(e){ console.error('[Peakly] supabase.createClient failed', e); return null; }
+  try{ _sbClient = (window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})))(cfg.SUPABASE_URL, cfg.SUPABASE_KEY); }catch(e){ console.error('[Peakly] supabase.createClient failed', e); return null; }
   return _sbClient;
 }
 
@@ -1090,7 +1090,7 @@ async function manageBilling(){
   try{
     const sb = await getSb();
     if(!sb){ window.location.href='peakly-plan.html'; return; }
-    const { data:{ session } } = await sb.auth.getSession();
+    const session = await (window.PeaklyAuth?.robustGetSession ? window.PeaklyAuth.robustGetSession(sb) : sb.auth.getSession().then(r=>r.data.session));
     if(!session){ window.location.href='peakly-auth.html'; return; }
 
     const btn = document.querySelector('[onclick="manageBilling()"]');
@@ -1351,8 +1351,8 @@ async function handleLogout(){
 // ── Auth check & sync ──────────────────────────────────────────
 (async function(){
   try{
-    const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    const {data:{session}}=await sb.auth.getSession();
+    const sb=(window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})))(SUPABASE_URL,SUPABASE_KEY);
+    const session=await(window.PeaklyAuth?.robustGetSession?window.PeaklyAuth.robustGetSession(sb):sb.auth.getSession().then(r=>r.data.session));
     if(session){
       const user=session.user;
       const meta=user.user_metadata||{};

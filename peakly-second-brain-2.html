@@ -93,8 +93,8 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 20p
   const SKEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
   if(!window.PeaklyBoot){console.error('[Peakly] peakly-config.js failed to load — sync disabled');return;}
   try{ await window.PeaklyBoot.waitForSupabase(); }catch(e){ return; }
-  const sb=supabase.createClient(SURL,SKEY);
-  sb.auth.getSession().then(async ({data:{session}})=>{
+  const sb=(window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})))(SURL,SKEY);
+  (window.PeaklyAuth?.robustGetSession||((c)=>c.auth.getSession().then(r=>r.data.session)))(sb).then(async session=>{
     if(!session){window.location.href='peakly-auth.html';return;}
     const user=session.user;
     if(window.PeaklyAuth){
