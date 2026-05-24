@@ -582,6 +582,9 @@ function getGoalTaskDef(g){
     'Start a Small Business':'smallbusiness','Build a Large Business with Investors':'largebusiness',
     'Start a Side Hustle':'smallbusiness','Publish a Book':'smallbusiness',
     'Start a Nonprofit':'smallbusiness','Organize a Community Event':'smallbusiness',
+    'Depression Recovery: Getting Out of Bed':'depressionrecovery',
+    'Build a Basic Self-Care Routine':'basicselfcare',
+    'Mental Wellness Routine':'mentalwellness',
     'Get 1,000 Followers':'socialmedia','Get 10,000 Followers':'socialmedia',
     'Make Money on Social Media':'socialmedia','Start YouTube & Get 5,000 Subscribers':'socialmedia',
     'Save $10,000':'emergencyfund',
@@ -3408,59 +3411,255 @@ gymnastics:{totalDays:90,planningDays:[1,8,16,24,32,40,48,56,64,72,80,88],checki
   // ── SMALL BUSINESS (180 days, phase-specific) ─────────────────────────
   smallbusiness:{totalDays:180,
     planningDays:[1,7,14,21,28,35,42,49,56,63,70,77,84,91,98,105,112,119,126,133,140,147,154,161,168,175],
-    checkinDays:[45,90,135,180],
-    day21msg:"21 days into your business. Most businesses fail because the owner stopped. You are still here. That already puts you ahead.",
+    checkinDays:[30,60,90,120,180],
+    day21msg:"21 days in. Most people who say they want to start a business never do this. You are already ahead.",
     suggestedNext:["Make Money on Social Media","Get 1,000 Followers","Get a Promotion"],
     daily:(d)=>{
+      if(d===1)return[
+        {id:"d_idea",text:"Write your business idea in one sentence: who, what problem, how you solve it",time:"09:00",note:"Keep it simple: [Customer type] struggles with [problem]. I help them by [solution].",type:"daily"},
+        {id:"d_ein",text:"Apply for your EIN (Employer Identification Number) — free at IRS.gov",time:"10:00",note:"Go to IRS.gov → 'Apply for an EIN Online'. Takes 5 minutes. You need this for taxes, banking, and payroll even if you have no employees.",type:"daily"},
+      ];
+      if(d===2)return[
+        {id:"d_structure",text:"Choose your business structure: LLC, sole proprietor, or S-Corp",time:"09:00",note:"Most small businesses start as sole proprietor (simplest) or LLC ($50–$500 depending on state, protects personal assets). Go to your state's Secretary of State website.",type:"daily"},
+        {id:"d_namechk",text:"Check that your business name is available",time:"10:00",note:"Search your state's business name database + check if the domain is available at Namecheap or GoDaddy.",type:"daily"},
+      ];
+      if(d===3)return[
+        {id:"d_register",text:"Register your business with your state",time:"09:00",note:"File online at your state's Secretary of State website. LLC filing usually costs $50–$500. You will receive your Articles of Organization.",type:"daily"},
+        {id:"d_domain",text:"Buy your domain name (under $15/year)",time:"11:00",note:"Keep it short and easy to spell. .com is still king. Namecheap or Google Domains.",type:"daily"},
+      ];
+      if(d===4)return[
+        {id:"d_email",text:"Set up a professional business email address",time:"09:00",note:"Google Workspace ($6/mo) gives you [yourname]@yourbusiness.com. Never use Gmail or Yahoo for business — it looks unprofessional.",type:"daily"},
+        {id:"d_logo",text:"Create a simple logo (free with Canva)",time:"11:00",note:"Go to canva.com → search 'logo'. Pick one that looks clean at small sizes. Don't overthink this — you can update it later.",type:"daily"},
+      ];
+      if(d===5)return[
+        {id:"d_bank",text:"Open a business bank account",time:"09:00",note:"Mercury (mercury.com) is free and excellent for small businesses. Relay is also great. Bring your EIN and Articles of Organization. NEVER mix personal and business money.",type:"daily"},
+        {id:"d_tools",text:"Set up basic bookkeeping — Wave (free) or QuickBooks ($30/mo)",time:"14:00",note:"Wave Accounting is completely free and good enough for most small businesses starting out. Connect your business bank account.",type:"daily"},
+      ];
+      if(d===6)return[
+        {id:"d_permit",text:"Research licenses and permits your business needs",time:"09:00",note:"Most local businesses need a Business License from your city ($20–$100/yr). Some industries need additional permits. Check your city's business portal.",type:"daily"},
+        {id:"d_insurance",text:"Research business insurance options",time:"11:00",note:"General Liability Insurance ($30–$60/mo) protects you from lawsuits. For home-based businesses, check if your homeowner's policy covers business activity.",type:"daily"},
+      ];
+      if(d===7)return[
+        {id:"d_presence",text:"Set up basic online presence — Google Business Profile + social media handle",time:"09:00",note:"Claim your Google Business Profile (free). Lock in your business name handle on Instagram, Facebook, TikTok even if you don't post yet.",type:"daily"},
+        {id:"d_ready",text:"Review your setup checklist: EIN ✓ Business registered ✓ Bank account ✓ Email ✓ Logo ✓",time:"14:00",note:"The legal and admin foundation is built. From Day 8 onward, focus is on customers — not setup.",type:"daily"},
+      ];
       if(d<=21)return[
-        {id:"d_validate",text:"Customer discovery — talk to 1 potential customer or do market research",time:"09:00",note:"Day 1-21: Do not build yet. Talk to people first. Ask: what is your biggest problem with [area]? How do you solve it today? What would you pay?",type:"daily"},
+        {id:"d_discover",text:"Customer discovery — talk to 1 potential customer or do market research",time:"09:00",note:"Ask: What is your biggest challenge with [area]? How do you deal with it today? What would you pay for a solution? Listen more than you talk.",type:"daily"},
       ];
       if(d<=42)return[
-        {id:"d_build",text:"Work on product/service — minimum 2 hours",time:"09:00",note:"Day 22-42: Build the simplest version that solves the core problem. No extra features.",type:"daily"},
-        {id:"d_register",text:"Business admin task (registration, banking, tools)",time:"14:00",note:"Register your LLC or sole proprietorship. Open a separate business bank account. Set up simple bookkeeping.",type:"daily"},
+        {id:"d_build",text:"Work on product or service — minimum 2 focused hours",time:"09:00",note:"Build the simplest version that solves the core problem. One feature done well beats five features done poorly.",type:"daily"},
+        {id:"d_market",text:"Marketing task — post, reach out, or list your service somewhere",time:"14:00",note:"Instagram post, Facebook Marketplace listing, flyer in neighborhood, cold email to 3 people. Show up somewhere.",type:"daily"},
       ];
       if(d<=90)return[
-        {id:"d_sales",text:"Sales or marketing activity — 3 outreach messages or 1 meeting",time:"09:00",note:"Day 43-90: Your one job is getting your first paying customer. Not more features. Not branding. Customers.",type:"daily"},
-        {id:"d_ops",text:"Improve one product, process, or customer experience",time:"14:00",note:"Fix what is causing confusion or drop-off. Speed over perfection.",type:"daily"},
+        {id:"d_sales",text:"Sales activity — 3 outreach messages or 1 customer meeting",time:"09:00",note:"Your one job right now: get paying customers. Not more features. Not better branding. Customers first.",type:"daily"},
+        {id:"d_ops",text:"Improve one product, process, or customer experience",time:"14:00",note:"Fix whatever is causing confusion or drop-off. Speed beats perfection every time.",type:"daily"},
       ];
       if(d<=135)return[
-        {id:"d_sales",text:"Sales activity — close new customers or retain existing",time:"09:00",note:"Day 91-135: Revenue is the only metric that matters right now. Every dollar validates the model.",type:"daily"},
-        {id:"d_systems",text:"Build one internal system or process (30 min)",time:"14:00",note:"What breaks when you get 10x the customers? Fix it before it breaks.",type:"daily"},
+        {id:"d_sales",text:"Sales or marketing activity — close new customers or retain existing",time:"09:00",note:"Revenue is the only metric that matters right now. Every dollar validates the model.",type:"daily"},
+        {id:"d_systems",text:"Build one internal process or system (30 min)",time:"14:00",note:"What breaks when you get 10x the customers? Start fixing it before it breaks.",type:"daily"},
       ];
       return[
-        {id:"d_growth",text:"Growth activity — marketing, sales, or product",time:"09:00",type:"daily"},
-        {id:"d_finance",text:"Financial review — revenue, expenses, profit",time:"14:00",note:"Know your numbers cold: revenue, cost of goods, gross margin, net profit, burn rate.",type:"daily"},
+        {id:"d_growth",text:"Growth activity — marketing, sales, or partnerships",time:"09:00",type:"daily"},
+        {id:"d_finance",text:"Financial review — revenue, expenses, and profit margin",time:"14:00",note:"Know your numbers: revenue, cost of goods, gross margin, net profit, burn rate.",type:"daily"},
       ];
     },
     planning:(d)=>{
+      if(d===1)return[
+        {id:"p_goals",text:"Write your 90-day business goals",time:"09:00",note:"Be specific: revenue target, number of customers, product milestones.",type:"planning"},
+      ];
       if(d<=90)return[
         {id:"p_revenue",text:"Weekly revenue and pipeline review",time:"09:00",note:"Who is close to buying? What is blocking them? What can you do this week to close it?",type:"planning"},
-        {id:"p_priorities",text:"Top 3 priorities this week — ruthlessly focus",time:"09:30",note:"For early stage: customer acquisition > product > operations > everything else.",type:"planning"},
+        {id:"p_priorities",text:"Top 3 priorities this week — ruthlessly focus",time:"09:30",note:"Priority order: customer acquisition → product → operations → everything else.",type:"planning"},
       ];
       return[
-        {id:"p_kpis",text:"Weekly KPI review — revenue, customers, churn",time:"09:00",type:"planning"},
-        {id:"p_ops",text:"One thing to systematize this week",time:"09:30",type:"planning"},
+        {id:"p_kpis",text:"Weekly KPIs — revenue, new customers, churn, pipeline",time:"09:00",type:"planning"},
+        {id:"p_ops",text:"One thing to systematize or delegate this week",time:"09:30",type:"planning"},
       ];
     },
     checkin:(d)=>{
-      if(d===45)return[
-        {id:"c1",text:"Is your business registered? (LLC, sole proprietor, or appropriate structure)",time:"09:00",note:"Register at your state website. $50-500 depending on state. Separates personal and business liability.",type:"checkin"},
-        {id:"c2",text:"Is a separate business bank account open?",time:"09:30",note:"Mercury, Relay, or your local bank. Keep business money 100% separate from day 1.",type:"checkin"},
-        {id:"c3",text:"Do you have at least 1 paying customer or pre-order?",time:"10:00",note:"If yes: validate and scale. If no: go back to customer discovery.",type:"checkin"},
+      if(d===30)return[
+        {id:"c1",text:"Is your legal foundation complete? (EIN, business registered, bank account, email)",time:"09:00",note:"If anything is missing, prioritize it this week. These aren't optional — they protect you.",type:"checkin"},
+        {id:"c2",text:"Have you spoken to at least 5 potential customers about their problems?",time:"09:30",note:"If no: block 2 hours this week for customer conversations. Nothing else matters more right now.",type:"checkin"},
+        {id:"c3",text:"Do you have your first paying customer, or a clear path to one?",time:"10:00",type:"checkin"},
+      ];
+      if(d===60)return[
+        {id:"c1",text:"How many paying customers do you have?",time:"09:00",note:"Even 1 paying customer validates demand. $0 means go back to customer conversations — the product or pitch needs work.",type:"checkin"},
+        {id:"c2",text:"Are you tracking all income and expenses in your bookkeeping tool?",time:"09:30",note:"If not, catch up now. The IRS doesn't care that you were busy.",type:"checkin"},
+        {id:"c3",text:"What is your biggest bottleneck to getting more customers?",time:"10:00",type:"checkin"},
       ];
       if(d===90)return[
-        {id:"c1",text:"Monthly revenue at Day 90?",time:"09:00",note:"Any revenue validates demand. $0 means go back to customer conversations.",type:"checkin"},
-        {id:"c2",text:"Tax setup: do you have an EIN and are you tracking income/expenses?",time:"09:30",note:"Get a free EIN from IRS.gov. Use QuickBooks, Wave, or a simple spreadsheet.",type:"checkin"},
-        {id:"c3",text:"What is your biggest bottleneck right now?",time:"10:00",type:"checkin"},
+        {id:"c1",text:"Monthly revenue at Day 90?",time:"09:00",note:"Any revenue validates demand. Compare to your Day 1 goal. Adjust the next 90 days accordingly.",type:"checkin"},
+        {id:"c2",text:"File your first quarterly estimated taxes if required",time:"09:30",note:"If you earned money, the IRS expects quarterly estimated payments. Use IRS Form 1040-ES. Your bookkeeper or CPA can help.",type:"checkin"},
+        {id:"c3",text:"What is your gross margin? (Revenue minus cost of goods / Revenue)",time:"10:00",note:"Below 30% means your pricing or costs need work. Above 60% is healthy for most service businesses.",type:"checkin"},
       ];
-      if(d===135)return[
-        {id:"c1",text:"MoM (month-over-month) revenue growth rate",time:"09:00",note:"Even 10% MoM is strong. Flat is a signal to change something.",type:"checkin"},
+      if(d===120)return[
+        {id:"c1",text:"Month-over-month revenue trend — growing, flat, or declining?",time:"09:00",note:"Flat or declining at 4 months means change something: pricing, channel, product, or audience.",type:"checkin"},
         {id:"c2",text:"What systems do you have in place vs. what is still manual?",time:"09:30",type:"checkin"},
+        {id:"c3",text:"Do you need to hire help — contractor, VA, part-time employee?",time:"10:00",note:"If a task is taking you away from revenue-generating work and could be done for less than your hourly rate, delegate it.",type:"checkin"},
       ];
       if(d===180)return[
-        {id:"c1",text:"Total revenue generated in 180 days",time:"09:00",type:"checkin"},
-        {id:"c2",text:"Is the business profitable or on a path to profitability?",time:"09:30",note:"If not: what is the one change that would most improve margin?",type:"checkin"},
-        {id:"c3",text:"What is the 6-month plan from here?",time:"10:00",type:"checkin"},
+        {id:"c1",text:"Total revenue in 180 days",time:"09:00",type:"checkin"},
+        {id:"c2",text:"Is the business profitable or on a clear path to profitability?",time:"09:30",note:"If not: what is the one change — pricing, product, or channel — that would most improve this?",type:"checkin"},
+        {id:"c3",text:"What is your 6-month plan from here?",time:"10:00",note:"Write it down. Goals without a plan are just wishes.",type:"checkin"},
+      ];
+      return[];
+    },
+  },
+
+  // ── DEPRESSION RECOVERY / GETTING OUT OF BED (90 days, gentle) ───────
+  depressionrecovery:{totalDays:90,planningDays:[1,7,14,21,28,35,42,49,56,63,70,77,84],checkinDays:[30,60,90],
+    day21msg:"21 days of showing up for yourself. That is not small. That is everything. Keep going.",
+    suggestedNext:["Start Meditation","Daily Journaling","Manage Anxiety"],
+    daily:(d)=>{
+      if(d<=14)return[
+        {id:"d_bed",text:"Get out of bed within 30 minutes of waking up",time:"08:00",note:"This is the whole task today. Nothing else is required. Getting up is the win.",type:"daily"},
+        {id:"d_water",text:"Drink a full glass of water",time:"08:15",note:"Set a glass by your bed the night before. Hydration helps energy and mood more than people realize.",type:"daily"},
+        {id:"d_eat",text:"Eat something — anything",time:"09:00",note:"A piece of toast counts. A banana counts. You do not need to cook. Just eat something.",type:"daily"},
+      ];
+      if(d<=30)return[
+        {id:"d_bed",text:"Get out of bed within 30 minutes of waking up",time:"08:00",note:"You have done this before. You can do it today.",type:"daily"},
+        {id:"d_water",text:"Drink a full glass of water",time:"08:15",type:"daily"},
+        {id:"d_eat",text:"Eat something — a real meal if you can manage it",time:"09:00",note:"If cooking feels like too much, that is okay. Cereal, toast, a protein bar — all count.",type:"daily"},
+        {id:"d_outside",text:"Step outside for 5 minutes — fresh air and daylight",time:"10:00",note:"You do not need to go for a walk. Standing on a porch or balcony counts. Natural light helps regulate mood.",type:"daily"},
+      ];
+      if(d<=60)return[
+        {id:"d_bed",text:"Get out of bed at a consistent time",time:"08:00",note:"Consistency helps regulate your body clock, which affects mood, energy, and sleep.",type:"daily"},
+        {id:"d_water",text:"Drink water and eat breakfast",time:"08:15",type:"daily"},
+        {id:"d_outside",text:"Go outside for a short walk — even 10 minutes",time:"10:00",note:"Research shows that 10 minutes of walking outdoors can reduce anxiety and improve mood. You do not need to enjoy it. Just do it.",type:"daily"},
+        {id:"d_one",text:"Do one thing you used to enjoy, even if it doesn't feel enjoyable right now",time:"15:00",note:"Listen to one song. Watch one episode. Pet an animal. Do not wait to 'feel like it' — the feeling sometimes comes after.",type:"daily"},
+      ];
+      return[
+        {id:"d_routine",text:"Follow your morning routine",time:"08:00",note:"Wake up, water, food, sunlight. Small rituals create stability when everything else feels hard.",type:"daily"},
+        {id:"d_outside",text:"Get outside and move — walk, stretch, or anything",time:"10:00",type:"daily"},
+        {id:"d_connect",text:"Reach out to one person today — text, call, or reply to a message",time:"14:00",note:"Isolation makes depression worse. You do not need a deep conversation. A meme you saw counts.",type:"daily"},
+        {id:"d_reflect",text:"One-line journal: how are you feeling today? (1 sentence is enough)",time:"21:00",note:"You are not trying to solve anything. Just notice. 'Today was hard' is a complete entry.",type:"daily"},
+      ];
+    },
+    planning:(d)=>{
+      if(d===1)return[{id:"p_start",text:"Write down one small thing you want to feel better about",time:"09:00",note:"Not a goal. Not a plan. Just one thing. It can be as small as 'get out of bed before noon'.",type:"planning"}];
+      return[
+        {id:"p_wins",text:"Write down 2 things that went okay this week (no matter how small)",time:"09:00",note:"Ate something. Got dressed. Replied to a text. Small wins are still wins.",type:"planning"},
+        {id:"p_next",text:"Pick one thing to try differently or add next week",time:"09:30",note:"Not a big change. One tiny thing.",type:"planning"},
+      ];
+    },
+    checkin:(d)=>{
+      if(d===30)return[
+        {id:"c1",text:"Compare week 1 to now — what has gotten even a little easier?",time:"09:00",note:"Recovery is not linear. Some days are worse than others. Look at the overall trend, not yesterday.",type:"checkin"},
+        {id:"c2",text:"Are you getting professional support? (therapist, doctor, support group)",time:"09:30",note:"This goal is not a substitute for professional help. If you are not getting support, talk to your doctor or call SAMHSA at 1-800-662-4357.",type:"checkin"},
+        {id:"c3",text:"What has been the hardest part of the last 30 days?",time:"10:00",type:"checkin"},
+      ];
+      if(d===60)return[
+        {id:"c1",text:"Are you getting outside and moving most days?",time:"09:00",note:"Movement is one of the most effective non-medication tools for depression. Even short walks help.",type:"checkin"},
+        {id:"c2",text:"Are you connecting with people regularly?",time:"09:30",note:"Even one real conversation a week matters. If isolation is still a challenge, that is the next thing to work on.",type:"checkin"},
+        {id:"c3",text:"What is one area where you want to add more structure?",time:"10:00",type:"checkin"},
+      ];
+      if(d===90)return[
+        {id:"c1",text:"How does life feel compared to Day 1?",time:"09:00",note:"You do not need to be 'fixed' or 'better'. Even a 10% shift in the right direction is real progress.",type:"checkin"},
+        {id:"c2",text:"What habits are you keeping going beyond Day 90?",time:"09:30",type:"checkin"},
+        {id:"c3",text:"What support do you still need going forward?",time:"10:00",note:"Consider continuing therapy, support groups, or simply keeping these daily habits alive.",type:"checkin"},
+      ];
+      return[];
+    },
+  },
+
+  // ── BASIC SELF-CARE HABIT (60 days, gentle daily structure) ──────────
+  basicselfcare:{totalDays:60,planningDays:[1,7,14,21,28,35,42,49,56],checkinDays:[30,60],
+    day21msg:"21 days of caring for yourself. You deserve this. Keep it going.",
+    suggestedNext:["Consistent Morning & Night Routine","Manage Anxiety","Daily Gratitude Practice"],
+    daily:(d)=>{
+      if(d<=7)return[
+        {id:"d_wake",text:"Wake up and get out of bed",time:"08:00",note:"No pressure on time. Just get up. That is the task.",type:"daily"},
+        {id:"d_hydrate",text:"Drink 2 glasses of water today",time:"08:30",note:"Put a water bottle by your bed or coffee maker so it's the first thing you see.",type:"daily"},
+        {id:"d_brush",text:"Brush your teeth",time:"08:30",note:"Dental hygiene is self-respect. Two minutes, twice a day if you can.",type:"daily"},
+      ];
+      if(d<=21)return[
+        {id:"d_wake",text:"Get up within 30 min of your alarm",time:"08:00",type:"daily"},
+        {id:"d_hydrate",text:"Drink water first thing",time:"08:15",type:"daily"},
+        {id:"d_hygiene",text:"Basic hygiene — brush teeth, wash face",time:"08:30",note:"If a shower feels like too much, a face wash and clean clothes still count.",type:"daily"},
+        {id:"d_eat",text:"Eat at least 2 meals today",time:"12:00",note:"Your body needs fuel. Doesn't need to be perfect or home-cooked.",type:"daily"},
+      ];
+      if(d<=45)return[
+        {id:"d_morning",text:"Morning routine: up, hydrate, hygiene, eat breakfast",time:"08:00",note:"These four things together are your anchor. Do them in order.",type:"daily"},
+        {id:"d_outside",text:"Get some fresh air — even 5 minutes outside",time:"11:00",type:"daily"},
+        {id:"d_tidy",text:"Tidy one small area (desk, nightstand, one counter)",time:"15:00",note:"A slightly cleaner environment reduces stress and makes everything else feel more manageable.",type:"daily"},
+        {id:"d_wind",text:"Evening wind-down — put the phone down 30 min before bed",time:"21:30",note:"Blue light disrupts melatonin. Even dimming your screen helps.",type:"daily"},
+      ];
+      return[
+        {id:"d_morning",text:"Morning routine: up, hydrate, hygiene, eat breakfast",time:"08:00",type:"daily"},
+        {id:"d_move",text:"Move your body — walk, stretch, dance, anything for 15 min",time:"11:00",note:"You don't need a gym. YouTube has free 10-min yoga, walking videos, or dance workouts.",type:"daily"},
+        {id:"d_nourish",text:"Eat a real meal with some protein and vegetables",time:"13:00",note:"Aim for one meal a day that's genuinely nourishing. The other meals can be simple.",type:"daily"},
+        {id:"d_connect",text:"Do one thing for yourself that brings you peace",time:"19:00",note:"Read, take a bath, call a friend, sit in quiet. Whatever recharges you.",type:"daily"},
+        {id:"d_sleep",text:"In bed by your target sleep time",time:"22:00",note:"Sleep is the foundation of everything else. Consistent bedtime matters more than perfect sleep.",type:"daily"},
+      ];
+    },
+    planning:(d)=>{
+      if(d===1)return[{id:"p_start",text:"Write down your 'why' — why does this matter to you right now?",time:"09:00",note:"Keep it honest and personal. No one sees this but you.",type:"planning"}];
+      return[
+        {id:"p_wins",text:"Name 3 self-care wins from this week (any size)",time:"09:00",note:"Got dressed. Drank water. Went outside. All wins.",type:"planning"},
+        {id:"p_add",text:"Is there one small thing to add or improve next week?",time:"09:30",type:"planning"},
+      ];
+    },
+    checkin:(d)=>{
+      if(d===30)return[
+        {id:"c1",text:"Which daily habits have become automatic?",time:"09:00",note:"When something feels automatic, that is the definition of a habit formed.",type:"checkin"},
+        {id:"c2",text:"What is still a struggle?",time:"09:30",note:"Identify it without judgment. Struggle means it still needs attention, not that you failed.",type:"checkin"},
+      ];
+      if(d===60)return[
+        {id:"c1",text:"How does your energy and mood compare to Day 1?",time:"09:00",type:"checkin"},
+        {id:"c2",text:"What self-care habit will you keep going forever?",time:"09:30",type:"checkin"},
+        {id:"c3",text:"What is the next goal you want to build on top of this foundation?",time:"10:00",type:"checkin"},
+      ];
+      return[];
+    },
+  },
+
+  // ── MENTAL WELLNESS ROUTINE (90 days) ────────────────────────────────
+  mentalwellness:{totalDays:90,planningDays:[1,7,14,21,28,35,42,49,56,63,70,77,84],checkinDays:[30,60,90],
+    day21msg:"21 days of choosing your mental health. That is not easy. That is brave. Keep it going.",
+    suggestedNext:["Daily Journaling","Start Meditation","Build a Therapy Habit"],
+    daily:(d)=>{
+      if(d<=21)return[
+        {id:"d_morning",text:"Morning check-in: rate your mood 1–10 and write one sentence about it",time:"08:00",note:"You are building self-awareness. There are no wrong answers.",type:"daily"},
+        {id:"d_water",text:"Drink at least 6 glasses of water today",time:"08:15",type:"daily"},
+        {id:"d_outside",text:"Get outside for at least 10 minutes",time:"10:00",note:"Sunlight and fresh air regulate cortisol and serotonin. Non-negotiable.",type:"daily"},
+        {id:"d_breathe",text:"5-minute breathing exercise: 4 counts in, hold 4, out 6",time:"14:00",note:"Box breathing or 4-7-8 breathing activates the parasympathetic nervous system — your body's calm response.",type:"daily"},
+      ];
+      if(d<=60)return[
+        {id:"d_morning",text:"Morning check-in: mood rating + journal 3–5 sentences",time:"08:00",note:"Look for patterns: what days are better? What time of day? What seems to help?",type:"daily"},
+        {id:"d_move",text:"Move your body for 20 minutes",time:"10:00",note:"Exercise is clinically proven to reduce depression and anxiety. Walk, yoga, dancing, anything.",type:"daily"},
+        {id:"d_breathe",text:"Mindfulness or breathing practice — 10 minutes",time:"14:00",note:"Headspace, Calm, or just follow a YouTube guided meditation. The app doesn't matter. Showing up does.",type:"daily"},
+        {id:"d_gratitude",text:"Write 3 things you are grateful for (specific, not generic)",time:"21:00",note:"Instead of 'my family', try 'my sister texted to check on me today'. Specificity deepens the practice.",type:"daily"},
+      ];
+      return[
+        {id:"d_morning",text:"Morning check-in + journal",time:"08:00",type:"daily"},
+        {id:"d_move",text:"Exercise — 30 minutes minimum",time:"10:00",type:"daily"},
+        {id:"d_mindful",text:"Mindfulness practice — 15 minutes",time:"14:00",type:"daily"},
+        {id:"d_connect",text:"Meaningful connection — real conversation with someone you care about",time:"18:00",note:"Text doesn't count. Call, video, or in person.",type:"daily"},
+        {id:"d_gratitude",text:"Evening gratitude + tomorrow intention",time:"21:00",note:"End each day with 3 gratitudes and one sentence about what you want tomorrow to feel like.",type:"daily"},
+      ];
+    },
+    planning:(d)=>{
+      if(d===1)return[{id:"p_start",text:"Define what 'better mental health' means to you specifically",time:"09:00",note:"Less anxiety? More energy? Sleeping better? Feeling present? Be specific.",type:"planning"}];
+      return[
+        {id:"p_review",text:"Review your mood log from this week — any patterns?",time:"09:00",note:"Better days, worse days, triggers, lifts. Patterns are information.",type:"planning"},
+        {id:"p_intention",text:"Set one mental wellness intention for the week",time:"09:30",type:"planning"},
+      ];
+    },
+    checkin:(d)=>{
+      if(d===30)return[
+        {id:"c1",text:"Average mood score this month vs. Day 1 — any improvement?",time:"09:00",type:"checkin"},
+        {id:"c2",text:"Are you getting professional support (therapy, psychiatry)?",time:"09:30",note:"These habits support mental health but are not a replacement for professional care when needed.",type:"checkin"},
+        {id:"c3",text:"Which habit has made the biggest difference so far?",time:"10:00",type:"checkin"},
+      ];
+      if(d===60)return[
+        {id:"c1",text:"Stress and anxiety levels compared to 60 days ago?",time:"09:00",type:"checkin"},
+        {id:"c2",text:"Are you sleeping better?",time:"09:30",note:"Sleep and mental health are deeply connected. If sleep is still a struggle, that is the next thing to prioritize.",type:"checkin"},
+        {id:"c3",text:"What relationships in your life have gotten better?",time:"10:00",type:"checkin"},
+      ];
+      if(d===90)return[
+        {id:"c1",text:"Overall: how is your mental health compared to Day 1?",time:"09:00",type:"checkin"},
+        {id:"c2",text:"Which habits will you continue permanently?",time:"09:30",type:"checkin"},
+        {id:"c3",text:"What is your next step — new goal, deeper practice, or professional next steps?",time:"10:00",type:"checkin"},
       ];
       return[];
     },
@@ -4175,6 +4374,12 @@ const GOAL_TEMPLATES=[
    milestones:[{id:1,name:'Learning to Unplug',days:'Day 1–30',pct:50,reached:false,tasks:[]},{id:2,name:'Fully Restored Every Weekend 🏔️',days:'Day 31–60',pct:100,reached:false,tasks:[]}]},
   {name:'Practice Mindfulness Daily',emoji:'✨',color:'#7C3AED',taskDefKey:'mindfulness',img:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80',totalDays:60,category:'Mental Health',
    milestones:[{id:1,name:'Learning to Notice',days:'Day 1–30',pct:50,reached:false,tasks:[]},{id:2,name:'Presence as Default 🏔️',days:'Day 31–60',pct:100,reached:false,tasks:[]}]},
+  {name:'Depression Recovery: Getting Out of Bed',emoji:'🌱',color:'#059669',taskDefKey:'depressionrecovery',img:'https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=400&q=80',totalDays:90,category:'Mental Health',
+   milestones:[{id:1,name:'First Steps',days:'Day 1–30',pct:33,reached:false,tasks:[]},{id:2,name:'Building Momentum',days:'Day 31–60',pct:67,reached:false,tasks:[]},{id:3,name:'New Foundation 🏔️',days:'Day 61–90',pct:100,reached:false,tasks:[]}]},
+  {name:'Build a Basic Self-Care Routine',emoji:'🛁',color:'#DB2777',taskDefKey:'basicselfcare',img:'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&q=80',totalDays:60,category:'Mental Health',
+   milestones:[{id:1,name:'Starting Small',days:'Day 1–30',pct:50,reached:false,tasks:[]},{id:2,name:'Self-Care as a Habit 🏔️',days:'Day 31–60',pct:100,reached:false,tasks:[]}]},
+  {name:'Mental Wellness Routine',emoji:'🧠',color:'#7C3AED',taskDefKey:'mentalwellness',img:'https://images.unsplash.com/photo-1573497019236-61e7a0081f95?w=400&q=80',totalDays:90,category:'Mental Health',
+   milestones:[{id:1,name:'Building Awareness',days:'Day 1–30',pct:33,reached:false,tasks:[]},{id:2,name:'Deepening Practice',days:'Day 31–60',pct:67,reached:false,tasks:[]},{id:3,name:'Mental Strength 🏔️',days:'Day 61–90',pct:100,reached:false,tasks:[]}]},
 
   // ── NUTRITION ───────────────────────────────────────────────────────────────
   {name:'Eat Whole Foods',emoji:'🥗',color:'#059669',taskDefKey:'eatwholefoods',img:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80',totalDays:30,category:'Nutrition',
