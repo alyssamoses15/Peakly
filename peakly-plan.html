@@ -8,7 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@500;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.stripe.com/v3/"></script>
-<script src="peakly-config.js?v=13"></script>
+<script src="peakly-config.js?v=14"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -191,7 +191,6 @@ async function requireUser(){
   const session = await (window.PeaklyAuth?.robustGetSession ? window.PeaklyAuth.robustGetSession(sb) : sb.auth.getSession().then(r=>r.data.session));
   if(!session){
     showToast('Please log in first.');
-    setTimeout(()=>{ window.location.href='peakly-auth.html'; }, 800);
     return null;
   }
   currentSession = session;
@@ -245,6 +244,7 @@ async function chooseTrial(){
       document.getElementById('trialBtn').className = 'btn btn-outline';
       showToast('Your free trial has already been used. Subscribe to continue with Pro.');
       return;
+    }
     const session = currentSession || (await sb.auth.getSession()).data.session;
     if(!session) throw new Error('Please log in first.');
     const res = await window.PeaklyEdge.postJson(cfg.START_TRIAL_URL, {
@@ -318,7 +318,7 @@ async function chooseProCheckout(){
   if(!sb){ console.error('[Peakly] plan page cannot init — supabase missing'); return; }
   const session = await (window.PeaklyAuth?.robustGetSession ? window.PeaklyAuth.robustGetSession(sb) : sb.auth.getSession().then(r=>r.data.session));
   if(!session){
-    window.location.href = 'peakly-auth.html';
+    showToast('Please log in first.');
     return;
   }
   currentSession = session;

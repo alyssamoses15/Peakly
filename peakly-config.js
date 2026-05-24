@@ -414,6 +414,7 @@ window.PeaklyGoals = {
 window.PeaklySync = {
   _PHOTO_DATA_URL_SYNC_LIMIT: 90000,
   _lastSnapshotSanitized: false,
+  _AUTO_PULL_ENABLED: false,
 
   // localStorage keys that should NOT be synced (per-device only).
   _skipKey(k){
@@ -603,6 +604,7 @@ window.PeaklySync = {
   // Compare cloud's latest version with what we last applied; if cloud is
   // newer, restore it. Fires `peakly:sync-restored` event on success.
   async checkAndPull(sb, user){
+    if(!this._AUTO_PULL_ENABLED) return { ok:true, restored:false, reason:'auto-pull-disabled' };
     if(!sb || !user) return { ok:false, restored:false, reason:'no-user' };
     if(this._isRestoring) return { ok:true, restored:false, reason:'in-progress' };
     if(this._checkInFlight) return { ok:true, restored:false, reason:'check-in-flight' };
@@ -735,6 +737,7 @@ window.PeaklySync = {
   // `peakly:sync-restored` window event.
   startSyncPolling(sb, user){
     if(!sb || !user) return;
+    if(!this._AUTO_PULL_ENABLED) return;
     this._sbRef = sb;
     this._userRef = user;
     if(this._pollingStarted) return;
@@ -756,14 +759,14 @@ window.PeaklySync = {
     if(!sb || !user) return { ok:false, restored:false, reason:'no-user' };
     this._sbRef = sb;
     this._userRef = user;
-    const options = Object.assign({ backupIfMissing:true, reloadOnRestore:false, dispatchOnRestore:true }, opts);
+    const options = Object.assign({ backupIfMissing:true, reloadOnRestore:false, dispatchOnRestore:true, autoPull:this._AUTO_PULL_ENABLED }, opts);
     let result = { ok:true, restored:false, reason:'up-to-date' };
     try{
       this.cleanupSignedInDeviceState(user);
       const cleanedLocal = this.cleanupLocalHeavyData();
       const cloudAt = await this.getCloudBackupTime(sb, user);
       const localAt = localStorage.getItem('peakly_cloud_synced_at');
-      if(cloudAt && (!localAt || new Date(cloudAt).getTime() > new Date(localAt).getTime())){
+      if(options.autoPull && cloudAt && (!localAt || new Date(cloudAt).getTime() > new Date(localAt).getTime())){
         result = await this.restore(sb, user);
         if(result.restored){
           if(options.dispatchOnRestore) this._fireRestored(result.at);

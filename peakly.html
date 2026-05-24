@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=13"></script>
+<script src="peakly-config.js?v=14"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -1439,8 +1439,6 @@ function UserAvatar(){
         localStorage.clear();
         Object.entries(saved).forEach(([k,v])=>localStorage.setItem(k,v));
         localStorage.setItem('peakly_last_user_id',user.id);
-        window.location.reload();
-        return;
       }
       localStorage.setItem('peakly_last_user_id',user.id);
       // Cross-device sync: pull newer cloud data, then back up local edits.
