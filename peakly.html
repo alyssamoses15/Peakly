@@ -1409,12 +1409,9 @@ function UserAvatar(){
   React.useEffect(()=>{
     // Only check auth on real domain, not local files
     if(window.location.protocol==='file:')return;
-    ensureSb().then(client=>{
+    ensureSb().then(async client=>{
       if(!client){return;}
-      return client.auth.getSession();
-    }).then(async (sessionResult)=>{
-      if(!sessionResult) return;
-      const session = sessionResult.data?.session;
+      const session=await(window.PeaklyAuth?.robustGetSession?window.PeaklyAuth.robustGetSession(client):client.auth.getSession().then(r=>r.data.session));
       if(!session&&window.location.protocol!=='file:'){window.location.href='peakly-auth.html';return;}
       if(!session)return;
       const user=session.user;
@@ -1429,16 +1426,15 @@ function UserAvatar(){
       // Cross-device sync: pull newer cloud data, then back up local edits.
       if(window.PeaklySync){
         try{
-          const r = await window.PeaklySync.init(sb, user, { reloadOnRestore:true });
+          const r = await window.PeaklySync.init(client, user, { reloadOnRestore:true });
           if(r.restored) return;
         }catch(e){}
       }
       // Load subscription state from Supabase and render trial banner if needed
       if(window.PeaklyAuth){
         try{
-          const result = await window.PeaklyAuth.loadSubscription(sb, user);
+          const result = await window.PeaklyAuth.loadSubscription(client, user);
           window.PeaklyAuth.renderTrialBanner(result);
-          // If a fresh trial just expired, mark sessionStorage so banner shows
           if(result.plan==='free' && localStorage.getItem('peakly_plan_was_trial')==='1'){
             sessionStorage.setItem('peakly_trial_just_expired','1');
             localStorage.removeItem('peakly_plan_was_trial');
@@ -1456,7 +1452,6 @@ function UserAvatar(){
       if(first&&last) ini=(first[0]+last[0]).toUpperCase();
       else if(first) ini=first.slice(0,2).toUpperCase();
       setInitials(ini);
-      // Save to localStorage for profile page
       LS.set('peakly_profile',{
         firstName:meta.first_name||meta.full_name?.split(' ')[0]||'',
         lastName:meta.last_name||meta.full_name?.split(' ')[1]||'',

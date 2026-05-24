@@ -157,7 +157,7 @@ async function ensurePlanSb(){
   }
   if(typeof supabase === 'undefined'){ console.error('[Peakly] Supabase missing on plan page'); return null; }
   try{
-    sb = supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
+    sb = (window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})))(cfg.SUPABASE_URL, cfg.SUPABASE_KEY);
     if(typeof Stripe !== 'undefined') stripe = Stripe(cfg.STRIPE_PUBLIC);
   }catch(e){ console.error('[Peakly] plan page init failed', e); }
   return sb;
@@ -188,7 +188,7 @@ function setBtnLoading(id, loading, text){
 
 async function requireUser(){
   if(currentUser) return currentUser;
-  const { data:{ session } } = await sb.auth.getSession();
+  const session = await (window.PeaklyAuth?.robustGetSession ? window.PeaklyAuth.robustGetSession(sb) : sb.auth.getSession().then(r=>r.data.session));
   if(!session){
     showToast('Please log in first.');
     setTimeout(()=>{ window.location.href='peakly-auth.html'; }, 800);
@@ -316,7 +316,7 @@ async function chooseProCheckout(){
 (async()=>{
   await ensurePlanSb();
   if(!sb){ console.error('[Peakly] plan page cannot init — supabase missing'); return; }
-  const { data:{ session } } = await sb.auth.getSession();
+  const session = await (window.PeaklyAuth?.robustGetSession ? window.PeaklyAuth.robustGetSession(sb) : sb.auth.getSession().then(r=>r.data.session));
   if(!session){
     window.location.href = 'peakly-auth.html';
     return;

@@ -540,3 +540,57 @@ window.PeaklySync = {
     return result;
   }
 };
+
+// ── Mobile-safe auth helpers ─────────────────────────────────────────────
+// On mobile (especially iPhone Safari), getSession() can return null briefly
+// while the session token is still loading from IndexedDB/localStorage.
+// This helper retries with backoff and then listens for the auth state change
+// before giving up and redirecting to login.
+
+window.PeaklyAuth = window.PeaklyAuth || {};
+
+// Creates a Supabase client with persistence options required for mobile.
+window.PeaklyAuth.createClient = function(url, key){
+  return supabase.createClient(url, key, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  });
+};
+
+// Resolves to a session object, or null after all retries are exhausted.
+// Never throws. Caller is responsible for redirecting if null is returned.
+window.PeaklyAuth.robustGetSession = async function(sbClient){
+  // First attempt
+  try{
+    const { data:{ session } } = await sbClient.auth.getSession();
+    if(session) return session;
+  }catch(e){}
+
+  // Mobile may still be loading storage — wait 500ms and retry
+  await new Promise(r => setTimeout(r, 500));
+  try{
+    const { data:{ session } } = await sbClient.auth.getSession();
+    if(session) return session;
+  }catch(e){}
+
+  // Still nothing — listen for up to 2.5s for onAuthStateChange to fire
+  return new Promise(resolve => {
+    let sub;
+    const timer = setTimeout(() => {
+      try{ sub?.subscription?.unsubscribe(); }catch(e){}
+      resolve(null);
+    }, 2500);
+    try{
+      sub = sbClient.auth.onAuthStateChange((_event, sess) => {
+        if(sess){
+          clearTimeout(timer);
+          try{ sub?.subscription?.unsubscribe(); }catch(e){}
+          resolve(sess);
+        }
+      });
+    }catch(e){ clearTimeout(timer); resolve(null); }
+  });
+};
