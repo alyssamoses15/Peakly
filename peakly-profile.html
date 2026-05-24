@@ -354,6 +354,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
+  <!-- GARDEN -->
+  <div class="section">
+    <div class="section-header" onclick="toggleSection('garden')">
+      <div class="section-header-left">
+        <div class="section-icon si-green">🌿</div>
+        <div>
+          <div class="section-title">My Garden</div>
+          <div class="section-sub">Your plants grow with your streak</div>
+        </div>
+      </div>
+      <span class="section-chevron open" id="chevron-garden">▼</span>
+    </div>
+    <div class="section-body open" id="body-garden">
+      <div id="gardenRoot" style="padding:4px 0 8px;"></div>
+    </div>
+  </div>
+
+  <!-- Plant picker modal -->
+  <div id="plantPickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(15,28,46,.55);z-index:200;align-items:center;justify-content:center;padding:16px;">
+    <div style="background:var(--white);border-radius:20px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;box-shadow:0 24px 64px rgba(15,28,46,.2);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid var(--border2);">
+        <div style="font-family:var(--display);font-size:17px;font-weight:700;">Choose your plant</div>
+        <button onclick="closePlantPicker()" style="font-size:22px;color:var(--text4);background:none;border:none;cursor:pointer;line-height:1;">×</button>
+      </div>
+      <div style="padding:16px 20px 20px;">
+        <div id="plantPickerGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ACCOUNT SETTINGS -->
   <div class="section">
     <div class="section-header" onclick="toggleSection('account')">
@@ -1339,6 +1369,559 @@ async function handleLogout(){
 
 // ── Init ─────────────────────────────────────────────────────
 loadProfile();
+
+// ══════════════════════════════════════════════════════════════
+// GARDEN
+// ══════════════════════════════════════════════════════════════
+const PLANT_TYPES=[
+  {id:'echeveria', name:'Echeveria',    desc:'Rosette succulent',  cat:'Succulent'},
+  {id:'cactus',    name:'Cactus',       desc:'Desert columnar',    cat:'Succulent'},
+  {id:'aloe',      name:'Aloe Vera',    desc:'Thick spiked leaves',cat:'Succulent'},
+  {id:'monstera',  name:'Monstera',     desc:'Split-leaf tropical',cat:'Houseplant'},
+  {id:'snakeplant',name:'Snake Plant',  desc:'Tall sword leaves',  cat:'Houseplant'},
+  {id:'lavender',  name:'Lavender',     desc:'Purple spikes',      cat:'Flowering'},
+  {id:'sunflower', name:'Sunflower',    desc:'Bold yellow bloom',  cat:'Flowering'},
+  {id:'oak',       name:'Oak Tree',     desc:'Broad hardwood',     cat:'Tree'},
+  {id:'cherry',    name:'Cherry Blossom',desc:'Spring flowering',  cat:'Tree'},
+  {id:'lemon',     name:'Lemon Tree',   desc:'Citrus with fruit',  cat:'Tree'},
+];
+const STAGE_NAMES=['Seed','Sprout','Seedling','Growing','Established','Blooming'];
+function streakToIdealStage(s){if(s>=60)return 5;if(s>=30)return 4;if(s>=14)return 3;if(s>=7)return 2;if(s>=1)return 1;return 0;}
+function getGardenData(){return LS.get('peakly_garden',{view:'windowsill',plants:[]});}
+function saveGardenData(g){LS.set('peakly_garden',g);}
+
+// On load: check for missed days and adjust stage (step back one, never wilt)
+function refreshGardenStages(){
+  const g=getGardenData();
+  const today=new Date().toISOString().split('T')[0];
+  const lastDate=LS.get('garden_last_check','');
+  const streak=LS.get('peakly_streak',0);
+  const lastStreak=LS.get('garden_last_streak',-1);
+  if(lastDate&&lastDate<today){
+    // New day — check if streak reset
+    const streakBroke=(lastStreak>0&&streak===0);
+    g.plants.forEach(p=>{
+      if(streakBroke){
+        // Step back one stage quietly
+        p.stage=Math.max(0,p.stage-1);
+      }else{
+        const ideal=streakToIdealStage(streak);
+        if(ideal>p.stage)p.stage=ideal;
+      }
+    });
+    saveGardenData(g);
+  }
+  LS.set('garden_last_check',today);
+  LS.set('garden_last_streak',streak);
+  return g;
+}
+
+// ── SVG pot (shared) ──────────────────────────────────────────
+function svgPot(uid,cx=60,baseY=192){
+  return`<defs>
+    <linearGradient id="pg${uid}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#9E3A0A"/><stop offset="35%" stop-color="#C8501A"/>
+      <stop offset="65%" stop-color="#B8481A"/><stop offset="100%" stop-color="#8A3008"/>
+    </linearGradient>
+    <linearGradient id="pgt${uid}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#A8420F"/><stop offset="50%" stop-color="#CC5520"/>
+      <stop offset="100%" stop-color="#924010"/>
+    </linearGradient>
+  </defs>
+  <path d="M${cx-22},${baseY-40} L${cx-28},${baseY} L${cx+28},${baseY} L${cx+22},${baseY-40} Z" fill="url(#pg${uid})"/>
+  <rect x="${cx-25}" y="${baseY-47}" width="50" height="10" rx="3" fill="url(#pgt${uid})"/>
+  <ellipse cx="${cx}" cy="${baseY-41}" rx="22" ry="4.5" fill="#2A1008"/>
+  <ellipse cx="${cx}" cy="${baseY-41}" rx="18" ry="3" fill="#3D1A0A"/>`;
+}
+
+// ── Echeveria ─────────────────────────────────────────────────
+function svgEcheveria(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const counts=[0,4,6,8,10,13][stage];
+  const r=[0,10,16,24,32,42][stage];
+  const cy=soil-r*0.15;
+  const cols=['#3D8F7C','#4FA888','#6DBD9E','#8DCFB0','#A8DFCA'];
+  let s=`<defs><radialGradient id="ec${uid}" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#C8EDDB"/><stop offset="100%" stop-color="#2A7060"/>
+  </radialGradient></defs>`;
+  for(let i=counts-1;i>=0;i--){
+    const a=(360/counts)*i-90;const rad=a*Math.PI/180;
+    const tip={x:cx+Math.cos(rad)*r,y:cy+Math.sin(rad)*r*0.72};
+    const b1={x:cx+Math.cos(rad-.55)*r*.5,y:cy+Math.sin(rad-.55)*r*.36};
+    const b2={x:cx+Math.cos(rad+.55)*r*.5,y:cy+Math.sin(rad+.55)*r*.36};
+    const col=cols[i%cols.length];
+    // Each petal: darker at base, lighter at tip
+    s+=`<defs><linearGradient id="ep${uid}_${i}" x1="${cx}" y1="${cy}" x2="${tip.x}" y2="${tip.y}" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2A7060"/><stop offset="100%" stop-color="${col}"/>
+    </linearGradient></defs>`;
+    s+=`<path d="M${cx},${cy} C${b1.x},${b1.y} ${tip.x-.5},${tip.y+1} ${tip.x},${tip.y} C${tip.x+.5},${tip.y-1} ${b2.x},${b2.y} ${cx},${cy}" fill="url(#ep${uid}_${i})" opacity="${.82+.06*(i%2)}"/>`;
+  }
+  // Center highlight
+  s+=`<circle cx="${cx}" cy="${cy}" r="${r*.18}" fill="url(#ec${uid})"/>`;
+  // Stage 5: bloom stalk
+  if(stage>=5){s+=`<line x1="${cx+r*.6}" y1="${cy-r*.3}" x2="${cx+r*.6}" y2="${cy-r*1.4}" stroke="#5A9A5A" stroke-width="1.5"/>`+
+    `<circle cx="${cx+r*.6}" cy="${cy-r*1.4}" r="${r*.18}" fill="#FF8FAB"/>`;}
+  return s;
+}
+
+// ── Cactus ────────────────────────────────────────────────────
+function svgCactus(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const h=[0,14,28,52,78,108][stage];
+  const w=[0,7,10,13,14,15][stage];
+  const top=soil-h;
+  let s=`<defs>
+    <linearGradient id="cg${uid}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1E5C30"/><stop offset="30%" stop-color="#2E7D42"/>
+      <stop offset="60%" stop-color="#3D9A52"/><stop offset="100%" stop-color="#1A4D28"/>
+    </linearGradient>
+    <linearGradient id="cv${uid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,.12)"/><stop offset="100%" stop-color="rgba(0,0,0,.06)"/>
+    </linearGradient>
+  </defs>`;
+  // Main column
+  s+=`<rect x="${cx-w}" y="${top}" width="${w*2}" height="${h}" rx="${w}" fill="url(#cg${uid})"/>`;
+  s+=`<rect x="${cx-w}" y="${top}" width="${w*2}" height="${h}" rx="${w}" fill="url(#cv${uid})"/>`;
+  // Ribs
+  for(let i=-1;i<=1;i+=1){s+=`<line x1="${cx+i*w*.45}" y1="${top+4}" x2="${cx+i*w*.45}" y2="${soil-2}" stroke="rgba(255,255,255,.12)" stroke-width="1.2"/>`;}
+  // Spines
+  if(stage>=2){for(let y=top+10;y<soil-8;y+=10){
+    s+=`<line x1="${cx-w}" y1="${y}" x2="${cx-w-5}" y2="${y-2}" stroke="#C8E0B8" stroke-width=".7"/>`;
+    s+=`<line x1="${cx+w}" y1="${y}" x2="${cx+w+5}" y2="${y-2}" stroke="#C8E0B8" stroke-width=".7"/>`;
+  }}
+  // Arms
+  if(stage>=4){
+    const ay=top+h*.3,ah=h*.4;
+    s+=`<path d="M${cx-w+1},${ay} Q${cx-w*3},${ay+4} ${cx-w*3},${ay-ah}" stroke="url(#cg${uid})" stroke-width="${w*1.6}" fill="none" stroke-linecap="round"/>`;
+    if(stage>=5)s+=`<path d="M${cx+w-1},${ay+12} Q${cx+w*3},${ay+16} ${cx+w*3},${ay+12-ah*.8}" stroke="url(#cg${uid})" stroke-width="${w*1.5}" fill="none" stroke-linecap="round"/>`;
+  }
+  // Bloom
+  if(stage>=5){for(let i=0;i<6;i++){const a=(i*60-90)*Math.PI/180;s+=`<ellipse cx="${cx+Math.cos(a)*8}" cy="${top-5+Math.sin(a)*8}" rx="4.5" ry="3" transform="rotate(${i*60},${cx+Math.cos(a)*8},${top-5+Math.sin(a)*8})" fill="${['#FFB3C1','#FF8FA3','#FF6F91'][i%3]}" opacity=".9"/>`;} s+=`<circle cx="${cx}" cy="${top-5}" r="4" fill="#FFD60A"/>`;}
+  return s;
+}
+
+// ── Aloe ──────────────────────────────────────────────────────
+function svgAloe(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const count=[0,2,3,5,6,8][stage];
+  const h=[0,20,32,48,62,78][stage];
+  let s=`<defs><linearGradient id="ag${uid}" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#4A7A5A"/><stop offset="50%" stop-color="#6A9E72"/><stop offset="100%" stop-color="#3D6A4A"/>
+  </linearGradient></defs>`;
+  for(let i=0;i<count;i++){
+    const side=i%2===0?-1:1;const spread=Math.floor(i/2);
+    const angle=side*(25+spread*18);const rad=angle*Math.PI/180;
+    const lh=h*(0.7+spread*.1);
+    const tx=cx+Math.sin(rad)*lh,ty=soil-Math.cos(rad)*lh;
+    const mx=cx+Math.sin(rad)*lh*.5+side*lh*.12,my=soil-Math.cos(rad)*lh*.5;
+    s+=`<path d="M${cx},${soil} Q${mx},${my} ${tx},${ty}" stroke="url(#ag${uid})" stroke-width="${Math.max(3,7-spread*1.2)}" fill="none" stroke-linecap="round"/>`;
+    // Serrations
+    for(let t=.3;t<.9;t+=.18){const sx=cx+(tx-cx)*t,sy=soil+(ty-soil)*t;const nr=-Math.cos(rad)*2.5,nt=Math.sin(rad)*2.5;s+=`<circle cx="${sx+nr}" cy="${sy+nt}" r="1" fill="#B8D8BA" opacity=".6"/>`;}
+  }
+  if(stage>=5){s+=`<line x1="${cx}" y1="${soil-h*1.15}" x2="${cx}" y2="${soil-h}" stroke="#5A9A5A" stroke-width="2"/>`;for(let i=0;i<5;i++){const a=soil-h*1.15-i*4;s+=`<ellipse cx="${cx}" cy="${a}" rx="3.5" ry="1.8" fill="#F4A340"/>`; }}
+  return s;
+}
+
+// ── Monstera ──────────────────────────────────────────────────
+function svgMonstera(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const lcount=[0,1,1,2,3,4][stage];
+  const sz=[0,.4,.6,.75,.88,1][stage];
+  let s=`<defs>
+    <radialGradient id="mg${uid}" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" stop-color="#52B788"/><stop offset="100%" stop-color="#1B4332"/>
+    </radialGradient>
+    <filter id="mf${uid}"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity=".15"/></filter>
+  </defs>`;
+  const configs=[
+    {dx:-14,dy:-55,rot:-20},{dx:16,dy:-72,rot:18},{dx:-18,dy:-85,rot:-28},{dx:20,dy:-95,rot:22},
+  ];
+  for(let li=0;li<lcount;li++){
+    const cf=configs[li]||configs[0];const R=sz*45,lx=cx+cf.dx*sz,ly=soil+cf.dy*sz;
+    // Stem
+    s+=`<line x1="${cx}" y1="${soil}" x2="${lx}" y2="${ly+R*.35}" stroke="#2D5A27" stroke-width="${2*sz}"/>`;
+    // Leaf shape - fan with splits
+    s+=`<g transform="rotate(${cf.rot},${lx},${ly})" filter="url(#mf${uid})">`;
+    // Main leaf path
+    s+=`<path d="M${lx},${ly} C${lx-R*.7},${ly-R*.3} ${lx-R*.9},${ly-R*.9} ${lx},${ly-R*1.1} C${lx+R*.9},${ly-R*.9} ${lx+R*.7},${ly-R*.3} ${lx},${ly}" fill="url(#mg${uid})" opacity=".95"/>`;
+    // Characteristic holes
+    if(stage>=3){
+      s+=`<path d="M${lx-R*.55},${ly-R*.55} C${lx-R*.45},${ly-R*.7} ${lx-R*.25},${ly-R*.72} ${lx-R*.15},${ly-R*.58} C${lx-R*.25},${ly-R*.44} ${lx-R*.45},${ly-R*.42} ${lx-R*.55},${ly-R*.55}" fill="rgba(15,28,46,.08)"/>`;
+      s+=`<path d="M${lx+R*.15},${ly-R*.58} C${lx+R*.25},${ly-R*.72} ${lx+R*.45},${ly-R*.72} ${lx+R*.55},${ly-R*.58} C${lx+R*.45},${ly-R*.44} ${lx+R*.25},${ly-R*.42} ${lx+R*.15},${ly-R*.58}" fill="rgba(15,28,46,.08)"/>`;
+    }
+    // Veins
+    s+=`<line x1="${lx}" y1="${ly}" x2="${lx}" y2="${ly-R*1.05}" stroke="rgba(255,255,255,.2)" stroke-width="${1.2*sz}"/>`;
+    s+=`</g>`;
+  }
+  return s;
+}
+
+// ── Snake Plant ───────────────────────────────────────────────
+function svgSnakePlant(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const counts=[0,2,3,4,5,6][stage];
+  const h=[0,28,48,68,88,108][stage];
+  let s=`<defs><linearGradient id="sg${uid}" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#1A3A1A"/><stop offset="25%" stop-color="#2D5A27"/>
+    <stop offset="75%" stop-color="#3A6E34"/><stop offset="100%" stop-color="#1A3A1A"/>
+  </linearGradient></defs>`;
+  for(let i=0;i<counts;i++){
+    const side=(i%2===0?-1:1)*(1+Math.floor(i/2)*.35);
+    const lh=h*(0.8+Math.floor(i/2)*.08),lw=Math.max(5,10-Math.floor(i/2)*1.5);
+    const ox=side*lw*.9;
+    s+=`<path d="M${cx+ox*.4},${soil} Q${cx+ox*1.2},${soil-lh*.5} ${cx+ox},${soil-lh}" stroke="url(#sg${uid})" stroke-width="${lw*2}" fill="none" stroke-linecap="round"/>`;
+    // Bands
+    for(let b=.2;b<.9;b+=.14){const bx=cx+ox+(cx+ox*1.2-cx-ox*.4)*(b-.5),by=soil-lh*b;s+=`<line x1="${bx-lw}" y1="${by}" x2="${bx+lw}" y2="${by}" stroke="#8FB98A" stroke-width=".8" opacity=".5"/>`;}
+    // Yellow edge
+    s+=`<path d="M${cx+ox*.4},${soil} Q${cx+ox*1.2},${soil-lh*.5} ${cx+ox},${soil-lh}" stroke="#C9A84C" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".7"/>`;
+  }
+  return s;
+}
+
+// ── Lavender ──────────────────────────────────────────────────
+function svgLavender(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const stems=[0,2,3,5,7,9][stage];
+  const h=[0,28,44,60,76,90][stage];
+  let s='';
+  for(let i=0;i<stems;i++){
+    const ox=(i-(stems-1)/2)*9,sway=Math.sin(i*1.3)*5;
+    const sx=cx+ox,ex=sx+sway;
+    // Stem
+    s+=`<path d="M${sx},${soil} Q${(sx+ex)/2},${soil-h*.5} ${ex},${soil-h}" stroke="#7A8C7A" stroke-width="1.5" fill="none"/>`;
+    // Leaves along stem
+    if(stage>=2){for(let l=.25;l<.6;l+=.2){const lx=sx+(ex-sx)*l,ly=soil-(soil-(soil-h))*l;s+=`<ellipse cx="${lx-3}" cy="${ly}" rx="3" ry="1.2" transform="rotate(-25,${lx-3},${ly})" fill="#8FA882" opacity=".8"/>`;s+=`<ellipse cx="${lx+3}" cy="${ly}" rx="3" ry="1.2" transform="rotate(25,${lx+3},${ly})" fill="#8FA882" opacity=".8"/>`;}}
+    // Flower spikes
+    if(stage>=2){const spk=Math.min(h*.35,28);
+      for(let f=0;f<5;f++){const fy=soil-h+f*spk/5,fc=f/4;
+        s+=`<ellipse cx="${ex}" cy="${fy}" rx="${3.5-fc*.5}" ry="2.8" fill="${['#7B5EA7','#8B6BB7','#9B7BC7','#AB8BD7','#C8A8E8'][f]}" opacity="${.95-fc*.15}"/>`;
+      }
+    }
+  }
+  return s;
+}
+
+// ── Sunflower ─────────────────────────────────────────────────
+function svgSunflower(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const h=[0,20,38,58,78,100][stage];
+  let s=`<defs>
+    <radialGradient id="sfcg${uid}" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#8B5E3C"/><stop offset="60%" stop-color="#5D3A1A"/><stop offset="100%" stop-color="#3A2008"/>
+    </radialGradient>
+    <linearGradient id="sfsg${uid}" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#2E5A28"/><stop offset="100%" stop-color="#4A8C3A"/>
+    </linearGradient>
+  </defs>`;
+  // Stem
+  s+=`<path d="M${cx},${soil} Q${cx-4},${soil-h*.5} ${cx},${soil-h}" stroke="url(#sfsg${uid})" stroke-width="${stage>=3?4:3}" fill="none"/>`;
+  // Leaves
+  if(stage>=2){s+=`<path d="M${cx-3},${soil-h*.45} Q${cx-18},${soil-h*.55} ${cx-14},${soil-h*.35}" stroke="#4A8C3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    if(stage>=3)s+=`<path d="M${cx+3},${soil-h*.62} Q${cx+18},${soil-h*.72} ${cx+14},${soil-h*.52}" stroke="#4A8C3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;}
+  // Petals & disc
+  if(stage>=3){
+    const pcount=stage>=5?16:12,cr=stage>=5?14:11,pr=stage>=5?24:18;
+    for(let i=0;i<pcount;i++){const a=(360/pcount*i-90)*Math.PI/180;
+      s+=`<ellipse cx="${cx+Math.cos(a)*(cr+pr/2)}" cy="${soil-h+Math.sin(a)*(cr+pr/2)}" rx="${stage>=5?6:5}" ry="${pr/2}" transform="rotate(${360/pcount*i},${cx+Math.cos(a)*(cr+pr/2)},${soil-h+Math.sin(a)*(cr+pr/2)})" fill="${i%2===0?'#F4B942':'#D4921A'}" opacity=".92"/>`;
+    }
+    s+=`<circle cx="${cx}" cy="${soil-h}" r="${cr}" fill="url(#sfcg${uid})"/>`;
+    // Disc dots
+    if(stage>=4){for(let di=0;di<24;di++){const da=di*15*Math.PI/180,dr=cr*(0.3+.35*(di%3)/2);s+=`<circle cx="${cx+Math.cos(da)*dr}" cy="${soil-h+Math.sin(da)*dr}" r="${.9}" fill="#2A1008" opacity=".7"/>`; }}
+  }else{// Bud
+    s+=`<circle cx="${cx}" cy="${soil-h}" r="${stage>=2?5:3}" fill="#4A8C3A"/>`;
+  }
+  return s;
+}
+
+// ── Oak Tree ──────────────────────────────────────────────────
+function svgOak(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const h=[0,18,34,55,78,105][stage];
+  const tw=[0,3,5,7,9,11][stage];
+  const cr=[0,0,14,24,36,50][stage];
+  let s=`<defs>
+    <radialGradient id="okg${uid}" cx="45%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#52A84A"/><stop offset="55%" stop-color="#2E7D32"/><stop offset="100%" stop-color="#1B4332"/>
+    </radialGradient>
+    <linearGradient id="otg${uid}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4A3220"/><stop offset="40%" stop-color="#6D4C2A"/><stop offset="100%" stop-color="#3A2818"/>
+    </linearGradient>
+    <filter id="okf${uid}"><feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity=".12"/></filter>
+  </defs>`;
+  // Trunk
+  s+=`<path d="M${cx-tw},${soil} Q${cx-tw*.6},${soil-h*.5} ${cx-tw*.4},${soil-h} L${cx+tw*.4},${soil-h} Q${cx+tw*.6},${soil-h*.5} ${cx+tw},${soil} Z" fill="url(#otg${uid})"/>`;
+  // Bark lines
+  if(stage>=3){for(let y=soil-h*.2;y>soil-h*.9;y-=14){s+=`<path d="M${cx-tw*.8},${y} Q${cx},${y-3} ${cx+tw*.8},${y}" stroke="rgba(0,0,0,.2)" stroke-width=".8" fill="none"/>`;}}
+  // Canopy
+  if(cr>0){
+    const cy2=soil-h+cr*.25;
+    // Multiple leaf clusters for realistic look
+    const clusters=stage>=4?5:3;
+    for(let i=0;i<clusters;i++){const ca=(i/(clusters-1)-0.5)*Math.PI*.8;const ccx=cx+Math.sin(ca)*cr*.45,ccy=cy2-Math.cos(ca)*cr*.2;const cr2=cr*(0.55+Math.cos(ca+.3)*.15);
+      s+=`<ellipse cx="${ccx}" cy="${ccy}" rx="${cr2*.9}" ry="${cr2*.78}" fill="url(#okg${uid})" opacity=".93" filter="url(#okf${uid})"/>`;
+    }
+    // Center cluster on top
+    s+=`<ellipse cx="${cx}" cy="${cy2-cr*.1}" rx="${cr*.7}" ry="${cr*.65}" fill="url(#okg${uid})"/>`;
+  }
+  return s;
+}
+
+// ── Cherry Blossom ────────────────────────────────────────────
+function svgCherry(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const h=[0,20,36,58,80,108][stage];
+  const tw=[0,2,3,5,7,9][stage];
+  let s=`<defs>
+    <linearGradient id="ctg${uid}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5D4037"/><stop offset="50%" stop-color="#795548"/><stop offset="100%" stop-color="#4A3020"/>
+    </linearGradient>
+    <radialGradient id="cbg${uid}" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#FCEAEF"/><stop offset="65%" stop-color="#F8BBD0"/><stop offset="100%" stop-color="#F48FB1"/>
+    </radialGradient>
+    <filter id="cf${uid}"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".1"/></filter>
+  </defs>`;
+  // Trunk — slight curve
+  s+=`<path d="M${cx-tw},${soil} Q${cx-tw*1.5},${soil-h*.6} ${cx},${soil-h}" stroke="url(#ctg${uid})" stroke-width="${tw*2}" fill="none" stroke-linecap="round"/>`;
+  // Branches
+  if(stage>=3){
+    s+=`<path d="M${cx},${soil-h*.65} Q${cx-18},${soil-h*.72} ${cx-20},${soil-h*.9}" stroke="url(#ctg${uid})" stroke-width="${tw*1.4}" fill="none" stroke-linecap="round"/>`;
+    if(stage>=4)s+=`<path d="M${cx},${soil-h*.72} Q${cx+16},${soil-h*.8} ${cx+18},${soil-h}" stroke="url(#ctg${uid})" stroke-width="${tw*1.2}" fill="none" stroke-linecap="round"/>`;
+  }
+  // Blossom clusters
+  if(stage>=3){
+    const clusters=[[cx,soil-h],[cx-18,soil-h*.88],[cx+16,soil-h*.95],[cx-8,soil-h*1.02],[cx+8,soil-h*.82]].slice(0,Math.min(stage,5));
+    clusters.forEach(([bx,by])=>{
+      const br=12+stage*2;
+      s+=`<ellipse cx="${bx}" cy="${by}" rx="${br}" ry="${br*.85}" fill="url(#cbg${uid})" opacity=".9" filter="url(#cf${uid})"/>`;
+      // Individual petals hint
+      for(let p=0;p<5;p++){const pa=(p*72-90)*Math.PI/180;s+=`<ellipse cx="${bx+Math.cos(pa)*br*.5}" cy="${by+Math.sin(pa)*br*.5}" rx="${br*.38}" ry="${br*.28}" fill="rgba(255,255,255,.25)" opacity=".7"/>`;}
+    });
+  }else{s+=`<circle cx="${cx}" cy="${soil-h}" r="${stage===2?5:3}" fill="#F8BBD0"/>"`;}
+  return s;
+}
+
+// ── Lemon Tree ────────────────────────────────────────────────
+function svgLemon(stage,uid,cx=60,soil=151){
+  if(stage===0)return'';
+  const h=[0,18,34,55,76,102][stage];
+  const tw=[0,2,3,5,7,9][stage];
+  let s=`<defs>
+    <radialGradient id="ltg${uid}" cx="45%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#66BB6A"/><stop offset="60%" stop-color="#388E3C"/><stop offset="100%" stop-color="#1B5E20"/>
+    </radialGradient>
+    <linearGradient id="ltr${uid}" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5D4037"/><stop offset="50%" stop-color="#795548"/><stop offset="100%" stop-color="#4A3020"/>
+    </linearGradient>
+    <radialGradient id="lemg${uid}" cx="35%" cy="30%" r="65%">
+      <stop offset="0%" stop-color="#FFF176"/><stop offset="100%" stop-color="#F9A825"/>
+    </radialGradient>
+  </defs>`;
+  s+=`<path d="M${cx-tw},${soil} Q${cx-tw*.5},${soil-h*.55} ${cx},${soil-h*.85}" stroke="url(#ltr${uid})" stroke-width="${tw*2}" fill="none" stroke-linecap="round"/>`;
+  if(stage>=3){s+=`<path d="M${cx},${soil-h*.6} Q${cx-15},${soil-h*.65} ${cx-16},${soil-h*.82}" stroke="url(#ltr${uid})" stroke-width="${tw*1.3}" fill="none" stroke-linecap="round"/>`;
+    s+=`<path d="M${cx},${soil-h*.7} Q${cx+14},${soil-h*.76} ${cx+14},${soil-h*.92}" stroke="url(#ltr${uid})" stroke-width="${tw*1.1}" fill="none" stroke-linecap="round"/>`;}
+  // Canopy
+  const cr=[0,0,10,18,27,38][stage];
+  if(cr>0){s+=`<ellipse cx="${cx}" cy="${soil-h+cr*.25}" rx="${cr*1.05}" ry="${cr*.88}" fill="url(#ltg${uid})"/>`;
+    if(stage>=4){s+=`<ellipse cx="${cx-cr*.4}" cy="${soil-h-cr*.05}" rx="${cr*.75}" ry="${cr*.65}" fill="url(#ltg${uid})" opacity=".88"/>`;
+      s+=`<ellipse cx="${cx+cr*.35}" cy="${soil-h}" rx="${cr*.7}" ry="${cr*.6}" fill="url(#ltg${uid})" opacity=".88"/>`;}
+  }
+  // Lemons
+  if(stage>=4){const lems=stage>=5?4:2;
+    const lp=[[cx-cr*.4,soil-h-cr*.15],[cx+cr*.3,soil-h-cr*.1],[cx-cr*.1,soil-h-cr*.3],[cx+cr*.5,soil-h-cr*.25]].slice(0,lems);
+    lp.forEach(([lx,ly])=>{s+=`<ellipse cx="${lx}" cy="${ly}" rx="5" ry="4" fill="url(#lemg${uid})" opacity=".95"/>`;s+=`<ellipse cx="${lx}" cy="${ly}" rx="1.5" ry="1" fill="rgba(255,255,255,.35)"/>`;});
+  }
+  return s;
+}
+
+// ── Dispatch plant drawing ────────────────────────────────────
+function drawPlant(type,stage,uid,cx=60,soil=151){
+  switch(type){
+    case'echeveria': return svgEcheveria(stage,uid,cx,soil);
+    case'cactus':    return svgCactus(stage,uid,cx,soil);
+    case'aloe':      return svgAloe(stage,uid,cx,soil);
+    case'monstera':  return svgMonstera(stage,uid,cx,soil);
+    case'snakeplant':return svgSnakePlant(stage,uid,cx,soil);
+    case'lavender':  return svgLavender(stage,uid,cx,soil);
+    case'sunflower': return svgSunflower(stage,uid,cx,soil);
+    case'oak':       return svgOak(stage,uid,cx,soil);
+    case'cherry':    return svgCherry(stage,uid,cx,soil);
+    case'lemon':     return svgLemon(stage,uid,cx,soil);
+    default: return '';
+  }
+}
+
+// ── Soil bump (for garden bed view) ──────────────────────────
+function svgSoilMound(uid,cx,y){
+  return`<ellipse cx="${cx}" cy="${y}" rx="18" ry="5" fill="#3D2008" opacity=".7"/>`;
+}
+
+// ── Render garden ─────────────────────────────────────────────
+function renderGarden(){
+  const g=refreshGardenStages();
+  const root=document.getElementById('gardenRoot');
+  if(!root)return;
+
+  const isWindowsill=g.view==='windowsill';
+  const plants=g.plants;
+  const streak=LS.get('peakly_streak',0);
+
+  let html=`
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <button onclick="setGardenView('windowsill')" style="flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ${isWindowsill?'var(--blue)':'var(--border2)'};background:${isWindowsill?'var(--blue-light)':'var(--white)'};color:${isWindowsill?'var(--blue)':'var(--text3)'};">🪟 Windowsill</button>
+    <button onclick="setGardenView('garden')" style="flex:1;padding:7px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ${!isWindowsill?'var(--blue)':'var(--border2)'};background:${!isWindowsill?'var(--blue-light)':'var(--white)'};color:${!isWindowsill?'var(--blue)':'var(--text3)'};">🌱 Garden Bed</button>
+  </div>`;
+
+  if(isWindowsill){
+    html+=renderWindowsill(plants,g);
+  }else{
+    html+=renderGardenBed(plants,g);
+  }
+
+  // Stage label
+  if(plants.length>0){
+    const p=plants[0];
+    html+=`<div style="text-align:center;font-size:11px;color:var(--text3);margin:8px 0 4px;">
+      <span style="font-weight:700;color:var(--text2);">${PLANT_TYPES.find(t=>t.id===p.type)?.name||'Plant'}</span>
+      &nbsp;·&nbsp; ${STAGE_NAMES[p.stage||0]}
+      &nbsp;·&nbsp; ${streak} day streak
+    </div>`;
+  }
+
+  // Add plant button
+  if(plants.length<6){
+    html+=`<button onclick="openPlantPicker()" style="width:100%;margin-top:8px;padding:10px;border-radius:12px;border:2px dashed var(--border);background:transparent;color:var(--text3);font-size:13px;font-weight:600;cursor:pointer;">+ Add a plant</button>`;
+  }
+
+  root.innerHTML=html;
+}
+
+function renderWindowsill(plants,g){
+  const W=560,H=240;
+  const slotW=Math.min(100,W/(Math.max(plants.length,1)+.5));
+  const potCX=slotW*.5;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;border-radius:14px;overflow:hidden;">
+    <defs>
+      <linearGradient id="skyg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#DDEEFF"/><stop offset="100%" stop-color="#F0F8FF"/>
+      </linearGradient>
+      <linearGradient id="woodg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#C8A87A"/><stop offset="100%" stop-color="#A8885A"/>
+      </linearGradient>
+    </defs>
+    <!-- Window background & frame -->
+    <rect width="${W}" height="${H}" fill="url(#skyg)"/>
+    <!-- Window pane lines -->
+    <line x1="${W*.5}" y1="0" x2="${W*.5}" y2="${H*.82}" stroke="rgba(255,255,255,.7)" stroke-width="8"/>
+    <line x1="0" y1="${H*.42}" x2="${W}" y2="${H*.42}" stroke="rgba(255,255,255,.7)" stroke-width="6"/>
+    <!-- Sill -->
+    <rect x="0" y="${H*.82}" width="${W}" height="${H*.18}" fill="url(#woodg)"/>
+    <rect x="0" y="${H*.82}" width="${W}" height="3" fill="rgba(255,255,255,.4)"/>
+    <!-- Sill grain lines -->
+    <line x1="0" y1="${H*.87}" x2="${W}" y2="${H*.87}" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+    <line x1="0" y1="${H*.93}" x2="${W}" y2="${H*.93}" stroke="rgba(0,0,0,.05)" stroke-width="1"/>`;
+
+  // Light rays
+  svg+=`<defs><radialGradient id="lightg" cx="50%" cy="0%" r="80%">
+    <stop offset="0%" stop-color="rgba(255,255,240,.3)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+  </radialGradient></defs>
+  <rect width="${W}" height="${H*.8}" fill="url(#lightg)"/>`;
+
+  const sillY=Math.round(H*.82);
+
+  if(plants.length===0){
+    // Empty state — single empty pot
+    svg+=svgPot('empty',W*.5,sillY);
+    svg+=`<text x="${W*.5}" y="${sillY-72}" text-anchor="middle" fill="#A8C0D8" font-size="11" font-family="system-ui">Add your first plant ↓</text>`;
+  }else{
+    const spacing=Math.min(110,W/(plants.length+.4));
+    const startX=(W-spacing*(plants.length-1))*.5;
+    plants.forEach((p,i)=>{
+      const pcx=startX+i*spacing;
+      const st=p.stage||0;
+      svg+=svgPot(`w${i}`,pcx,sillY);
+      svg+=drawPlant(p.type,st,`w${i}`,pcx,sillY-45);
+    });
+  }
+
+  svg+=`</svg>`;
+  return svg;
+}
+
+function renderGardenBed(plants,g){
+  const W=560,H=260;
+  let svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;border-radius:14px;overflow:hidden;">
+    <defs>
+      <linearGradient id="gbsky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#C8E8F8"/><stop offset="100%" stop-color="#E8F4FF"/>
+      </linearGradient>
+      <linearGradient id="gbgrass" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#6DBF6A"/><stop offset="100%" stop-color="#4A9A48"/>
+      </linearGradient>
+      <linearGradient id="gbsoil" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#6B4423"/><stop offset="100%" stop-color="#4A2E12"/>
+      </linearGradient>
+    </defs>
+    <!-- Sky -->
+    <rect width="${W}" height="${H}" fill="url(#gbsky)"/>
+    <!-- Distant treeline hint -->
+    <rect x="0" y="${H*.48}" width="${W}" height="8" rx="4" fill="rgba(80,140,80,.15)"/>
+    <!-- Grass strip -->
+    <rect x="0" y="${H*.55}" width="${W}" height="${H*.12}" fill="url(#gbgrass)"/>
+    <!-- Soil bed -->
+    <rect x="20" y="${H*.62}" width="${W-40}" height="${H*.34}" rx="8" fill="url(#gbsoil)"/>
+    <!-- Soil texture -->
+    <rect x="20" y="${H*.62}" width="${W-40}" height="3" rx="2" fill="rgba(255,255,255,.12)"/>
+    <!-- Stone border -->
+    ${[0,1,2,3,4,5,6,7].map(i=>`<ellipse cx="${40+i*70}" cy="${H*.635}" rx="22" ry="9" fill="#9E9E9E" opacity=".6"/><ellipse cx="${40+i*70}" cy="${H*.635}" rx="18" ry="7" fill="#BDBDBD" opacity=".5"/>`).join('')}`;
+
+  const soilY=Math.round(H*.66);
+
+  if(plants.length===0){
+    svg+=`<text x="${W*.5}" y="${soilY+40}" text-anchor="middle" fill="#C8A880" font-size="11" font-family="system-ui">Your garden awaits — add your first plant ↓</text>`;
+  }else{
+    const spacing=Math.min(120,(W-80)/(plants.length+.4));
+    const startX=(W-spacing*(plants.length-1))*.5;
+    plants.forEach((p,i)=>{
+      const pcx=startX+i*spacing;
+      svg+=svgSoilMound(`gb${i}`,pcx,soilY);
+      svg+=drawPlant(p.type,p.stage||0,`gb${i}`,pcx,soilY);
+    });
+  }
+  svg+=`</svg>`;
+  return svg;
+}
+
+// ── Plant picker ──────────────────────────────────────────────
+function openPlantPicker(){
+  const overlay=document.getElementById('plantPickerOverlay');
+  const grid=document.getElementById('plantPickerGrid');
+  overlay.style.display='flex';
+  // Build mini preview for each plant type
+  grid.innerHTML=PLANT_TYPES.map(pt=>{
+    // Tiny preview SVG (stage 4 = established)
+    const previewSvg=`<svg viewBox="0 0 120 200" width="60" height="100">
+      ${svgPot('pk'+pt.id)}${drawPlant(pt.id,4,'pk'+pt.id)}
+    </svg>`;
+    return`<button onclick="addPlant('${pt.id}')" style="border:1px solid var(--border2);border-radius:12px;padding:10px 8px 8px;background:var(--bg);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .15s;" onmouseover="this.style.borderColor='var(--blue)';this.style.background='var(--blue-light)'" onmouseout="this.style.borderColor='var(--border2)';this.style.background='var(--bg)'">
+      ${previewSvg}
+      <div style="font-size:12px;font-weight:700;color:var(--text);">${pt.name}</div>
+      <div style="font-size:10px;color:var(--text3);">${pt.cat}</div>
+    </button>`;
+  }).join('');
+}
+function closePlantPicker(){document.getElementById('plantPickerOverlay').style.display='none';}
+function addPlant(type){
+  const g=getGardenData();
+  const streak=LS.get('peakly_streak',0);
+  g.plants.push({id:'p'+Date.now(),type,stage:streakToIdealStage(streak),lastDate:new Date().toISOString().split('T')[0]});
+  saveGardenData(g);
+  closePlantPicker();
+  renderGarden();
+}
+function setGardenView(v){const g=getGardenData();g.view=v;saveGardenData(g);renderGarden();}
+
+// Run on load
+renderGarden();
 </script>
 </body>
 </html>
