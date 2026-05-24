@@ -612,9 +612,7 @@ async function handleSignup(){
   // Auto-confirmed (local dev) or session exists — go to plan picker
   if(data.session){
     const lastUserId = localStorage.getItem('peakly_last_user_id');
-    if(lastUserId && lastUserId !== data.user.id){
-      localStorage.clear();
-    }
+    if(lastUserId && lastUserId !== data.user.id) clearUserData();
     localStorage.setItem('peakly_last_user_id', data.user.id);
 
     // Save name to profile
@@ -626,6 +624,17 @@ async function handleSignup(){
 
     window.location.href = 'peakly-plan.html';
   }
+}
+
+// Clears user-specific localStorage data when switching accounts,
+// but preserves Supabase session keys so the new session survives the redirect.
+function clearUserData(){
+  const saved={};
+  Object.keys(localStorage).forEach(k=>{
+    if(k.startsWith('sb-')||k.includes('supabase.auth'))saved[k]=localStorage.getItem(k);
+  });
+  localStorage.clear();
+  Object.entries(saved).forEach(([k,v])=>localStorage.setItem(k,v));
 }
 
 // ── Log in ────────────────────────────────────────────────────
@@ -654,9 +663,7 @@ async function handleLogin(){
   }
 
   const lastUserId = localStorage.getItem('peakly_last_user_id');
-  if(lastUserId && lastUserId !== data.user.id){
-    localStorage.clear();
-  }
+  if(lastUserId && lastUserId !== data.user.id) clearUserData();
   localStorage.setItem('peakly_last_user_id', data.user.id);
 
   window.location.href = 'peakly.html';
