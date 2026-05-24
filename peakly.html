@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=12"></script>
+<script src="peakly-config.js?v=13"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -69,6 +69,9 @@ const LS={
   get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
   set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 };
+try{ sessionStorage.setItem('peakly_home_loaded_at', String(Date.now())); }catch(e){}
+window.PeaklyBuild='auth-hotfix-v13';
+console.info('[Peakly] build auth-hotfix-v13 loaded');
 function hasStoredSupabaseSession(){
   try{
     for(let i=0;i<localStorage.length;i++){
