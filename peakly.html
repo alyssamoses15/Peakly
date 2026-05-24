@@ -529,6 +529,155 @@ function Meals(){
   );
 }
 
+// ─ Garden (shared SVG helpers — mirrors peakly-profile.html) ─
+const GARDEN_STAGE_NAMES=['Seed','Sprout','Seedling','Growing','Established','Blooming'];
+function gardenStreakToStage(s){return s>=60?5:s>=30?4:s>=14?3:s>=7?2:s>=1?1:0;}
+function gardenGetData(){return LS.get('peakly_garden',{view:'windowsill',plants:[]});}
+function gardenSaveData(g){LS.set('peakly_garden',g);}
+
+function gSvgPot(uid,cx=60,baseY=192){return`<defs><linearGradient id="pg${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#9E3A0A"/><stop offset="35%" stop-color="#C8501A"/><stop offset="65%" stop-color="#B8481A"/><stop offset="100%" stop-color="#8A3008"/></linearGradient><linearGradient id="pgt${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#A8420F"/><stop offset="50%" stop-color="#CC5520"/><stop offset="100%" stop-color="#924010"/></linearGradient></defs><path d="M${cx-22},${baseY-40} L${cx-28},${baseY} L${cx+28},${baseY} L${cx+22},${baseY-40} Z" fill="url(#pg${uid})"/><rect x="${cx-25}" y="${baseY-47}" width="50" height="10" rx="3" fill="url(#pgt${uid})"/><ellipse cx="${cx}" cy="${baseY-41}" rx="22" ry="4.5" fill="#2A1008"/><ellipse cx="${cx}" cy="${baseY-41}" rx="18" ry="3" fill="#3D1A0A"/>`;}
+
+function gDrawEcheveria(stage,uid,cx=60,soil=151){if(stage===0)return'';const counts=[0,4,6,8,10,13][stage],r=[0,10,16,24,32,42][stage],cy=soil-r*.15,cols=['#3D8F7C','#4FA888','#6DBD9E','#8DCFB0','#A8DFCA'];let s=`<defs><radialGradient id="ec${uid}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#C8EDDB"/><stop offset="100%" stop-color="#2A7060"/></radialGradient></defs>`;for(let i=counts-1;i>=0;i--){const a=(360/counts)*i-90,rad=a*Math.PI/180,tip={x:cx+Math.cos(rad)*r,y:cy+Math.sin(rad)*r*.72},b1={x:cx+Math.cos(rad-.55)*r*.5,y:cy+Math.sin(rad-.55)*r*.36},b2={x:cx+Math.cos(rad+.55)*r*.5,y:cy+Math.sin(rad+.55)*r*.36},col=cols[i%cols.length];s+=`<defs><linearGradient id="ep${uid}_${i}" x1="${cx}" y1="${cy}" x2="${tip.x}" y2="${tip.y}" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#2A7060"/><stop offset="100%" stop-color="${col}"/></linearGradient></defs><path d="M${cx},${cy} C${b1.x},${b1.y} ${tip.x-.5},${tip.y+1} ${tip.x},${tip.y} C${tip.x+.5},${tip.y-1} ${b2.x},${b2.y} ${cx},${cy}" fill="url(#ep${uid}_${i})" opacity="${.82+.06*(i%2)}"/>`;}s+=`<circle cx="${cx}" cy="${cy}" r="${r*.18}" fill="url(#ec${uid})"/>`;if(stage>=5)s+=`<line x1="${cx+r*.6}" y1="${cy-r*.3}" x2="${cx+r*.6}" y2="${cy-r*1.4}" stroke="#5A9A5A" stroke-width="1.5"/><circle cx="${cx+r*.6}" cy="${cy-r*1.4}" r="${r*.18}" fill="#FF8FAB"/>`;return s;}
+
+function gDrawCactus(stage,uid,cx=60,soil=151){if(stage===0)return'';const h=[0,14,28,52,78,108][stage],w=[0,7,10,13,14,15][stage],top=soil-h;let s=`<defs><linearGradient id="cg${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1E5C30"/><stop offset="30%" stop-color="#2E7D42"/><stop offset="60%" stop-color="#3D9A52"/><stop offset="100%" stop-color="#1A4D28"/></linearGradient><linearGradient id="cv${uid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(255,255,255,.12)"/><stop offset="100%" stop-color="rgba(0,0,0,.06)"/></linearGradient></defs><rect x="${cx-w}" y="${top}" width="${w*2}" height="${h}" rx="${w}" fill="url(#cg${uid})"/><rect x="${cx-w}" y="${top}" width="${w*2}" height="${h}" rx="${w}" fill="url(#cv${uid})"/>`;for(let i=-1;i<=1;i++)s+=`<line x1="${cx+i*w*.45}" y1="${top+4}" x2="${cx+i*w*.45}" y2="${soil-2}" stroke="rgba(255,255,255,.12)" stroke-width="1.2"/>`;if(stage>=2)for(let y=top+10;y<soil-8;y+=10){s+=`<line x1="${cx-w}" y1="${y}" x2="${cx-w-5}" y2="${y-2}" stroke="#C8E0B8" stroke-width=".7"/><line x1="${cx+w}" y1="${y}" x2="${cx+w+5}" y2="${y-2}" stroke="#C8E0B8" stroke-width=".7"/>`;}if(stage>=4){const ay=top+h*.3,ah=h*.4;s+=`<path d="M${cx-w+1},${ay} Q${cx-w*3},${ay+4} ${cx-w*3},${ay-ah}" stroke="url(#cg${uid})" stroke-width="${w*1.6}" fill="none" stroke-linecap="round"/>`;if(stage>=5)s+=`<path d="M${cx+w-1},${ay+12} Q${cx+w*3},${ay+16} ${cx+w*3},${ay+12-ah*.8}" stroke="url(#cg${uid})" stroke-width="${w*1.5}" fill="none" stroke-linecap="round"/>`;}if(stage>=5){for(let i=0;i<6;i++){const a=(i*60-90)*Math.PI/180;s+=`<ellipse cx="${cx+Math.cos(a)*8}" cy="${top-5+Math.sin(a)*8}" rx="4.5" ry="3" transform="rotate(${i*60},${cx+Math.cos(a)*8},${top-5+Math.sin(a)*8})" fill="${['#FFB3C1','#FF8FA3','#FF6F91'][i%3]}" opacity=".9"/>`;}s+=`<circle cx="${cx}" cy="${top-5}" r="4" fill="#FFD60A"/>`;}return s;}
+
+function gDrawAloe(stage,uid,cx=60,soil=151){if(stage===0)return'';const count=[0,2,3,5,6,8][stage],h=[0,20,32,48,62,78][stage];let s=`<defs><linearGradient id="ag${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4A7A5A"/><stop offset="50%" stop-color="#6A9E72"/><stop offset="100%" stop-color="#3D6A4A"/></linearGradient></defs>`;for(let i=0;i<count;i++){const side=i%2===0?-1:1,spread=Math.floor(i/2),angle=side*(25+spread*18),rad=angle*Math.PI/180,lh=h*(.7+spread*.1),tx=cx+Math.sin(rad)*lh,ty=soil-Math.cos(rad)*lh,mx=cx+Math.sin(rad)*lh*.5+side*lh*.12,my=soil-Math.cos(rad)*lh*.5;s+=`<path d="M${cx},${soil} Q${mx},${my} ${tx},${ty}" stroke="url(#ag${uid})" stroke-width="${Math.max(3,7-spread*1.2)}" fill="none" stroke-linecap="round"/>`;for(let t=.3;t<.9;t+=.18){const sx=cx+(tx-cx)*t,sy=soil+(ty-soil)*t,nr=-Math.cos(rad)*2.5,nt=Math.sin(rad)*2.5;s+=`<circle cx="${sx+nr}" cy="${sy+nt}" r="1" fill="#B8D8BA" opacity=".6"/>`; }}if(stage>=5){s+=`<line x1="${cx}" y1="${soil-h*1.15}" x2="${cx}" y2="${soil-h}" stroke="#5A9A5A" stroke-width="2"/>`;for(let i=0;i<5;i++){const a=soil-h*1.15-i*4;s+=`<ellipse cx="${cx}" cy="${a}" rx="3.5" ry="1.8" fill="#F4A340"/>`;}}return s;}
+
+function gDrawMonstera(stage,uid,cx=60,soil=151){if(stage===0)return'';const lcount=[0,1,1,2,3,4][stage],sz=[0,.4,.6,.75,.88,1][stage];let s=`<defs><radialGradient id="mg${uid}" cx="40%" cy="35%" r="60%"><stop offset="0%" stop-color="#52B788"/><stop offset="100%" stop-color="#1B4332"/></radialGradient><filter id="mf${uid}"><feDropShadow dx="1" dy="2" stdDeviation="2" flood-opacity=".15"/></filter></defs>`;const configs=[{dx:-14,dy:-55,rot:-20},{dx:16,dy:-72,rot:18},{dx:-18,dy:-85,rot:-28},{dx:20,dy:-95,rot:22}];for(let li=0;li<lcount;li++){const cf=configs[li]||configs[0],R=sz*45,lx=cx+cf.dx*sz,ly=soil+cf.dy*sz;s+=`<line x1="${cx}" y1="${soil}" x2="${lx}" y2="${ly+R*.35}" stroke="#2D5A27" stroke-width="${2*sz}"/><g transform="rotate(${cf.rot},${lx},${ly})" filter="url(#mf${uid})"><path d="M${lx},${ly} C${lx-R*.7},${ly-R*.3} ${lx-R*.9},${ly-R*.9} ${lx},${ly-R*1.1} C${lx+R*.9},${ly-R*.9} ${lx+R*.7},${ly-R*.3} ${lx},${ly}" fill="url(#mg${uid})" opacity=".95"/>`;if(stage>=3){s+=`<path d="M${lx-R*.55},${ly-R*.55} C${lx-R*.45},${ly-R*.7} ${lx-R*.25},${ly-R*.72} ${lx-R*.15},${ly-R*.58} C${lx-R*.25},${ly-R*.44} ${lx-R*.45},${ly-R*.42} ${lx-R*.55},${ly-R*.55}" fill="rgba(15,28,46,.08)"/><path d="M${lx+R*.15},${ly-R*.58} C${lx+R*.25},${ly-R*.72} ${lx+R*.45},${ly-R*.72} ${lx+R*.55},${ly-R*.58} C${lx+R*.45},${ly-R*.44} ${lx+R*.25},${ly-R*.42} ${lx+R*.15},${ly-R*.58}" fill="rgba(15,28,46,.08)"/>`;}s+=`<line x1="${lx}" y1="${ly}" x2="${lx}" y2="${ly-R*1.05}" stroke="rgba(255,255,255,.2)" stroke-width="${1.2*sz}"/></g>`;}return s;}
+
+function gDrawSnakePlant(stage,uid,cx=60,soil=151){if(stage===0)return'';const counts=[0,2,3,4,5,6][stage],h=[0,28,48,68,88,108][stage];let s=`<defs><linearGradient id="sg${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1A3A1A"/><stop offset="25%" stop-color="#2D5A27"/><stop offset="75%" stop-color="#3A6E34"/><stop offset="100%" stop-color="#1A3A1A"/></linearGradient></defs>`;for(let i=0;i<counts;i++){const side=(i%2===0?-1:1)*(1+Math.floor(i/2)*.35),lh=h*(.8+Math.floor(i/2)*.08),lw=Math.max(5,10-Math.floor(i/2)*1.5),ox=side*lw*.9;s+=`<path d="M${cx+ox*.4},${soil} Q${cx+ox*1.2},${soil-lh*.5} ${cx+ox},${soil-lh}" stroke="url(#sg${uid})" stroke-width="${lw*2}" fill="none" stroke-linecap="round"/>`;for(let b=.2;b<.9;b+=.14){const bx=cx+ox+(cx+ox*1.2-cx-ox*.4)*(b-.5),by=soil-lh*b;s+=`<line x1="${bx-lw}" y1="${by}" x2="${bx+lw}" y2="${by}" stroke="#8FB98A" stroke-width=".8" opacity=".5"/>`;}s+=`<path d="M${cx+ox*.4},${soil} Q${cx+ox*1.2},${soil-lh*.5} ${cx+ox},${soil-lh}" stroke="#C9A84C" stroke-width=".8" fill="none" stroke-linecap="round" opacity=".7"/>`;}return s;}
+
+function gDrawLavender(stage,uid,cx=60,soil=151){if(stage===0)return'';const stems=[0,2,3,5,7,9][stage],h=[0,28,44,60,76,90][stage];let s='';for(let i=0;i<stems;i++){const ox=(i-(stems-1)/2)*9,sway=Math.sin(i*1.3)*5,sx=cx+ox,ex=sx+sway;s+=`<path d="M${sx},${soil} Q${(sx+ex)/2},${soil-h*.5} ${ex},${soil-h}" stroke="#7A8C7A" stroke-width="1.5" fill="none"/>`;if(stage>=2)for(let l=.25;l<.6;l+=.2){const lx=sx+(ex-sx)*l,ly=soil-(soil-(soil-h))*l;s+=`<ellipse cx="${lx-3}" cy="${ly}" rx="3" ry="1.2" transform="rotate(-25,${lx-3},${ly})" fill="#8FA882" opacity=".8"/><ellipse cx="${lx+3}" cy="${ly}" rx="3" ry="1.2" transform="rotate(25,${lx+3},${ly})" fill="#8FA882" opacity=".8"/>`;}if(stage>=2){const spk=Math.min(h*.35,28);for(let f=0;f<5;f++){const fy=soil-h+f*spk/5,fc=f/4;s+=`<ellipse cx="${ex}" cy="${fy}" rx="${3.5-fc*.5}" ry="2.8" fill="${['#7B5EA7','#8B6BB7','#9B7BC7','#AB8BD7','#C8A8E8'][f]}" opacity="${.95-fc*.15}"/>`;} }}return s;}
+
+function gDrawSunflower(stage,uid,cx=60,soil=151){if(stage===0)return'';const h=[0,20,38,58,78,100][stage];let s=`<defs><radialGradient id="sfcg${uid}" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#8B5E3C"/><stop offset="60%" stop-color="#5D3A1A"/><stop offset="100%" stop-color="#3A2008"/></radialGradient><linearGradient id="sfsg${uid}" x1="0" y1="1" x2="0" y2="0"><stop offset="0%" stop-color="#2E5A28"/><stop offset="100%" stop-color="#4A8C3A"/></linearGradient></defs><path d="M${cx},${soil} Q${cx-4},${soil-h*.5} ${cx},${soil-h}" stroke="url(#sfsg${uid})" stroke-width="${stage>=3?4:3}" fill="none"/>`;if(stage>=2){s+=`<path d="M${cx-3},${soil-h*.45} Q${cx-18},${soil-h*.55} ${cx-14},${soil-h*.35}" stroke="#4A8C3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;if(stage>=3)s+=`<path d="M${cx+3},${soil-h*.62} Q${cx+18},${soil-h*.72} ${cx+14},${soil-h*.52}" stroke="#4A8C3A" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;}if(stage>=3){const pcount=stage>=5?16:12,cr=stage>=5?14:11,pr=stage>=5?24:18;for(let i=0;i<pcount;i++){const a=(360/pcount*i-90)*Math.PI/180;s+=`<ellipse cx="${cx+Math.cos(a)*(cr+pr/2)}" cy="${soil-h+Math.sin(a)*(cr+pr/2)}" rx="${stage>=5?6:5}" ry="${pr/2}" transform="rotate(${360/pcount*i},${cx+Math.cos(a)*(cr+pr/2)},${soil-h+Math.sin(a)*(cr+pr/2)})" fill="${i%2===0?'#F4B942':'#D4921A'}" opacity=".92"/>"`;}s+=`<circle cx="${cx}" cy="${soil-h}" r="${cr}" fill="url(#sfcg${uid})"/>`;if(stage>=4)for(let di=0;di<24;di++){const da=di*15*Math.PI/180,dr=cr*(.3+.35*(di%3)/2);s+=`<circle cx="${cx+Math.cos(da)*dr}" cy="${soil-h+Math.sin(da)*dr}" r=".9" fill="#2A1008" opacity=".7"/>`; }}else s+=`<circle cx="${cx}" cy="${soil-h}" r="${stage>=2?5:3}" fill="#4A8C3A"/>`;return s;}
+
+function gDrawOak(stage,uid,cx=60,soil=151){if(stage===0)return'';const h=[0,18,34,55,78,105][stage],tw=[0,3,5,7,9,11][stage],cr=[0,0,14,24,36,50][stage];let s=`<defs><radialGradient id="okg${uid}" cx="45%" cy="35%" r="55%"><stop offset="0%" stop-color="#52A84A"/><stop offset="55%" stop-color="#2E7D32"/><stop offset="100%" stop-color="#1B4332"/></radialGradient><linearGradient id="otg${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4A3220"/><stop offset="40%" stop-color="#6D4C2A"/><stop offset="100%" stop-color="#3A2818"/></linearGradient><filter id="okf${uid}"><feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity=".12"/></filter></defs><path d="M${cx-tw},${soil} Q${cx-tw*.6},${soil-h*.5} ${cx-tw*.4},${soil-h} L${cx+tw*.4},${soil-h} Q${cx+tw*.6},${soil-h*.5} ${cx+tw},${soil} Z" fill="url(#otg${uid})"/>`;if(stage>=3)for(let y=soil-h*.2;y>soil-h*.9;y-=14)s+=`<path d="M${cx-tw*.8},${y} Q${cx},${y-3} ${cx+tw*.8},${y}" stroke="rgba(0,0,0,.2)" stroke-width=".8" fill="none"/>`;if(cr>0){const cy2=soil-h+cr*.25,clusters=stage>=4?5:3;for(let i=0;i<clusters;i++){const ca=(i/(clusters-1)-.5)*Math.PI*.8,ccx=cx+Math.sin(ca)*cr*.45,ccy=cy2-Math.cos(ca)*cr*.2,cr2=cr*(.55+Math.cos(ca+.3)*.15);s+=`<ellipse cx="${ccx}" cy="${ccy}" rx="${cr2*.9}" ry="${cr2*.78}" fill="url(#okg${uid})" opacity=".93" filter="url(#okf${uid})"/>`;}s+=`<ellipse cx="${cx}" cy="${cy2-cr*.1}" rx="${cr*.7}" ry="${cr*.65}" fill="url(#okg${uid})"/>`;}return s;}
+
+function gDrawCherry(stage,uid,cx=60,soil=151){if(stage===0)return'';const h=[0,20,36,58,80,108][stage],tw=[0,2,3,5,7,9][stage];let s=`<defs><linearGradient id="ctg${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#5D4037"/><stop offset="50%" stop-color="#795548"/><stop offset="100%" stop-color="#4A3020"/></linearGradient><radialGradient id="cbg${uid}" cx="50%" cy="40%" r="55%"><stop offset="0%" stop-color="#FCEAEF"/><stop offset="65%" stop-color="#F8BBD0"/><stop offset="100%" stop-color="#F48FB1"/></radialGradient><filter id="cf${uid}"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity=".1"/></filter></defs><path d="M${cx-tw},${soil} Q${cx-tw*1.5},${soil-h*.6} ${cx},${soil-h}" stroke="url(#ctg${uid})" stroke-width="${tw*2}" fill="none" stroke-linecap="round"/>`;if(stage>=3){s+=`<path d="M${cx},${soil-h*.65} Q${cx-18},${soil-h*.72} ${cx-20},${soil-h*.9}" stroke="url(#ctg${uid})" stroke-width="${tw*1.4}" fill="none" stroke-linecap="round"/>`;if(stage>=4)s+=`<path d="M${cx},${soil-h*.72} Q${cx+16},${soil-h*.8} ${cx+18},${soil-h}" stroke="url(#ctg${uid})" stroke-width="${tw*1.2}" fill="none" stroke-linecap="round"/>`;}if(stage>=3){const clusters=[[cx,soil-h],[cx-18,soil-h*.88],[cx+16,soil-h*.95],[cx-8,soil-h*1.02],[cx+8,soil-h*.82]].slice(0,Math.min(stage,5));clusters.forEach(([bx,by])=>{const br=12+stage*2;s+=`<ellipse cx="${bx}" cy="${by}" rx="${br}" ry="${br*.85}" fill="url(#cbg${uid})" opacity=".9" filter="url(#cf${uid})"/>`;for(let p=0;p<5;p++){const pa=(p*72-90)*Math.PI/180;s+=`<ellipse cx="${bx+Math.cos(pa)*br*.5}" cy="${by+Math.sin(pa)*br*.5}" rx="${br*.38}" ry="${br*.28}" fill="rgba(255,255,255,.25)" opacity=".7"/>"`; }});}else s+=`<circle cx="${cx}" cy="${soil-h}" r="${stage===2?5:3}" fill="#F8BBD0"/>`;return s;}
+
+function gDrawLemon(stage,uid,cx=60,soil=151){if(stage===0)return'';const h=[0,18,34,55,76,102][stage],tw=[0,2,3,5,7,9][stage];let s=`<defs><radialGradient id="ltg${uid}" cx="45%" cy="35%" r="55%"><stop offset="0%" stop-color="#66BB6A"/><stop offset="60%" stop-color="#388E3C"/><stop offset="100%" stop-color="#1B5E20"/></radialGradient><linearGradient id="ltr${uid}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#5D4037"/><stop offset="50%" stop-color="#795548"/><stop offset="100%" stop-color="#4A3020"/></linearGradient><radialGradient id="lemg${uid}" cx="35%" cy="30%" r="65%"><stop offset="0%" stop-color="#FFF176"/><stop offset="100%" stop-color="#F9A825"/></radialGradient></defs><path d="M${cx-tw},${soil} Q${cx-tw*.5},${soil-h*.55} ${cx},${soil-h*.85}" stroke="url(#ltr${uid})" stroke-width="${tw*2}" fill="none" stroke-linecap="round"/>`;if(stage>=3){s+=`<path d="M${cx},${soil-h*.6} Q${cx-15},${soil-h*.65} ${cx-16},${soil-h*.82}" stroke="url(#ltr${uid})" stroke-width="${tw*1.3}" fill="none" stroke-linecap="round"/><path d="M${cx},${soil-h*.7} Q${cx+14},${soil-h*.76} ${cx+14},${soil-h*.92}" stroke="url(#ltr${uid})" stroke-width="${tw*1.1}" fill="none" stroke-linecap="round"/>`;}const cr=[0,0,10,18,27,38][stage];if(cr>0){s+=`<ellipse cx="${cx}" cy="${soil-h+cr*.25}" rx="${cr*1.05}" ry="${cr*.88}" fill="url(#ltg${uid})"/>`;if(stage>=4){s+=`<ellipse cx="${cx-cr*.4}" cy="${soil-h-cr*.05}" rx="${cr*.75}" ry="${cr*.65}" fill="url(#ltg${uid})" opacity=".88"/><ellipse cx="${cx+cr*.35}" cy="${soil-h}" rx="${cr*.7}" ry="${cr*.6}" fill="url(#ltg${uid})" opacity=".88"/>`;}}if(stage>=4){const lems=stage>=5?4:2,lp=[[cx-cr*.4,soil-h-cr*.15],[cx+cr*.3,soil-h-cr*.1],[cx-cr*.1,soil-h-cr*.3],[cx+cr*.5,soil-h-cr*.25]].slice(0,lems);lp.forEach(([lx,ly])=>{s+=`<ellipse cx="${lx}" cy="${ly}" rx="5" ry="4" fill="url(#lemg${uid})" opacity=".95"/><ellipse cx="${lx}" cy="${ly}" rx="1.5" ry="1" fill="rgba(255,255,255,.35)"/>`;});}return s;}
+
+function gDrawPlant(type,stage,uid,cx=60,soil=151){switch(type){case'echeveria':return gDrawEcheveria(stage,uid,cx,soil);case'cactus':return gDrawCactus(stage,uid,cx,soil);case'aloe':return gDrawAloe(stage,uid,cx,soil);case'monstera':return gDrawMonstera(stage,uid,cx,soil);case'snakeplant':return gDrawSnakePlant(stage,uid,cx,soil);case'lavender':return gDrawLavender(stage,uid,cx,soil);case'sunflower':return gDrawSunflower(stage,uid,cx,soil);case'oak':return gDrawOak(stage,uid,cx,soil);case'cherry':return gDrawCherry(stage,uid,cx,soil);case'lemon':return gDrawLemon(stage,uid,cx,soil);default:return'';}}
+
+const GARDEN_PLANT_TYPES=[
+  {id:'echeveria',name:'Echeveria',cat:'Succulent'},{id:'cactus',name:'Cactus',cat:'Succulent'},{id:'aloe',name:'Aloe Vera',cat:'Succulent'},
+  {id:'monstera',name:'Monstera',cat:'Houseplant'},{id:'snakeplant',name:'Snake Plant',cat:'Houseplant'},
+  {id:'lavender',name:'Lavender',cat:'Flowering'},{id:'sunflower',name:'Sunflower',cat:'Flowering'},
+  {id:'oak',name:'Oak Tree',cat:'Tree'},{id:'cherry',name:'Cherry Blossom',cat:'Tree'},{id:'lemon',name:'Lemon Tree',cat:'Tree'},
+];
+
+function Garden(){
+  const {useState,useCallback}=React;
+  const streak=LS.get('peakly_streak',0);
+  const [gardenData,setGardenData]=useState(()=>gardenGetData());
+  const [picking,setPicking]=useState(false);
+
+  const refresh=()=>{
+    const g=gardenGetData();
+    const today=new Date().toISOString().split('T')[0];
+    const lastDate=LS.get('garden_last_check','');
+    const lastStreak=LS.get('garden_last_streak',-1);
+    if(lastDate&&lastDate<today){
+      const broke=(lastStreak>0&&streak===0);
+      g.plants.forEach(p=>{broke?p.stage=Math.max(0,p.stage-1):p.stage=Math.min(5,gardenStreakToStage(streak));});
+      gardenSaveData(g);
+    }
+    LS.set('garden_last_check',today);LS.set('garden_last_streak',streak);
+    return g;
+  };
+
+  const [gd,setGd]=useState(()=>refresh());
+  const isWindowsill=gd.view==='windowsill';
+  const plants=gd.plants||[];
+
+  const setView=v=>{const g=gardenGetData();g.view=v;gardenSaveData(g);setGd({...g});};
+  const addPlant=type=>{
+    const g=gardenGetData();
+    g.plants.push({id:'p'+Date.now(),type,stage:gardenStreakToStage(streak),lastDate:new Date().toISOString().split('T')[0]});
+    gardenSaveData(g);setGd({...g});setPicking(false);
+  };
+
+  const W=270,H=180;
+  const sillY=Math.round(H*.82);
+  const soilY=Math.round(H*.66);
+
+  const windowsillSvg=()=>{
+    const spacing=plants.length?Math.min(90,W/(plants.length+.4)):W*.5;
+    const startX=plants.length?(W-spacing*(plants.length-1))*.5:W*.5;
+    let inner=plants.length===0
+      ?`${gSvgPot('emp0',W*.5,sillY)}<text x="${W*.5}" y="${sillY-68}" text-anchor="middle" fill="#A8C0D8" font-size="9" font-family="system-ui">Add your first plant ↓</text>`
+      :plants.map((p,i)=>`${gSvgPot(`hw${i}`,startX+i*spacing,sillY)}${gDrawPlant(p.type,p.stage||0,`hw${i}`,startX+i*spacing,sillY-45)}`).join('');
+    return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;border-radius:10px;overflow:hidden;">
+      <defs><linearGradient id="hsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#DDEEFF"/><stop offset="100%" stop-color="#F0F8FF"/></linearGradient><linearGradient id="hwoodh" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C8A87A"/><stop offset="100%" stop-color="#A8885A"/></linearGradient><radialGradient id="hlightg" cx="50%" cy="0%" r="80%"><stop offset="0%" stop-color="rgba(255,255,240,.28)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient></defs>
+      <rect width="${W}" height="${H}" fill="url(#hsky)"/>
+      <line x1="${W*.5}" y1="0" x2="${W*.5}" y2="${H*.82}" stroke="rgba(255,255,255,.65)" stroke-width="6"/>
+      <line x1="0" y1="${H*.42}" x2="${W}" y2="${H*.42}" stroke="rgba(255,255,255,.65)" stroke-width="5"/>
+      <rect width="${W}" height="${H*.8}" fill="url(#hlightg)"/>
+      <rect x="0" y="${H*.82}" width="${W}" height="${H*.18}" fill="url(#hwoodh)"/>
+      <rect x="0" y="${H*.82}" width="${W}" height="2" fill="rgba(255,255,255,.4)"/>
+      ${inner}</svg>`;
+  };
+
+  const gardenBedSvg=()=>{
+    const spacing=plants.length?Math.min(80,(W-40)/(plants.length+.4)):(W-40)*.5;
+    const startX=plants.length?(W-spacing*(plants.length-1))*.5:W*.5;
+    const stones=[0,1,2,3,4,5].map(i=>`<ellipse cx="${28+i*46}" cy="${H*.635}" rx="16" ry="7" fill="#9E9E9E" opacity=".55"/><ellipse cx="${28+i*46}" cy="${H*.635}" rx="13" ry="5.5" fill="#BDBDBD" opacity=".45"/>`).join('');
+    let inner=plants.length===0
+      ?`<text x="${W*.5}" y="${soilY+35}" text-anchor="middle" fill="#C8A880" font-size="9" font-family="system-ui">Add your first plant ↓</text>`
+      :plants.map((p,i)=>`<ellipse cx="${startX+i*spacing}" cy="${soilY}" rx="15" ry="4" fill="#3D2008" opacity=".6"/>${gDrawPlant(p.type,p.stage||0,`hgb${i}`,startX+i*spacing,soilY)}`).join('');
+    return`<svg viewBox="0 0 ${W} ${H}" style="width:100%;border-radius:10px;overflow:hidden;">
+      <defs><linearGradient id="hgbsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#C8E8F8"/><stop offset="100%" stop-color="#E8F4FF"/></linearGradient><linearGradient id="hgbgrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6DBF6A"/><stop offset="100%" stop-color="#4A9A48"/></linearGradient><linearGradient id="hgbsoil" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6B4423"/><stop offset="100%" stop-color="#4A2E12"/></linearGradient></defs>
+      <rect width="${W}" height="${H}" fill="url(#hgbsky)"/>
+      <rect x="0" y="${H*.55}" width="${W}" height="${H*.1}" fill="url(#hgbgrass)"/>
+      <rect x="14" y="${H*.62}" width="${W-28}" height="${H*.36}" rx="6" fill="url(#hgbsoil)"/>
+      <rect x="14" y="${H*.62}" width="${W-28}" height="2" rx="1" fill="rgba(255,255,255,.1)"/>
+      ${stones}${inner}</svg>`;
+  };
+
+  const firstPlant=plants[0];
+
+  return(
+    <div className="card" style={{padding:'12px 14px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}>
+        <div className="clabel" style={{marginBottom:0}}>🌿 My Garden</div>
+        <div style={{display:'flex',gap:5}}>
+          <button onClick={()=>setView('windowsill')} style={{padding:'3px 9px',borderRadius:6,fontSize:10,fontWeight:700,cursor:'pointer',border:`1.5px solid ${isWindowsill?'var(--blue)':'var(--border2)'}`,background:isWindowsill?'var(--blue-light)':'transparent',color:isWindowsill?'var(--blue)':'var(--text4)'}}>🪟</button>
+          <button onClick={()=>setView('garden')} style={{padding:'3px 9px',borderRadius:6,fontSize:10,fontWeight:700,cursor:'pointer',border:`1.5px solid ${!isWindowsill?'var(--blue)':'var(--border2)'}`,background:!isWindowsill?'var(--blue-light)':'transparent',color:!isWindowsill?'var(--blue)':'var(--text4)'}}>🌱</button>
+        </div>
+      </div>
+
+      <div dangerouslySetInnerHTML={{__html:isWindowsill?windowsillSvg():gardenBedSvg()}}/>
+
+      {firstPlant&&<div style={{fontSize:10,color:'var(--text3)',textAlign:'center',marginTop:5}}>
+        <span style={{fontWeight:700,color:'var(--text2)'}}>{GARDEN_PLANT_TYPES.find(t=>t.id===firstPlant.type)?.name}</span>
+        {' · '}{GARDEN_STAGE_NAMES[firstPlant.stage||0]}{' · '}{streak} day streak
+      </div>}
+
+      {plants.length<6&&<button onClick={()=>setPicking(true)} style={{width:'100%',marginTop:8,padding:'7px',borderRadius:8,border:'1.5px dashed var(--border)',background:'transparent',color:'var(--text3)',fontSize:11,fontWeight:600,cursor:'pointer'}}>+ Add a plant</button>}
+
+      {picking&&<div style={{position:'fixed',inset:0,background:'rgba(15,28,46,.5)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:16}} onClick={e=>{if(e.target===e.currentTarget)setPicking(false);}}>
+        <div style={{background:'var(--white)',borderRadius:18,width:'100%',maxWidth:420,maxHeight:'85vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(15,28,46,.2)'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 18px 12px',borderBottom:'1px solid var(--border2)'}}>
+            <div style={{fontFamily:'var(--font-display)',fontSize:15,fontWeight:700}}>Choose your plant</div>
+            <button onClick={()=>setPicking(false)} style={{fontSize:20,color:'var(--text4)',background:'none',border:'none',cursor:'pointer'}}>×</button>
+          </div>
+          <div style={{padding:'12px 16px 16px',display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8}}>
+            {GARDEN_PLANT_TYPES.map(pt=>(
+              <button key={pt.id} onClick={()=>addPlant(pt.id)} style={{border:'1px solid var(--border2)',borderRadius:10,padding:'10px 6px 8px',background:'var(--bg)',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:3,transition:'all .15s'}}
+                onMouseOver={e=>{e.currentTarget.style.borderColor='var(--blue)';e.currentTarget.style.background='var(--blue-light)';}}
+                onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border2)';e.currentTarget.style.background='var(--bg)';}}>
+                <div dangerouslySetInnerHTML={{__html:`<svg viewBox="0 0 120 200" width="52" height="86">${gSvgPot('pk'+pt.id)}${gDrawPlant(pt.id,4,'pk'+pt.id)}</svg>`}}/>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text)'}}>{pt.name}</div>
+                <div style={{fontSize:9,color:'var(--text3)'}}>{pt.cat}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 // ─ Water ─
 function Water({water,setWater}){
   return(
@@ -548,6 +697,45 @@ function Water({water,setWater}){
         <span style={{fontSize:12,color:'var(--text3)',marginLeft:4,fontWeight:600}}>{water}/8</span>
       </div>
       <Bar pct={water/8*100} color='var(--blue)' h={5}/>
+    </div>
+  );
+}
+
+function TopPriorities(){
+  const {useState,useEffect}=React;
+  const tk=todayKey();
+  const storageKey='top_priorities_'+tk;
+  const [items,setItems]=useState(()=>LS.get(storageKey,['','','']));
+  const save=(idx,val)=>{
+    const next=[...items];next[idx]=val;
+    setItems(next);LS.set(storageKey,next);
+  };
+  const [done,setDone]=useState(()=>LS.get('top_priorities_done_'+tk,[false,false,false]));
+  const toggleDone=(idx)=>{
+    const next=[...done];next[idx]=!next[idx];
+    setDone(next);LS.set('top_priorities_done_'+tk,next);
+  };
+  const allDone=done.every((d,i)=>d||!items[i].trim());
+  return(
+    <div className="card">
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <div className="clabel" style={{marginBottom:0}}>🎯 Top 3 Priorities</div>
+        {allDone&&items.some(x=>x.trim())&&<span style={{fontSize:10,color:'var(--green)',fontWeight:700}}>All done ✓</span>}
+      </div>
+      {[0,1,2].map(i=>(
+        <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+          <button onClick={()=>toggleDone(i)} style={{flexShrink:0,width:18,height:18,borderRadius:4,border:`2px solid ${done[i]&&items[i].trim()?'var(--green)':'var(--border)'}`,background:done[i]&&items[i].trim()?'var(--green)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0,transition:'all .15s'}}>
+            {done[i]&&items[i].trim()&&<svg width="9" height="7" viewBox="0 0 9 7"><path d="M1 3.5l2.5 2.5L8 1" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </button>
+          <input
+            value={items[i]}
+            onChange={e=>save(i,e.target.value)}
+            placeholder={['Most important task today','Second priority','Third priority'][i]}
+            style={{flex:1,fontSize:12,fontWeight:600,border:'none',background:'transparent',outline:'none',color:done[i]&&items[i].trim()?'var(--text3)':'var(--text)',textDecoration:done[i]&&items[i].trim()?'line-through':'none',padding:0,fontFamily:'var(--font)'}}
+          />
+          <span style={{flexShrink:0,fontSize:10,color:'var(--text4)',fontWeight:700}}>#{i+1}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1628,6 +1816,7 @@ const sickDay = () => {
           <DateCard/>
           <Meals/>
           <Water water={water} setWater={saveWater}/>
+          <TopPriorities/>
         </div>
 
         {/* CENTER — Goals & Tasks */}
@@ -1651,6 +1840,7 @@ const sickDay = () => {
               <span style={{fontSize:11,color:'var(--text3)'}}>{done} of {total} tasks complete</span>
             </div>
           </div>
+          <Garden/>
           <Pomo/>
           <Move/>
           <Brain/>
@@ -1664,6 +1854,51 @@ const sickDay = () => {
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+
+    // --- PUSH NOTIFICATIONS ---
+    (function initNotifications(){
+      if(!('Notification' in window)||!('serviceWorker' in navigator))return;
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+      function scheduleTaskNotifications(){
+        if(Notification.permission!=='granted')return;
+        const events=getCalendarEvents();
+        const now=Date.now();
+        const swReady=navigator.serviceWorker.ready;
+        events.forEach(ev=>{
+          if(!ev.time)return;
+          const[h,m]=(ev.time||'').split(':').map(Number);
+          if(isNaN(h))return;
+          const t=new Date();t.setHours(h,m,0,0);
+          const notifyAt=t.getTime()-5*60*1000; // 5 min before
+          const delay=notifyAt-now;
+          if(delay>0&&delay<16*60*60*1000){ // only within next 16 hrs
+            setTimeout(()=>{
+              swReady.then(reg=>{
+                reg.active&&reg.active.postMessage({
+                  type:'SHOW_NOTIFICATION',
+                  title:'⏰ Starting in 5 min: '+ev.title,
+                  body:ev.time+' — tap to open Peakly',
+                  tag:'task_'+ev.id,
+                  url:'/peakly-calendar.html',
+                });
+              });
+            },delay);
+          }
+        });
+      }
+
+      // Ask for permission on first visit (after brief delay so it's not jarring)
+      if(Notification.permission==='default'){
+        setTimeout(()=>{
+          Notification.requestPermission().then(p=>{
+            if(p==='granted')scheduleTaskNotifications();
+          });
+        },4000);
+      }else if(Notification.permission==='granted'){
+        scheduleTaskNotifications();
+      }
+    })();
 
     // --- CLOUD SYNC LOGIC ---
     async function syncCheckmarksFromCloud() {
