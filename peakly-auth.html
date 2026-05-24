@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="peakly-config.js?v=14"></script>
+<script src="peakly-config.js?v=15"></script>
 <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -486,18 +486,6 @@ function hasStoredSupabaseSession(){
   return false;
 }
 
-function cameFromHomeRecently(){
-  try{
-    const homeAt=Number(sessionStorage.getItem('peakly_home_loaded_at')||'0');
-    if(homeAt&&Date.now()-homeAt<30000)return true;
-  }catch(e){}
-  try{
-    return /peakly\.html(?:$|[?#])/.test(new URL(document.referrer).pathname + new URL(document.referrer).search);
-  }catch(e){
-    return false;
-  }
-}
-
 // Check if already logged in — but skip auto-redirect if user explicitly
 // logged out, or if this is a password-recovery click-through.
 (async()=>{
@@ -519,13 +507,13 @@ function cameFromHomeRecently(){
     switchTab('reset');
     return;
   }
-  if(hasStoredSupabaseSession() && cameFromHomeRecently()){
-    console.warn('[Peakly] Login page was reached right after home with auth storage present; returning to home.');
+  const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(client) : client.auth.getSession().then(r=>r.data.session));
+  if(session){
     window.location.href='peakly.html';
     return;
   }
-  const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(client) : client.auth.getSession().then(r=>r.data.session));
-  if(session){
+  if(hasStoredSupabaseSession()){
+    console.warn('[Peakly] Auth storage exists but session is still unavailable; returning to home instead of forcing logout.');
     window.location.href='peakly.html';
   }
 })();

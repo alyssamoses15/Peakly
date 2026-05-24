@@ -414,7 +414,7 @@ window.PeaklyGoals = {
 window.PeaklySync = {
   _PHOTO_DATA_URL_SYNC_LIMIT: 90000,
   _lastSnapshotSanitized: false,
-  _AUTO_PULL_ENABLED: false,
+  _AUTO_PULL_ENABLED: true,
 
   // localStorage keys that should NOT be synced (per-device only).
   _skipKey(k){
@@ -487,8 +487,8 @@ window.PeaklySync = {
     return out;
   },
 
-  // Write snapshot back into localStorage. Wipes any keys not present in
-  // the snapshot (so deletes propagate across devices).
+  // Write snapshot back into localStorage. Automatic restore is merge-only so
+  // an empty or partial backup from one device cannot wipe another device.
   applySnapshot(snap){
     if(!snap || typeof snap !== 'object') return false;
     let sanitized = false;
@@ -506,16 +506,6 @@ window.PeaklySync = {
         safeSnap[k] = v;
       }
     }
-    const incoming = new Set(Object.keys(safeSnap));
-    // Remove local-only keys that aren't in the snapshot (deletions sync too).
-    const toRemove = [];
-    for(let i=0; i<localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(this._skipKey(k)) continue;
-      if(!incoming.has(k)) toRemove.push(k);
-    }
-    toRemove.forEach(k=>localStorage.removeItem(k));
-    // Write the snapshot.
     for(const [k,v] of Object.entries(safeSnap)){
       try{ localStorage.setItem(k, v); }catch(e){}
     }
@@ -574,11 +564,8 @@ window.PeaklySync = {
       }
       localStorage.setItem('peakly_last_restore_at', String(Date.now()));
       localStorage.setItem('peakly_cloud_synced_at', data.created_at);
-      if(sanitized){
-        // Replace old oversized cloud snapshots so mobile browsers do not keep
-        // restoring data that can crowd out the Supabase session.
-        await this.backup(sb, user);
-      }
+      // Replace old or partial cloud snapshots with the merged, safe local copy.
+      await this.backup(sb, user);
       return { ok:true, restored:true, at:data.created_at };
     }catch(e){
       this._isRestoring = false;
