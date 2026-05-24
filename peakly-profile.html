@@ -1007,12 +1007,18 @@ async function getSb(){
   try{ _sbClient = (window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})))(cfg.SUPABASE_URL, cfg.SUPABASE_KEY); }catch(e){ console.error('[Peakly] supabase.createClient failed', e); return null; }
   return _sbClient;
 }
+async function getProfileSession(sb){
+  if(!sb) return null;
+  return window.PeaklyAuth?.getSession
+    ? window.PeaklyAuth.getSession(sb)
+    : sb.auth.getSession().then(r=>r.data.session).catch(()=>null);
+}
 
 async function loadSubscriptionFromSupabase(){
   try{
     const sb = await getSb();
     if(!sb) return;
-    const { data:{ session } } = await sb.auth.getSession();
+    const session = await getProfileSession(sb);
     if(!session) return;
     const result = await window.PeaklyAuth.loadSubscription(sb, session.user);
     _currentSub = result.sub;
@@ -1131,7 +1137,7 @@ function confirmCancel(){
       try{
         const sb = await getSb();
         if(!sb){ toast('Sync library not loaded — try refresh.'); return; }
-        const { data:{ session } } = await sb.auth.getSession();
+        const session = await getProfileSession(sb);
         if(!session){ toast('Please log in again.'); return; }
         const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
           headers:{
@@ -1165,7 +1171,7 @@ async function reactivateSubscription(){
   try{
     const sb = await getSb();
     if(!sb) return;
-    const { data:{ session } } = await sb.auth.getSession();
+    const session = await getProfileSession(sb);
     if(!session){ toast('Please log in again.'); return; }
     const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.CANCEL_SUBSCRIPTION_URL, {
       headers:{
@@ -1205,8 +1211,8 @@ async function syncNow(){
   if(!btn || !window.PeaklySync) return;
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Syncing…';
   try{
-    const sb = supabase.createClient(window.PeaklyConfig.SUPABASE_URL, window.PeaklyConfig.SUPABASE_KEY);
-    const { data:{ session } } = await sb.auth.getSession();
+    const sb = await getSb();
+    const session = await getProfileSession(sb);
     if(!session) throw new Error('Not signed in');
     const r = await window.PeaklySync.backup(sb, session.user);
     if(!r.ok) throw new Error(r.reason || 'Backup failed');
@@ -1221,8 +1227,8 @@ async function restoreFromCloud(){
   const btn = document.getElementById('restoreBtn');
   btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Restoring…';
   try{
-    const sb = supabase.createClient(window.PeaklyConfig.SUPABASE_URL, window.PeaklyConfig.SUPABASE_KEY);
-    const { data:{ session } } = await sb.auth.getSession();
+    const sb = await getSb();
+    const session = await getProfileSession(sb);
     if(!session) throw new Error('Not signed in');
     const r = await window.PeaklySync.restore(sb, session.user);
     if(!r.ok) throw new Error(r.reason || 'Restore failed');
@@ -1286,7 +1292,7 @@ function confirmDelete(){
       try{
         const sb2 = await getSb();
         if(!sb2) throw new Error('Billing/account services are not loaded. Please refresh and try again.');
-        const { data:{ session } } = await sb2.auth.getSession();
+        const session = await getProfileSession(sb2);
         if(!session) throw new Error('Not logged in');
 
         const res = await window.PeaklyEdge.postJson(window.PeaklyConfig.DELETE_ACCOUNT_URL, {
