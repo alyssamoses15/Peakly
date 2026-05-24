@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="peakly-config.js?v=12"></script>
+<script src="peakly-config.js?v=15"></script>
 <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -476,6 +476,16 @@ function isRecoveryEntry(){
 
 let _isRecovery = isRecoveryEntry();
 
+function hasStoredSupabaseSession(){
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i)||'';
+      if(k.startsWith('sb-')||k.includes('supabase.auth'))return true;
+    }
+  }catch(e){}
+  return false;
+}
+
 // Check if already logged in — but skip auto-redirect if user explicitly
 // logged out, or if this is a password-recovery click-through.
 (async()=>{
@@ -499,6 +509,11 @@ let _isRecovery = isRecoveryEntry();
   }
   const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(client) : client.auth.getSession().then(r=>r.data.session));
   if(session){
+    window.location.href='peakly.html';
+    return;
+  }
+  if(hasStoredSupabaseSession()){
+    console.warn('[Peakly] Auth storage exists but session is still unavailable; returning to home instead of forcing logout.');
     window.location.href='peakly.html';
   }
 })();

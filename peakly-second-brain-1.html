@@ -131,7 +131,7 @@ canvas.graph{width:100%;height:100%;}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="peakly-config.js?v=12"></script>
+<script src="peakly-config.js?v=15"></script>
 <script>
 // ── Supabase auth + avatar ─────────────────────────────────────
 (async function(){
@@ -141,7 +141,7 @@ canvas.graph{width:100%;height:100%;}
   try{ await window.PeaklyBoot.waitForSupabase(); }catch(e){ return; }
   const sb=(window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})))(SURL,SKEY);
   (window.PeaklyAuth?.robustGetSession||((c)=>c.auth.getSession().then(r=>r.data.session)))(sb).then(async session=>{
-    if(!session){window.location.href='peakly-auth.html';return;}
+    if(!session){console.warn('[Peakly] No active session yet; Life Admin will stay open without cloud sync.');return;}
     const user=session.user;
     window.lifeAdminSb=sb;
     window.lifeAdminUser=user;
