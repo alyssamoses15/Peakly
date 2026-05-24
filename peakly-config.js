@@ -493,6 +493,10 @@ window.PeaklySync = {
     let sanitized = false;
     const safeSnap = {};
     for(const [k,v] of Object.entries(snap)){
+      if(this._skipKey(k)){
+        sanitized = true;
+        continue;
+      }
       if(k === 'calorie_entries'){
         const cleaned = this._sanitizeCalorieEntriesValue(v);
         if(this._lastSnapshotSanitized) sanitized = true;
@@ -515,6 +519,13 @@ window.PeaklySync = {
       try{ localStorage.setItem(k, v); }catch(e){}
     }
     return sanitized;
+  },
+
+  cleanupSignedInDeviceState(user){
+    try{ localStorage.removeItem('peakly_logged_out'); }catch(e){}
+    if(user?.id){
+      try{ localStorage.setItem('peakly_last_user_id', user.id); }catch(e){}
+    }
   },
 
   // Push current localStorage to Supabase as the latest backup row.
@@ -748,6 +759,7 @@ window.PeaklySync = {
     const options = Object.assign({ backupIfMissing:true, reloadOnRestore:false, dispatchOnRestore:true }, opts);
     let result = { ok:true, restored:false, reason:'up-to-date' };
     try{
+      this.cleanupSignedInDeviceState(user);
       const cleanedLocal = this.cleanupLocalHeavyData();
       const cloudAt = await this.getCloudBackupTime(sb, user);
       const localAt = localStorage.getItem('peakly_cloud_synced_at');
