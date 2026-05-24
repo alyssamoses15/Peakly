@@ -425,63 +425,131 @@ function buildHealth(wrap){
     });
     b.appendChild(wg);
 
-    // Manual calorie tracker
-    const calBox=mk('div');calBox.style.cssText='background:var(--bg);border-radius:var(--rm);padding:12px;margin-top:10px;';
-    calBox.innerHTML='<div class="clabel" style="margin-bottom:8px;">Calorie tracker</div>';
+    // Samsung Health-style calorie tracker
+    const calBox=mk('div');calBox.style.cssText='background:var(--bg);border-radius:18px;padding:12px;margin-top:10px;';
     let calories=LS.get('calorie_entries',[]);
-    const calWrap=mk('div');
-    const calSummary=mk('div');
-    const calForm=mk('div');calForm.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:8px;margin-top:10px;align-items:end;';
-    const calDate=mk('input','inp');calDate.type='date';calDate.value=todayValue();calDate.style.fontSize='12px';
-    const calMeal=mk('select','inp');calMeal.style.cssText='font-size:12px;padding:7px;';
-    ['Breakfast','Lunch','Dinner','Snack','Other'].forEach(meal=>{const o=mk('option');o.value=meal;o.textContent=meal;calMeal.appendChild(o);});
-    const calName=mk('input','inp');calName.placeholder='Food / meal';calName.style.fontSize='12px';
+    let selectedMeal='Breakfast';
+    let pendingPhoto='';
+    const mealTypes=['Breakfast','Lunch','Dinner','Snack','Other'];
+    const calGoal=mk('input','inp');calGoal.type='number';calGoal.min='0';calGoal.step='50';calGoal.value=LS.get('calorie_goal',2000);calGoal.style.cssText='font-size:12px;max-width:120px;';
+    const calDate=mk('input','inp');calDate.type='date';calDate.value=todayValue();calDate.style.cssText='font-size:12px;max-width:150px;';
+    const calHero=mk('div','cal-hero');
+    const calTabs=mk('div','cal-meal-tabs');
+    const calName=mk('input','inp');calName.placeholder='What did you eat?';calName.style.fontSize='12px';
     const calAmount=mk('input','inp');calAmount.type='number';calAmount.min='0';calAmount.step='1';calAmount.placeholder='Calories';calAmount.style.fontSize='12px';
-    const calAdd=mk('button');calAdd.textContent='+ Add';calAdd.style.cssText='padding:8px 14px;border-radius:var(--rm);background:var(--green);color:#fff;font-size:12px;font-weight:700;white-space:nowrap;';
-    const renderCalories=()=>{
-      calWrap.innerHTML='';
+    const photoInput=mk('input');photoInput.type='file';photoInput.accept='image/*';photoInput.setAttribute('capture','environment');photoInput.style.display='none';
+    const photoTile=mk('div','cal-photo-tile');
+    const calAdd=mk('button');calAdd.textContent='+ Add meal';calAdd.style.cssText='width:100%;padding:11px;border-radius:var(--rm);background:var(--green);color:#fff;font-size:13px;font-weight:800;margin-top:8px;';
+    const calWrap=mk('div');
+
+    function setPendingPhoto(src){
+      pendingPhoto=src||'';
+      photoTile.innerHTML=pendingPhoto?`<img src="${pendingPhoto}" alt="Meal photo preview">`:'<div><div style="font-size:24px;margin-bottom:4px;">📷</div><div>Add meal photo</div><div style="font-size:10px;font-weight:500;margin-top:2px;">camera or gallery</div></div>';
+    }
+    function resizeMealPhoto(file,cb){
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        const img=new Image();
+        img.onload=()=>{
+          const max=720;
+          const scale=Math.min(1,max/Math.max(img.width,img.height));
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.max(1,Math.round(img.width*scale));
+          canvas.height=Math.max(1,Math.round(img.height*scale));
+          canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+          cb(canvas.toDataURL('image/jpeg',0.72));
+        };
+        img.onerror=()=>cb(ev.target.result);
+        img.src=ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    function saveCalories(){LS.set('calorie_entries',calories);}
+    function renderMealTabs(){
+      calTabs.innerHTML='';
       const selectedDate=calDate.value||todayValue();
+      mealTypes.forEach(meal=>{
+        const mealTotal=calories.filter(e=>e.date===selectedDate&&(e.meal||'Other')===meal).reduce((s,e)=>s+(parseInt(e.calories)||0),0);
+        const btn=mk('button');btn.className=meal===selectedMeal?'active':'';
+        btn.innerHTML=`${meal}<br><span style="font-size:10px;font-weight:500;">${mealTotal||0}</span>`;
+        btn.addEventListener('click',()=>{selectedMeal=meal;renderCalories();});
+        calTabs.appendChild(btn);
+      });
+    }
+    function renderCalories(){
+      const selectedDate=calDate.value||todayValue();
+      const goal=parseInt(calGoal.value)||0;
       const dayEntries=calories.filter(e=>e.date===selectedDate);
       const dayTotal=dayEntries.reduce((sum,e)=>sum+(parseInt(e.calories)||0),0);
-      const allTotal=calories.reduce((sum,e)=>sum+(parseInt(e.calories)||0),0);
-      calSummary.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;"><div style="padding:10px;border-radius:var(--r);background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:700;">${dayTotal.toLocaleString()} cal<br><span style="font-size:10px;font-weight:500;">selected day</span></div><div style="padding:10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-size:12px;font-weight:700;">${allTotal.toLocaleString()} cal<br><span style="font-size:10px;font-weight:500;">all logged</span></div></div>`;
+      const remaining=Math.max(0,goal-dayTotal);
+      const pct=goal?Math.min(100,Math.round(dayTotal/goal*100)):0;
+      calHero.innerHTML=`<div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+        <div class="cal-ring" style="--cal-pct:${pct}%"><div class="cal-ring-inner"><div style="font-size:20px;font-weight:800;color:var(--green-dark);">${remaining.toLocaleString()}</div><div style="font-size:10px;color:var(--text3);font-weight:700;">cal left</div></div></div>
+        <div style="flex:1;min-width:210px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+            <div><div class="clabel" style="margin:0;">Daily calories</div><div style="font-size:13px;color:var(--text3);">Tap a meal, add calories, optionally attach a photo.</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+            <div class="cal-stat"><div style="font-size:16px;font-weight:800;color:var(--text);">${dayTotal.toLocaleString()}</div><div style="font-size:10px;color:var(--text3);font-weight:700;">eaten</div></div>
+            <div class="cal-stat"><div style="font-size:16px;font-weight:800;color:var(--green-dark);">${goal.toLocaleString()}</div><div style="font-size:10px;color:var(--text3);font-weight:700;">goal</div></div>
+            <div class="cal-stat"><div style="font-size:16px;font-weight:800;color:${dayTotal>goal?'var(--orange-dark)':'var(--blue)'};">${pct}%</div><div style="font-size:10px;color:var(--text3);font-weight:700;">logged</div></div>
+          </div>
+        </div>
+      </div>`;
+      renderMealTabs();
+      calWrap.innerHTML='';
       if(!dayEntries.length){
-        const empty=mk('div');empty.style.cssText='font-size:11px;color:var(--text3);padding:6px 0;';empty.textContent='No calories logged for this date yet.';
+        const empty=mk('div');empty.style.cssText='font-size:12px;color:var(--text3);padding:14px;text-align:center;background:var(--white);border-radius:var(--rm);border:1px dashed var(--border);';
+        empty.textContent='No meals logged for this date yet. Add your first meal below.';
         calWrap.appendChild(empty);
       }
       dayEntries.forEach(entry=>{
         const realIdx=calories.findIndex(e=>String(e.id)===String(entry.id));
-        const row=mk('div');row.style.cssText='display:grid;grid-template-columns:110px 1fr 100px auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border2);';
-        const mealSel=mk('select','inp');mealSel.style.cssText='font-size:11px;padding:6px;';
-        ['Breakfast','Lunch','Dinner','Snack','Other'].forEach(meal=>{const o=mk('option');o.value=meal;o.textContent=meal;if((entry.meal||'Other')===meal)o.selected=true;mealSel.appendChild(o);});
-        mealSel.addEventListener('change',e=>{if(realIdx>-1){calories[realIdx].meal=e.target.value;LS.set('calorie_entries',calories);renderCalories();}});
-        const nameIn=mk('input','inp');nameIn.value=entry.name||'';nameIn.placeholder='Food / meal';nameIn.style.fontSize='11px';
-        nameIn.addEventListener('input',e=>{if(realIdx>-1){calories[realIdx].name=e.target.value;LS.set('calorie_entries',calories);}});
-        const amountIn=mk('input','inp');amountIn.type='number';amountIn.min='0';amountIn.step='1';amountIn.value=parseInt(entry.calories)||0;amountIn.style.fontSize='11px';
-        amountIn.addEventListener('input',e=>{if(realIdx>-1){calories[realIdx].calories=parseInt(e.target.value)||0;LS.set('calorie_entries',calories);renderCalories();}});
-        const del=mk('button');del.textContent='×';del.style.cssText='color:var(--text4);font-size:16px;';
-        del.addEventListener('click',()=>{if(realIdx>-1){calories.splice(realIdx,1);LS.set('calorie_entries',calories);renderCalories();}});
-        row.appendChild(mealSel);row.appendChild(nameIn);row.appendChild(amountIn);row.appendChild(del);calWrap.appendChild(row);
+        const card=mk('div','cal-card');
+        const thumb=mk('div','cal-thumb');thumb.innerHTML=entry.photo?`<img src="${entry.photo}" alt="Meal photo">`:'🍽️';
+        const info=mk('div');
+        const mealSel=mk('select','inp');mealSel.style.cssText='font-size:11px;padding:5px;margin-bottom:5px;max-width:150px;';
+        mealTypes.forEach(meal=>{const o=mk('option');o.value=meal;o.textContent=meal;if((entry.meal||'Other')===meal)o.selected=true;mealSel.appendChild(o);});
+        mealSel.addEventListener('change',e=>{if(realIdx>-1){calories[realIdx].meal=e.target.value;saveCalories();renderCalories();}});
+        const nameIn=mk('input','inp');nameIn.value=entry.name||'';nameIn.placeholder='Food / meal';nameIn.style.cssText='font-size:12px;margin-bottom:5px;';
+        nameIn.addEventListener('input',e=>{if(realIdx>-1){calories[realIdx].name=e.target.value;saveCalories();}});
+        const amountIn=mk('input','inp');amountIn.type='number';amountIn.min='0';amountIn.step='1';amountIn.value=parseInt(entry.calories)||0;amountIn.style.cssText='font-size:12px;';
+        amountIn.addEventListener('input',e=>{if(realIdx>-1){calories[realIdx].calories=parseInt(e.target.value)||0;saveCalories();renderCalories();}});
+        info.appendChild(mealSel);info.appendChild(nameIn);info.appendChild(amountIn);
+        const del=mk('button');del.textContent='×';del.title='Delete meal';del.style.cssText='color:var(--text4);font-size:18px;padding:4px 8px;';
+        del.addEventListener('click',()=>{if(realIdx>-1){calories.splice(realIdx,1);saveCalories();renderCalories();}});
+        card.appendChild(thumb);card.appendChild(info);card.appendChild(del);calWrap.appendChild(card);
       });
-    };
+    }
+    calGoal.addEventListener('input',()=>{LS.set('calorie_goal',parseInt(calGoal.value)||0);renderCalories();});
     calDate.addEventListener('input',renderCalories);
+    photoTile.addEventListener('click',()=>photoInput.click());
+    photoInput.addEventListener('change',e=>{
+      const file=e.target.files&&e.target.files[0];
+      if(!file)return;
+      resizeMealPhoto(file,setPendingPhoto);
+    });
     calAdd.addEventListener('click',()=>{
       const amount=parseInt(calAmount.value);
       if(!amount||amount<0)return;
-      calories.push({id:Date.now(),date:calDate.value||todayValue(),meal:calMeal.value,name:calName.value.trim(),calories:amount});
-      LS.set('calorie_entries',calories);
-      calName.value='';calAmount.value='';
+      calories.push({id:Date.now(),date:calDate.value||todayValue(),meal:selectedMeal,name:calName.value.trim(),calories:amount,photo:pendingPhoto});
+      saveCalories();
+      calName.value='';calAmount.value='';photoInput.value='';setPendingPhoto('');
       renderCalories();
     });
-    calForm.appendChild(fld('Date',calDate,0));calForm.appendChild(fld('Meal',calMeal,0));calForm.appendChild(fld('Food / meal',calName,0));calForm.appendChild(fld('Calories',calAmount,0));calForm.appendChild(calAdd);
+    const calControls=mk('div');calControls.style.cssText='display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;';
+    calControls.appendChild(fld('Date',calDate,0));calControls.appendChild(fld('Daily goal',calGoal,0));
+    const calForm=mk('div');calForm.style.cssText='display:grid;grid-template-columns:1fr 120px 120px;gap:8px;margin:10px 0;align-items:stretch;';
+    calForm.appendChild(calName);calForm.appendChild(calAmount);calForm.appendChild(photoTile);
     const calClear=mk('button');calClear.textContent='Clear selected day';calClear.style.cssText='font-size:11px;color:var(--text3);margin-top:8px;text-decoration:underline;';
     calClear.addEventListener('click',()=>{
       const selectedDate=calDate.value||todayValue();
       calories=calories.filter(e=>e.date!==selectedDate);
-      LS.set('calorie_entries',calories);
+      saveCalories();
       renderCalories();
     });
-    calBox.appendChild(calSummary);calBox.appendChild(calWrap);calBox.appendChild(calForm);calBox.appendChild(calClear);
+    setPendingPhoto('');
+    calBox.appendChild(calControls);calBox.appendChild(calHero);calBox.appendChild(calTabs);calBox.appendChild(calForm);calBox.appendChild(photoInput);calBox.appendChild(calAdd);calBox.appendChild(calWrap);calBox.appendChild(calClear);
     renderCalories();
     b.appendChild(calBox);
 
