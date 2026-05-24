@@ -1346,8 +1346,8 @@ async function handleLogout(){
   // Set explicit logout flag so auth page won't auto-redirect back to home
   localStorage.setItem('peakly_logged_out','1');
   try{
-    const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    await sb.auth.signOut();
+    const sb=await getSb();
+    await sb?.auth.signOut({ scope:'local' });
   }catch(e){}
   // Clear any leftover supabase session keys
   try{

@@ -413,6 +413,7 @@ window.PeaklyGoals = {
 // ─────────────────────────────────────────────────────────────────────────
 window.PeaklySync = {
   _PHOTO_DATA_URL_SYNC_LIMIT: 90000,
+  _lastSnapshotSanitized: false,
 
   // localStorage keys that should NOT be synced (per-device only).
   _skipKey(k){
@@ -432,8 +433,9 @@ window.PeaklySync = {
       || k === 'peakly_cloud_synced_at';
   },
 
-  _sanitizeValueForBackup(k, v){
-    if(k !== 'calorie_entries' || !v) return v;
+  _sanitizeCalorieEntriesValue(v){
+    this._lastSnapshotSanitized = false;
+    if(!v) return v;
     try{
       const entries = JSON.parse(v);
       if(!Array.isArray(entries)) return v;
@@ -449,10 +451,28 @@ window.PeaklySync = {
         }
         return entry;
       });
+      this._lastSnapshotSanitized = changed;
       return changed ? JSON.stringify(safeEntries) : v;
     }catch(e){
       return v;
     }
+  },
+
+  _sanitizeValueForBackup(k, v){
+    if(k !== 'calorie_entries') return v;
+    return this._sanitizeCalorieEntriesValue(v);
+  },
+
+  cleanupLocalHeavyData(){
+    try{
+      const current = localStorage.getItem('calorie_entries');
+      const cleaned = this._sanitizeCalorieEntriesValue(current);
+      if(this._lastSnapshotSanitized && cleaned !== current){
+        localStorage.setItem('calorie_entries', cleaned);
+        return true;
+      }
+    }catch(e){}
+    return false;
   },
 
   // Snapshot all syncable localStorage keys into a plain object.
@@ -469,8 +489,23 @@ window.PeaklySync = {
   // Write snapshot back into localStorage. Wipes any keys not present in
   // the snapshot (so deletes propagate across devices).
   applySnapshot(snap){
-    if(!snap || typeof snap !== 'object') return;
-    const incoming = new Set(Object.keys(snap));
+    if(!snap || typeof snap !== 'object') return false;
+    let sanitized = false;
+    const safeSnap = {};
+    for(const [k,v] of Object.entries(snap)){
+      if(this._skipKey(k)){
+        sanitized = true;
+        continue;
+      }
+      if(k === 'calorie_entries'){
+        const cleaned = this._sanitizeCalorieEntriesValue(v);
+        if(this._lastSnapshotSanitized) sanitized = true;
+        safeSnap[k] = cleaned;
+      } else {
+        safeSnap[k] = v;
+      }
+    }
+    const incoming = new Set(Object.keys(safeSnap));
     // Remove local-only keys that aren't in the snapshot (deletions sync too).
     const toRemove = [];
     for(let i=0; i<localStorage.length; i++){
@@ -480,8 +515,16 @@ window.PeaklySync = {
     }
     toRemove.forEach(k=>localStorage.removeItem(k));
     // Write the snapshot.
-    for(const [k,v] of Object.entries(snap)){
+    for(const [k,v] of Object.entries(safeSnap)){
       try{ localStorage.setItem(k, v); }catch(e){}
+    }
+    return sanitized;
+  },
+
+  cleanupSignedInDeviceState(user){
+    try{ localStorage.removeItem('peakly_logged_out'); }catch(e){}
+    if(user?.id){
+      try{ localStorage.setItem('peakly_last_user_id', user.id); }catch(e){}
     }
   },
 
@@ -522,13 +565,19 @@ window.PeaklySync = {
         return { ok:true, restored:false, reason:'no-backup' };
       }
       this._isRestoring = true;
+      let sanitized = false;
       try{
-        this.applySnapshot(data.backup_data);
+        sanitized = this.applySnapshot(data.backup_data);
       } finally {
         this._isRestoring = false;
       }
       localStorage.setItem('peakly_last_restore_at', String(Date.now()));
       localStorage.setItem('peakly_cloud_synced_at', data.created_at);
+      if(sanitized){
+        // Replace old oversized cloud snapshots so mobile browsers do not keep
+        // restoring data that can crowd out the Supabase session.
+        await this.backup(sb, user);
+      }
       return { ok:true, restored:true, at:data.created_at };
     }catch(e){
       this._isRestoring = false;
@@ -710,6 +759,8 @@ window.PeaklySync = {
     const options = Object.assign({ backupIfMissing:true, reloadOnRestore:false, dispatchOnRestore:true }, opts);
     let result = { ok:true, restored:false, reason:'up-to-date' };
     try{
+      this.cleanupSignedInDeviceState(user);
+      const cleanedLocal = this.cleanupLocalHeavyData();
       const cloudAt = await this.getCloudBackupTime(sb, user);
       const localAt = localStorage.getItem('peakly_cloud_synced_at');
       if(cloudAt && (!localAt || new Date(cloudAt).getTime() > new Date(localAt).getTime())){
@@ -722,6 +773,8 @@ window.PeaklySync = {
           }
         }
       } else if(!cloudAt && options.backupIfMissing){
+        result = await this.backup(sb, user);
+      } else if(cleanedLocal){
         result = await this.backup(sb, user);
       }
     }catch(e){
