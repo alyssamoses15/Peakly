@@ -1417,7 +1417,11 @@ function UserAvatar(){
       const user=session.user;
       const lastUserId=localStorage.getItem('peakly_last_user_id');
       if(lastUserId&&lastUserId!==user.id){
+        // User switched — clear app data but preserve Supabase session keys
+        const saved={};
+        Object.keys(localStorage).forEach(k=>{if(k.startsWith('sb-')||k.includes('supabase.auth'))saved[k]=localStorage.getItem(k);});
         localStorage.clear();
+        Object.entries(saved).forEach(([k,v])=>localStorage.setItem(k,v));
         localStorage.setItem('peakly_last_user_id',user.id);
         window.location.reload();
         return;
