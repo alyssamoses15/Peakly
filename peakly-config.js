@@ -70,7 +70,8 @@ window.PeaklyConfig = {
   EXPIRE_TRIAL_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/expire-trial',
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription',
   CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session',
-  DELETE_ACCOUNT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/delete-account'
+  DELETE_ACCOUNT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/delete-account',
+  ANALYZE_MEAL_PHOTO_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/analyze-meal-photo'
 };
 
 window.PeaklyEdge = {
@@ -411,6 +412,8 @@ window.PeaklyGoals = {
 // Phase 1 of the cross-device strategy — covers everything in one shot.
 // ─────────────────────────────────────────────────────────────────────────
 window.PeaklySync = {
+  _PHOTO_DATA_URL_SYNC_LIMIT: 90000,
+
   // localStorage keys that should NOT be synced (per-device only).
   _skipKey(k){
     return !k
@@ -429,13 +432,36 @@ window.PeaklySync = {
       || k === 'peakly_cloud_synced_at';
   },
 
+  _sanitizeValueForBackup(k, v){
+    if(k !== 'calorie_entries' || !v) return v;
+    try{
+      const entries = JSON.parse(v);
+      if(!Array.isArray(entries)) return v;
+      let changed = false;
+      const safeEntries = entries.map(entry => {
+        if(!entry || typeof entry !== 'object') return entry;
+        if(typeof entry.photo === 'string' && entry.photo.startsWith('data:image/') && entry.photo.length > this._PHOTO_DATA_URL_SYNC_LIMIT){
+          changed = true;
+          return Object.assign({}, entry, {
+            photo: '',
+            photoOmitted: true
+          });
+        }
+        return entry;
+      });
+      return changed ? JSON.stringify(safeEntries) : v;
+    }catch(e){
+      return v;
+    }
+  },
+
   // Snapshot all syncable localStorage keys into a plain object.
   snapshot(){
     const out = {};
     for(let i=0; i<localStorage.length; i++){
       const k = localStorage.key(i);
       if(this._skipKey(k)) continue;
-      out[k] = localStorage.getItem(k);
+      out[k] = this._sanitizeValueForBackup(k, localStorage.getItem(k));
     }
     return out;
   },
@@ -730,26 +756,25 @@ window.PeaklyAuth.createClient = function(url, key){
 // Resolves to a session object, or null after all retries are exhausted.
 // Never throws. Caller is responsible for redirecting if null is returned.
 window.PeaklyAuth.robustGetSession = async function(sbClient){
-  // First attempt
-  try{
-    const { data:{ session } } = await sbClient.auth.getSession();
-    if(session) return session;
-  }catch(e){}
+  // Mobile may still be loading storage, especially after Safari restores a tab.
+  // Retry a few times before redirecting so a slow session read does not look
+  // like a logout.
+  const waits = [0, 350, 900, 1800];
+  for(const wait of waits){
+    if(wait) await new Promise(r => setTimeout(r, wait));
+    try{
+      const { data:{ session } } = await sbClient.auth.getSession();
+      if(session) return session;
+    }catch(e){}
+  }
 
-  // Mobile may still be loading storage — wait 500ms and retry
-  await new Promise(r => setTimeout(r, 500));
-  try{
-    const { data:{ session } } = await sbClient.auth.getSession();
-    if(session) return session;
-  }catch(e){}
-
-  // Still nothing — listen for up to 2.5s for onAuthStateChange to fire
+  // Still nothing — listen for up to 4s for INITIAL_SESSION/SIGNED_IN to fire.
   return new Promise(resolve => {
     let sub;
     const timer = setTimeout(() => {
       try{ sub?.subscription?.unsubscribe(); }catch(e){}
       resolve(null);
-    }, 2500);
+    }, 4000);
     try{
       sub = sbClient.auth.onAuthStateChange((_event, sess) => {
         if(sess){
@@ -760,4 +785,15 @@ window.PeaklyAuth.robustGetSession = async function(sbClient){
       });
     }catch(e){ clearTimeout(timer); resolve(null); }
   });
+};
+
+window.PeaklyAuth.getSession = async function(sbClient){
+  if(!sbClient) return null;
+  if(this.robustGetSession) return this.robustGetSession(sbClient);
+  try{
+    const { data:{ session } } = await sbClient.auth.getSession();
+    return session || null;
+  }catch(e){
+    return null;
+  }
 };

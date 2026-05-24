@@ -51,11 +51,11 @@ let sb=null;
 function ensureSb(){
   if(sb) return Promise.resolve(sb);
   if(typeof supabase!=='undefined'){
-    try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); window.sb=sb; return Promise.resolve(sb); }catch(e){ console.error('[Peakly] supabase.createClient failed',e); return Promise.resolve(null); }
+    try{ sb=(window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k)))(SUPABASE_URL,SUPABASE_KEY); window.sb=sb; return Promise.resolve(sb); }catch(e){ console.error('[Peakly] supabase.createClient failed',e); return Promise.resolve(null); }
   }
   if(window.PeaklyBoot){
     return window.PeaklyBoot.waitForSupabase().then(()=>{
-      try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); window.sb=sb; return sb; }catch(e){ console.error('[Peakly] supabase.createClient failed',e); return null; }
+      try{ sb=(window.PeaklyAuth?.createClient||((u,k)=>supabase.createClient(u,k)))(SUPABASE_URL,SUPABASE_KEY); window.sb=sb; return sb; }catch(e){ console.error('[Peakly] supabase.createClient failed',e); return null; }
     }).catch(()=>null);
   }
   console.error('[Peakly] Neither supabase nor PeaklyBoot are available — sync disabled.');
@@ -233,7 +233,7 @@ function DateCard(){
  useEffect(() => {
     const loadVibe = async () => {
       if (window.sb) {
-        const { data: { session } } = await sb.auth.getSession();
+        const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(sb) : sb.auth.getSession().then(r=>r.data.session));
         if (session) {
           const { data } = await sb.from('profiles')
             .select('home_vibe')
@@ -297,7 +297,7 @@ const pickImage = async (url) => {
     // 2. Sync to Supabase so your computer sees what your phone picks
     if (window.sb) {
       try {
-        const { data: { session } } = await sb.auth.getSession();
+        const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(sb) : sb.auth.getSession().then(r=>r.data.session));
         if (session) {
           const { error } = await sb.from('profiles').upsert({ 
             id: session.user.id, 
@@ -320,7 +320,7 @@ const handleUpload = async (e) => {
 
     try {
       // 1. Get the current user session
-      const { data: { session } } = await sb.auth.getSession();
+      const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(sb) : sb.auth.getSession().then(r=>r.data.session));
       if (!session) return alert("Please log in to sync images!");
 
       // 2. Prepare the file path (User ID / Timestamp)
@@ -1578,7 +1578,7 @@ function App(){
     const refresh=async()=>{
       tries++;
       if(!window.sb||!window.PeaklyAuth)return;
-      const { data:{ session } } = await window.sb.auth.getSession();
+      const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(window.sb) : window.sb.auth.getSession().then(r=>r.data.session));
       if(!session)return;
       if(checkoutSessionId&&!syncedCheckout&&window.PeaklyConfig?.SYNC_CHECKOUT_SESSION_URL){
         try{
@@ -1903,7 +1903,7 @@ const sickDay = () => {
     async function syncCheckmarksFromCloud() {
       if (!window.sb) return; 
       try {
-        const { data: { session } } = await window.sb.auth.getSession();
+        const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(window.sb) : window.sb.auth.getSession().then(r=>r.data.session));
         if (!session) return;
         const today = new Date().toISOString().split('T')[0];
         const { data: habits } = await window.sb

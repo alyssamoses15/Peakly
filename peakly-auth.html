@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="peakly-config.js?v=10"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -437,14 +438,26 @@ body{
 // ── Supabase init ─────────────────────────────────────────────
 const SUPABASE_URL = 'https://rofnthczzpsswdtlpahk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvZm50aGN6enBzc3dkdGxwYWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MjgxNzEsImV4cCI6MjA5MjAwNDE3MX0.6K1IWbNSv0s0l283cGJbRQKF6FgnHQTAyK5s5z1zfeU';
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
+let sb = null;
+async function getAuthClient(){
+  if(sb) return sb;
+  if(typeof supabase === 'undefined' && window.PeaklyBoot){
+    try{ await window.PeaklyBoot.waitForSupabase(); }catch(e){}
   }
-});
+  if(typeof supabase === 'undefined'){
+    showAlert('Login services could not load. Please refresh or check your connection.');
+    return null;
+  }
+  try{
+    sb = (window.PeaklyAuth?.createClient || ((u,k)=>supabase.createClient(u,k,{
+      auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+    })))(SUPABASE_URL, SUPABASE_KEY);
+    return sb;
+  }catch(e){
+    showAlert('Login services could not start. Please refresh and try again.');
+    return null;
+  }
+}
 
 // Detect a password-recovery click-through. Supabase puts type=recovery in the
 // URL hash (or ?mode=reset on our redirect) when a user follows the email
@@ -463,18 +476,19 @@ function isRecoveryEntry(){
 
 let _isRecovery = isRecoveryEntry();
 
-// Show the reset form on PASSWORD_RECOVERY event too — Supabase fires this
-// once it has parsed the recovery tokens from the URL.
-sb.auth.onAuthStateChange((event)=>{
-  if(event === 'PASSWORD_RECOVERY'){
-    _isRecovery = true;
-    switchTab('reset');
-  }
-});
-
 // Check if already logged in — but skip auto-redirect if user explicitly
 // logged out, or if this is a password-recovery click-through.
 (async()=>{
+  const client = await getAuthClient();
+  if(!client) return;
+  // Show the reset form on PASSWORD_RECOVERY event too — Supabase fires this
+  // once it has parsed the recovery tokens from the URL.
+  client.auth.onAuthStateChange((event)=>{
+    if(event === 'PASSWORD_RECOVERY'){
+      _isRecovery = true;
+      switchTab('reset');
+    }
+  });
   if(localStorage.getItem('peakly_logged_out')==='1'){
     localStorage.removeItem('peakly_logged_out');
     return;
@@ -483,7 +497,7 @@ sb.auth.onAuthStateChange((event)=>{
     switchTab('reset');
     return;
   }
-  const { data:{ session } } = await sb.auth.getSession();
+  const session = await (window.PeaklyAuth?.getSession ? window.PeaklyAuth.getSession(client) : client.auth.getSession().then(r=>r.data.session));
   if(session){
     window.location.href='peakly.html';
   }
@@ -499,7 +513,8 @@ async function handleResetPassword(){
   document.getElementById('resetBtnText').style.display = 'none';
   document.getElementById('resetSpinner').style.display = 'block';
 
-  const { error } = await sb.auth.updateUser({ password: pw });
+  const client = await getAuthClient();
+  const { error } = client ? await client.auth.updateUser({ password: pw }) : { error:{ message:'Login services are unavailable. Please refresh and try again.' } };
 
   document.getElementById('resetBtn').disabled = false;
   document.getElementById('resetBtnText').style.display = 'inline';
@@ -585,7 +600,9 @@ async function handleSignup(){
   setLoading('signup', true);
   hideAlert();
 
-  const { data, error } = await sb.auth.signUp({
+  const client = await getAuthClient();
+  if(!client){ setLoading('signup', false); return; }
+  const { data, error } = await client.auth.signUp({
     email,
     password,
     options:{
@@ -616,7 +633,7 @@ async function handleSignup(){
     localStorage.setItem('peakly_last_user_id', data.user.id);
 
     // Save name to profile
-    await sb.from('profiles').update({
+    await client.from('profiles').update({
       first_name: firstName,
       last_name: lastName,
       email: email
@@ -647,7 +664,9 @@ async function handleLogin(){
   setLoading('login', true);
   hideAlert();
 
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  const client = await getAuthClient();
+  if(!client){ setLoading('login', false); return; }
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
 
   setLoading('login', false);
 
@@ -673,7 +692,9 @@ async function handleLogin(){
 async function signInWithGoogle(){
   // New OAuth users land on the plan picker; returning users get redirected
   // away from the plan page automatically if they already have a paid plan.
-  const { error } = await sb.auth.signInWithOAuth({
+  const client = await getAuthClient();
+  if(!client) return;
+  const { error } = await client.auth.signInWithOAuth({
     provider: 'google',
     options:{ redirectTo: window.location.origin + '/peakly-plan.html' }
   });
