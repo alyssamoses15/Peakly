@@ -467,6 +467,42 @@ nav{background:var(--white);border-bottom:1px solid var(--border2);padding:0 16p
 </div>
 
 <!-- Edit event modal -->
+<div class="modal-bg" id="weeklyReviewModal" style="display:none;" onclick="if(event.target===this)closeWeeklyReview()">
+  <div class="modal" style="max-width:520px;">
+    <div class="mhdr">
+      <div style="font-family:var(--display);font-size:16px;font-weight:700;">📋 Weekly Review</div>
+      <button onclick="closeWeeklyReview()" style="font-size:20px;color:var(--text4);">×</button>
+    </div>
+    <div style="padding:16px 20px 20px;">
+      <div id="weeklyReviewDateLabel" style="font-size:11px;color:var(--text3);margin-bottom:14px;font-weight:600;"></div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:6px;">🏆 Top 3 wins this week</div>
+      <textarea id="wr_wins" rows="3" placeholder="What went well? Celebrate even small things…" style="width:100%;border:1px solid var(--border2);border-radius:var(--rm);padding:8px 10px;font-size:13px;font-family:var(--font);resize:vertical;color:var(--text);background:var(--bg);margin-bottom:12px;box-sizing:border-box;"></textarea>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:6px;">😕 What didn't go as planned?</div>
+      <textarea id="wr_struggles" rows="2" placeholder="Be honest — this is for your eyes only…" style="width:100%;border:1px solid var(--border2);border-radius:var(--rm);padding:8px 10px;font-size:13px;font-family:var(--font);resize:vertical;color:var(--text);background:var(--bg);margin-bottom:12px;box-sizing:border-box;"></textarea>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:6px;">🔄 What would I do differently?</div>
+      <textarea id="wr_different" rows="2" placeholder="One habit, mindset, or approach to change…" style="width:100%;border:1px solid var(--border2);border-radius:var(--rm);padding:8px 10px;font-size:13px;font-family:var(--font);resize:vertical;color:var(--text);background:var(--bg);margin-bottom:12px;box-sizing:border-box;"></textarea>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);margin-bottom:6px;">🎯 Top 3 priorities for next week</div>
+      <textarea id="wr_priorities" rows="3" placeholder="The 3 things that matter most next week…" style="width:100%;border:1px solid var(--border2);border-radius:var(--rm);padding:8px 10px;font-size:13px;font-family:var(--font);resize:vertical;color:var(--text);background:var(--bg);margin-bottom:12px;box-sizing:border-box;"></textarea>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text4);">How do you feel going into next week?</div>
+        <div id="wr_mood_display" style="font-size:18px;min-width:28px;text-align:center;">😐</div>
+      </div>
+      <input id="wr_mood" type="range" min="1" max="10" value="5" style="width:100%;accent-color:var(--blue);margin-bottom:4px;" oninput="updateWrMoodEmoji(this.value)">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text4);margin-bottom:16px;"><span>😔 Rough</span><span>😊 Great</span></div>
+
+      <div style="display:flex;gap:10px;">
+        <button onclick="saveWeeklyReview()" style="flex:1;padding:11px;border-radius:var(--rm);background:var(--blue);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;">Save Review ✓</button>
+        <button onclick="closeWeeklyReview()" style="padding:11px 16px;border-radius:var(--rm);background:var(--bg2);color:var(--text3);font-size:13px;font-weight:600;border:1px solid var(--border2);cursor:pointer;">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="editModal" style="display:none;" onclick="if(event.target===this)closeEdit()">
   <div class="modal">
     <div class="mhdr">
@@ -506,6 +542,7 @@ const TYPE={
   work:{color:'#7C3AED',label:'Work',icon:'💼',page:'peakly-personal-assistant-2.html'},
   lifeadmin:{color:'#059669',label:'Life Admin',icon:'🏠',page:'peakly-second-brain-1.html'},
   manual:{color:'#64748B',label:'Event',icon:'📌',page:null},
+  weekly_review:{color:'#7C3AED',label:'Weekly Review',icon:'📋',page:null},
 };
 
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -1206,7 +1243,8 @@ function deleteEvent(e){
 
 // ── Edit event ────────────────────────────────────────────────────────────
 function openEdit(e){
-  const t=TYPE[e.type];
+  if(e.type==='weekly_review'){openWeeklyReview(e);return;}
+  const t=TYPE[e.type]||TYPE.manual;
   document.getElementById('editTitle').textContent=t.icon+' '+e.title.slice(0,36);
   const body=document.getElementById('editBody');
   const srcPage=e.sourcePage||t.page;
@@ -1341,6 +1379,101 @@ renderMini();
 renderCal();
 renderUpcoming();
 setInterval(()=>{if(view==='day'||view==='week')renderCal();},5000);
+
+// ── WEEKLY REVIEW ─────────────────────────────────────────────────────────
+// Auto-add a recurring Saturday event once
+(function setupWeeklyReview(){
+  if(LS.get('weekly_review_setup',false))return;
+  const sat=new Date();
+  // Find next Saturday
+  const daysUntilSat=(6-sat.getDay()+7)%7||7;
+  sat.setDate(sat.getDate()+daysUntilSat);
+  sat.setHours(0,0,0,0);
+  const evs=LS.get('cal_manual_events',[]);
+  evs.push({id:'weekly_review_'+Date.now(),title:'📋 Weekly Review',date:sat.toISOString(),time:'09:00',dur:30,color:'#7C3AED',type:'weekly_review',recurring:'weekly',notes:'Your weekly reflection and next-week planning session.'});
+  LS.set('cal_manual_events',evs);
+  LS.set('weekly_review_setup',true);
+  manualEvents=evs;
+  renderCal();renderMini();renderUpcoming();
+})();
+
+let _wrWeekKey='';
+function openWeeklyReview(e){
+  const d=e&&e.date instanceof Date&&!isNaN(e.date)?e.date:new Date();
+  const weekStart=new Date(d);weekStart.setDate(d.getDate()-d.getDay());
+  _wrWeekKey='wr_'+weekStart.toISOString().slice(0,10);
+  document.getElementById('weeklyReviewDateLabel').textContent=
+    'Week of '+weekStart.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
+  const saved=LS.get(_wrWeekKey,{});
+  document.getElementById('wr_wins').value=saved.wins||'';
+  document.getElementById('wr_struggles').value=saved.struggles||'';
+  document.getElementById('wr_different').value=saved.different||'';
+  document.getElementById('wr_priorities').value=saved.priorities||'';
+  const mood=saved.mood||5;
+  document.getElementById('wr_mood').value=mood;
+  updateWrMoodEmoji(mood);
+  document.getElementById('weeklyReviewModal').style.display='flex';
+}
+function closeWeeklyReview(){document.getElementById('weeklyReviewModal').style.display='none';}
+function updateWrMoodEmoji(v){
+  const emojis=['','😔','😟','😞','😕','😐','🙂','😊','😄','😁','🤩'];
+  document.getElementById('wr_mood_display').textContent=emojis[Math.round(v)]||'😐';
+}
+function saveWeeklyReview(){
+  LS.set(_wrWeekKey,{
+    wins:document.getElementById('wr_wins').value,
+    struggles:document.getElementById('wr_struggles').value,
+    different:document.getElementById('wr_different').value,
+    priorities:document.getElementById('wr_priorities').value,
+    mood:parseInt(document.getElementById('wr_mood').value),
+    savedAt:new Date().toISOString(),
+  });
+  closeWeeklyReview();
+  toast('Weekly review saved ✓');
+}
+
+// ── PUSH NOTIFICATIONS ────────────────────────────────────────────────────
+(function initNotifications(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator))return;
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+  function scheduleTodayNotifications(){
+    if(Notification.permission!=='granted')return;
+    const todayEvs=getAllEvents().filter(e=>sameDay(e.date,new Date())&&e.time);
+    const now=Date.now();
+    const swReady=navigator.serviceWorker.ready;
+    todayEvs.forEach(ev=>{
+      const[h,m]=(ev.time||'').split(':').map(Number);
+      if(isNaN(h))return;
+      const t=new Date();t.setHours(h,m,0,0);
+      const notifyAt=t.getTime()-5*60*1000;
+      const delay=notifyAt-now;
+      if(delay>0&&delay<16*60*60*1000){
+        setTimeout(()=>{
+          swReady.then(reg=>{
+            reg.active&&reg.active.postMessage({
+              type:'SHOW_NOTIFICATION',
+              title:'⏰ Starting in 5 min: '+ev.title,
+              body:fmt(ev.time)+' — tap to open Peakly',
+              tag:'task_'+ev.id,
+              url:'/peakly-calendar.html',
+            });
+          });
+        },delay);
+      }
+    });
+  }
+
+  if(Notification.permission==='default'){
+    setTimeout(()=>{
+      Notification.requestPermission().then(p=>{
+        if(p==='granted')scheduleTodayNotifications();
+      });
+    },3000);
+  }else if(Notification.permission==='granted'){
+    scheduleTodayNotifications();
+  }
+})();
 
 // Refresh when localStorage changes from another tab (e.g. sick day button on goals page)
 window.addEventListener('storage',(ev)=>{

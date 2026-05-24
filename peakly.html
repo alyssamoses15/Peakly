@@ -1688,6 +1688,51 @@ const sickDay = () => {
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
+    // --- PUSH NOTIFICATIONS ---
+    (function initNotifications(){
+      if(!('Notification' in window)||!('serviceWorker' in navigator))return;
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+      function scheduleTaskNotifications(){
+        if(Notification.permission!=='granted')return;
+        const events=getCalendarEvents();
+        const now=Date.now();
+        const swReady=navigator.serviceWorker.ready;
+        events.forEach(ev=>{
+          if(!ev.time)return;
+          const[h,m]=(ev.time||'').split(':').map(Number);
+          if(isNaN(h))return;
+          const t=new Date();t.setHours(h,m,0,0);
+          const notifyAt=t.getTime()-5*60*1000; // 5 min before
+          const delay=notifyAt-now;
+          if(delay>0&&delay<16*60*60*1000){ // only within next 16 hrs
+            setTimeout(()=>{
+              swReady.then(reg=>{
+                reg.active&&reg.active.postMessage({
+                  type:'SHOW_NOTIFICATION',
+                  title:'⏰ Starting in 5 min: '+ev.title,
+                  body:ev.time+' — tap to open Peakly',
+                  tag:'task_'+ev.id,
+                  url:'/peakly-calendar.html',
+                });
+              });
+            },delay);
+          }
+        });
+      }
+
+      // Ask for permission on first visit (after brief delay so it's not jarring)
+      if(Notification.permission==='default'){
+        setTimeout(()=>{
+          Notification.requestPermission().then(p=>{
+            if(p==='granted')scheduleTaskNotifications();
+          });
+        },4000);
+      }else if(Notification.permission==='granted'){
+        scheduleTaskNotifications();
+      }
+    })();
+
     // --- CLOUD SYNC LOGIC ---
     async function syncCheckmarksFromCloud() {
       if (!window.sb) return; 
