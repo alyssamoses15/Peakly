@@ -552,6 +552,45 @@ function Water({water,setWater}){
   );
 }
 
+function TopPriorities(){
+  const {useState,useEffect}=React;
+  const tk=todayKey();
+  const storageKey='top_priorities_'+tk;
+  const [items,setItems]=useState(()=>LS.get(storageKey,['','','']));
+  const save=(idx,val)=>{
+    const next=[...items];next[idx]=val;
+    setItems(next);LS.set(storageKey,next);
+  };
+  const [done,setDone]=useState(()=>LS.get('top_priorities_done_'+tk,[false,false,false]));
+  const toggleDone=(idx)=>{
+    const next=[...done];next[idx]=!next[idx];
+    setDone(next);LS.set('top_priorities_done_'+tk,next);
+  };
+  const allDone=done.every((d,i)=>d||!items[i].trim());
+  return(
+    <div className="card">
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+        <div className="clabel" style={{marginBottom:0}}>🎯 Top 3 Priorities</div>
+        {allDone&&items.some(x=>x.trim())&&<span style={{fontSize:10,color:'var(--green)',fontWeight:700}}>All done ✓</span>}
+      </div>
+      {[0,1,2].map(i=>(
+        <div key={i} style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+          <button onClick={()=>toggleDone(i)} style={{flexShrink:0,width:18,height:18,borderRadius:4,border:`2px solid ${done[i]&&items[i].trim()?'var(--green)':'var(--border)'}`,background:done[i]&&items[i].trim()?'var(--green)':'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',padding:0,transition:'all .15s'}}>
+            {done[i]&&items[i].trim()&&<svg width="9" height="7" viewBox="0 0 9 7"><path d="M1 3.5l2.5 2.5L8 1" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </button>
+          <input
+            value={items[i]}
+            onChange={e=>save(i,e.target.value)}
+            placeholder={['Most important task today','Second priority','Third priority'][i]}
+            style={{flex:1,fontSize:12,fontWeight:600,border:'none',background:'transparent',outline:'none',color:done[i]&&items[i].trim()?'var(--text3)':'var(--text)',textDecoration:done[i]&&items[i].trim()?'line-through':'none',padding:0,fontFamily:'var(--font)'}}
+          />
+          <span style={{flexShrink:0,fontSize:10,color:'var(--text4)',fontWeight:700}}>#{i+1}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─ Goals + Habits (left) ─
 function GoalList({goals,onToggle}){
   const now=new Date();
@@ -1611,6 +1650,7 @@ const sickDay = () => {
           <DateCard/>
           <Meals/>
           <Water water={water} setWater={saveWater}/>
+          <TopPriorities/>
         </div>
 
         {/* CENTER — Goals & Tasks */}

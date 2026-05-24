@@ -1815,21 +1815,53 @@ function buildProfessional(wrap){
     const renderMtgs=()=>{
       mWrap.innerHTML='';
       meetings.forEach((m,i)=>{
-        const card=mk('div');card.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:8px;';
-        const r1=mk('div');r1.style.cssText='display:grid;grid-template-columns:2fr 1fr 80px;gap:8px;margin-bottom:6px;align-items:center;';
+        const card=mk('div');card.style.cssText='padding:12px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
+
+        // Row 1: title / date / sync
+        const r1=mk('div');r1.style.cssText='display:grid;grid-template-columns:2fr 1fr 80px;gap:8px;margin-bottom:8px;align-items:center;';
         const ti=mk('input','inp');ti.placeholder='Meeting title';ti.value=m.title||'';ti.style.fontSize='12px';
         ti.addEventListener('input',e=>{m.title=e.target.value;LS.set('pro_meetings',meetings);});
         const di=mk('input','inp');di.type='datetime-local';di.value=m.date||'';di.style.fontSize='12px';
         di.addEventListener('input',e=>{m.date=e.target.value;LS.set('pro_meetings',meetings);});
         const csb=calSyncBtn('Sync',()=>({title:m.title,date:m.date,notes:m.notes,type:'meeting',sourceKey:'pro_meetings',sourceId:m.id}));
-        const ni=mk('textarea','inp');ni.placeholder='Agenda, notes, action items…';ni.value=m.notes||'';ni.rows=2;ni.style.fontSize='12px';
-        ni.addEventListener('input',e=>{m.notes=e.target.value;LS.set('pro_meetings',meetings);});
-        const del=mk('button');del.textContent='Remove';del.style.cssText='font-size:11px;color:var(--red);padding:0;margin-top:4px;';
-        del.addEventListener('click',()=>{meetings.splice(i,1);LS.set('pro_meetings',meetings);renderMtgs();});
         r1.appendChild(ti);r1.appendChild(di);r1.appendChild(csb);
-        card.appendChild(r1);card.appendChild(ni);card.appendChild(del);mWrap.appendChild(card);
+        card.appendChild(r1);
+
+        // Meeting Prep section
+        const prepLabel=mk('div');prepLabel.style.cssText='font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);margin-bottom:5px;';prepLabel.textContent='Meeting Prep';
+        card.appendChild(prepLabel);
+
+        const prepGrid=mk('div');prepGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;';
+
+        const goalI=mk('textarea','inp');goalI.placeholder='Goal / desired outcome…';goalI.value=m.goal||'';goalI.rows=2;goalI.style.fontSize='11px';
+        goalI.addEventListener('input',e=>{m.goal=e.target.value;LS.set('pro_meetings',meetings);});
+
+        const agendaI=mk('textarea','inp');agendaI.placeholder='Agenda / talking points…';agendaI.value=m.agenda||'';agendaI.rows=2;agendaI.style.fontSize='11px';
+        agendaI.addEventListener('input',e=>{m.agenda=e.target.value;LS.set('pro_meetings',meetings);});
+
+        const questI=mk('textarea','inp');questI.placeholder='Questions to ask…';questI.value=m.questions||'';questI.rows=2;questI.style.fontSize='11px';
+        questI.addEventListener('input',e=>{m.questions=e.target.value;LS.set('pro_meetings',meetings);});
+
+        const materialsI=mk('textarea','inp');materialsI.placeholder='Materials to prepare / bring…';materialsI.value=m.materials||'';materialsI.rows=2;materialsI.style.fontSize='11px';
+        materialsI.addEventListener('input',e=>{m.materials=e.target.value;LS.set('pro_meetings',meetings);});
+
+        prepGrid.appendChild(goalI);prepGrid.appendChild(agendaI);prepGrid.appendChild(questI);prepGrid.appendChild(materialsI);
+        card.appendChild(prepGrid);
+
+        // Notes & actions label
+        const notesLabel=mk('div');notesLabel.style.cssText='font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--text4);margin-bottom:5px;';notesLabel.textContent='Notes & Action Items';
+        card.appendChild(notesLabel);
+
+        const ni=mk('textarea','inp');ni.placeholder='Meeting notes and action items…';ni.value=m.notes||'';ni.rows=2;ni.style.fontSize='12px';
+        ni.addEventListener('input',e=>{m.notes=e.target.value;LS.set('pro_meetings',meetings);});
+        card.appendChild(ni);
+
+        const del=mk('button');del.textContent='Remove';del.style.cssText='font-size:11px;color:var(--red);padding:0;margin-top:6px;';
+        del.addEventListener('click',()=>{meetings.splice(i,1);LS.set('pro_meetings',meetings);renderMtgs();});
+        card.appendChild(del);
+        mWrap.appendChild(card);
       });
-      mWrap.appendChild(addbtn('Add meeting',()=>{meetings.push({id:Date.now(),title:'',date:'',notes:''});LS.set('pro_meetings',meetings);renderMtgs();}));
+      mWrap.appendChild(addbtn('Add meeting',()=>{meetings.push({id:Date.now(),title:'',date:'',notes:'',goal:'',agenda:'',questions:'',materials:''});LS.set('pro_meetings',meetings);renderMtgs();}));
     };
     renderMtgs();
   },false));
