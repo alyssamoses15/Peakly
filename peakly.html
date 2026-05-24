@@ -9,7 +9,7 @@
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="peakly-config.js?v=9"></script>
+<script src="peakly-config.js?v=12"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -69,6 +69,15 @@ const LS={
   get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}},
   set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
 };
+function hasStoredSupabaseSession(){
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i)||'';
+      if(k.startsWith('sb-')||k.includes('supabase.auth'))return true;
+    }
+  }catch(e){}
+  return false;
+}
 
 // One-time cleanup: remove goal_task entries from cal_events. Goal tasks are
 // rendered directly from peakly_goals.todayTasks; the cal_events copies created
@@ -1414,8 +1423,10 @@ function UserAvatar(){
     ensureSb().then(async client=>{
       if(!client){return;}
       const session=await(window.PeaklyAuth?.robustGetSession?window.PeaklyAuth.robustGetSession(client):client.auth.getSession().then(r=>r.data.session));
-      if(!session&&window.location.protocol!=='file:'){window.location.href='peakly-auth.html';return;}
-      if(!session)return;
+      if(!session){
+        console.warn('[Peakly] No active session on home yet; staying on dashboard instead of redirecting.');
+        return;
+      }
       const user=session.user;
       const lastUserId=localStorage.getItem('peakly_last_user_id');
       if(lastUserId&&lastUserId!==user.id){
@@ -1432,8 +1443,7 @@ function UserAvatar(){
       // Cross-device sync: pull newer cloud data, then back up local edits.
       if(window.PeaklySync){
         try{
-          const r = await window.PeaklySync.init(client, user, { reloadOnRestore:true });
-          if(r.restored) return;
+          await window.PeaklySync.init(client, user, { reloadOnRestore:false });
         }catch(e){}
       }
       // Load subscription state from Supabase and render trial banner if needed
