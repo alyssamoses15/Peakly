@@ -496,8 +496,13 @@ function buildHealth(wrap){
         ['peanut butter',190],['toast',80],['bagel',270],['smoothie',250],['protein shake',180],
         ['coffee',5],['latte',150],['milk',120]
       ];
-      const hit=foods.find(([name])=>q.includes(name));
-      return hit?{ name:hit[0], calories:hit[1], source:'Peakly estimate' }:null;
+      // Prefer the most specific (longest) matching name rather than the
+      // first array entry that happens to be a substring — otherwise
+      // "cheeseburger" would match the generic "burger" entry first.
+      const matches=foods.filter(([name])=>q.includes(name));
+      if(!matches.length)return null;
+      const hit=matches.reduce((best,m)=>m[0].length>best[0].length?m:best);
+      return { name:hit[0], calories:hit[1], source:'Peakly estimate' };
     }
     async function lookupFoodCalories(force=false){
       const query=calName.value.trim();
@@ -515,13 +520,25 @@ function buildHealth(wrap){
           clearTimeout(timeoutId);
           if(res.ok){
             const json=await res.json();
-            const product=(json.products||[]).find(p=>p?.nutriments&&(
+            const queryWords=query.toLowerCase().split(/\s+/).filter(w=>w.length>2);
+            const candidates=(json.products||[]).filter(p=>p?.nutriments&&(
               p.nutriments['energy-kcal_serving']||p.nutriments['energy-kcal_100g']||p.nutriments['energy-kcal']
             ));
+            // Open Food Facts' keyword search often returns loosely-related
+            // branded products (different item, same word buried in the
+            // name) with very different calorie counts than what was
+            // actually typed. Only trust a result whose product name
+            // clearly mentions what was searched for — otherwise keep
+            // whatever localFoodGuess() already found rather than silently
+            // overwriting a sane estimate with an unrelated one.
+            const product=candidates.find(p=>{
+              const name=(p.product_name||'').toLowerCase();
+              return name && queryWords.some(w=>name.includes(w));
+            });
             if(product){
               const n=product.nutriments||{};
               const cals=Math.round(Number(n['energy-kcal_serving']||n['energy-kcal_100g']||n['energy-kcal']));
-              if(cals>0)guess={name:product.product_name||query,calories:cals,source:product.serving_size?'Open Food Facts per serving':'Open Food Facts per 100g'};
+              if(cals>0&&cals<3000)guess={name:product.product_name||query,calories:cals,source:product.serving_size?'Open Food Facts per serving':'Open Food Facts per 100g'};
             }
           }else{
             lookupFailed=true;
