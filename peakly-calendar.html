@@ -1497,12 +1497,21 @@ function saveWeeklyReview(){
   if(Notification.permission==='default'){
     setTimeout(()=>{
       Notification.requestPermission().then(p=>{
-        if(p==='granted')scheduleTodayNotifications();
+        if(p==='granted'){
+          scheduleTodayNotifications();
+          window.PeaklyPush&&window.PeaklyPush.subscribe();
+        }
       });
     },3000);
   }else if(Notification.permission==='granted'){
     scheduleTodayNotifications();
+    window.PeaklyPush&&window.PeaklyPush.subscribe();
   }
+  // Re-scan periodically so events/tasks added after page load still get
+  // scheduled (the previous version only scanned once at load).
+  setInterval(()=>{
+    if(Notification.permission==='granted')scheduleTodayNotifications();
+  },15*60*1000);
 })();
 
 // Refresh when localStorage changes from another tab (e.g. sick day button on goals page)
