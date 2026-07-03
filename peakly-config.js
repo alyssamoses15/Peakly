@@ -71,7 +71,103 @@ window.PeaklyConfig = {
   CANCEL_SUBSCRIPTION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/cancel-subscription',
   CREATE_PORTAL_SESSION_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/create-portal-session',
   DELETE_ACCOUNT_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/delete-account',
-  ANALYZE_MEAL_PHOTO_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/analyze-meal-photo'
+  ANALYZE_MEAL_PHOTO_URL: 'https://rofnthczzpsswdtlpahk.supabase.co/functions/v1/analyze-meal-photo',
+  // Public VAPID key for Web Push subscriptions (safe to expose client-side).
+  // The matching private key lives only as a Supabase Edge Function secret.
+  VAPID_PUBLIC_KEY: 'BHZlR9NZjoi_e84fGKFd-UZXjxcOVMB2Y5xWfPRNmngE4vxl_vG_Nfj2sgVCg1e40vuN5e3RG3WKnYiXOGbqGFU'
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// Web Push subscription helper. Subscribes/unsubscribes the current device
+// to background push notifications (delivered even when Peakly isn't open),
+// backed by the `push_subscriptions` table and the `send-due-notifications`
+// scheduled Edge Function.
+// ─────────────────────────────────────────────────────────────────────────
+window.PeaklyPush = {
+  _urlBase64ToUint8Array(base64String){
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = atob(base64);
+    const out = new Uint8Array(rawData.length);
+    for(let i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
+    return out;
+  },
+
+  async _waitForSbUser(timeoutMs = 8000){
+    const start = Date.now();
+    while(Date.now() - start < timeoutMs){
+      if(window.sb){
+        try{
+          const { data } = await window.sb.auth.getSession();
+          if(data?.session?.user) return { sb: window.sb, user: data.session.user };
+        }catch(e){}
+      }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    return { sb: window.sb || null, user: null };
+  },
+
+  isSupported(){
+    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  },
+
+  // Requests permission (if needed), subscribes this device to push, and
+  // upserts the subscription for the signed-in user. Safe to call repeatedly.
+  async subscribe(){
+    if(!this.isSupported()) return { ok:false, reason:'unsupported' };
+    if(!window.PeaklyConfig?.VAPID_PUBLIC_KEY) return { ok:false, reason:'no-vapid-key' };
+    if(Notification.permission === 'denied') return { ok:false, reason:'denied' };
+    if(Notification.permission !== 'granted'){
+      const p = await Notification.requestPermission();
+      if(p !== 'granted') return { ok:false, reason:p };
+    }
+    const { sb, user } = await this._waitForSbUser();
+    if(!sb || !user) return { ok:false, reason:'no-user' };
+    try{
+      const reg = await navigator.serviceWorker.register('/sw.js').catch(() => navigator.serviceWorker.ready);
+      const readyReg = await navigator.serviceWorker.ready;
+      let sub = await readyReg.pushManager.getSubscription();
+      if(!sub){
+        sub = await readyReg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: this._urlBase64ToUint8Array(window.PeaklyConfig.VAPID_PUBLIC_KEY)
+        });
+      }
+      const j = sub.toJSON();
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      const { error } = await sb.from('push_subscriptions').upsert({
+        user_id: user.id,
+        endpoint: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth,
+        timezone
+      }, { onConflict: 'user_id,endpoint' });
+      if(error) throw error;
+      return { ok:true };
+    }catch(e){
+      console.error('[Peakly] Push subscribe failed:', e.message);
+      return { ok:false, reason:e.message };
+    }
+  },
+
+  async unsubscribe(){
+    if(!('serviceWorker' in navigator)) return { ok:true };
+    try{
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if(sub){
+        const endpoint = sub.endpoint;
+        await sub.unsubscribe();
+        const { sb, user } = await this._waitForSbUser(1500);
+        if(sb && user){
+          await sb.from('push_subscriptions').delete().eq('user_id', user.id).eq('endpoint', endpoint);
+        }
+      }
+      return { ok:true };
+    }catch(e){
+      return { ok:false, reason:e.message };
+    }
+  }
 };
 
 window.PeaklyEdge = {

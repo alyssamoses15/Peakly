@@ -31,3 +31,35 @@ self.addEventListener('message', e => {
     });
   }
 });
+
+// Triggered by the server (send-due-notifications Edge Function) via the
+// Web Push protocol — this fires even when no Peakly tab is open.
+self.addEventListener('push', e => {
+  let payload = {};
+  try { payload = e.data ? e.data.json() : {}; } catch (err) { payload = { title: 'Peakly', body: e.data ? e.data.text() : '' }; }
+  const title = payload.title || 'Peakly';
+  const options = {
+    body: payload.body || '',
+    tag: payload.tag || undefined,
+    icon: '/peakly-icon.png',
+    badge: '/peakly-icon.png',
+    data: { url: payload.url || '/peakly-calendar.html' },
+    requireInteraction: false,
+    silent: false,
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Fires if the browser/OS invalidates the current push subscription — try to
+// resubscribe with the same server key so notifications keep working.
+self.addEventListener('pushsubscriptionchange', e => {
+  e.waitUntil(
+    self.registration.pushManager.subscribe(e.oldSubscription ? { userVisibleOnly: true, applicationServerKey: e.oldSubscription.options.applicationServerKey } : undefined)
+      .then(sub => {
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+          list.forEach(c => c.postMessage({ type: 'PUSH_RESUBSCRIBED', subscription: sub.toJSON() }));
+        });
+      })
+      .catch(() => {})
+  );
+});

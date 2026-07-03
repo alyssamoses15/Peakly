@@ -258,7 +258,24 @@ function calSyncBtn(label,dataKey,data){
   const b=mk('button');b.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;display:flex;align-items:center;gap:4px;';
   b.innerHTML='📅 '+label;
   b.addEventListener('click',()=>{
-    const stored=LS.get('cal_events',[]);
+    const stored=LS.get('cal_events',[]).filter(e=>e.key!==dataKey);
+    stored.push({...data,key:dataKey,synced:new Date().toISOString()});
+    LS.set('cal_events',stored);
+    b.style.background='var(--green-light)';b.style.color='var(--green-dark)';b.style.borderColor='var(--green)';b.innerHTML='✓ Saved for calendar';
+    setTimeout(()=>{b.style.background='var(--blue-light)';b.style.color='var(--blue)';b.style.borderColor='var(--blue-muted)';b.innerHTML='📅 '+label;},2000);
+  });
+  return b;
+}
+// Like calSyncBtn, but reads the date/data at click time via dataFn() instead
+// of capturing it once at render time — needed when the source input's value
+// can change after the button is created.
+function calSyncBtnLive(label,dataKey,dataFn){
+  const b=mk('button');b.style.cssText='font-size:11px;padding:4px 10px;border-radius:var(--r);background:var(--blue-light);color:var(--blue);font-weight:600;border:1px solid var(--blue-muted);cursor:pointer;display:flex;align-items:center;gap:4px;';
+  b.innerHTML='📅 '+label;
+  b.addEventListener('click',()=>{
+    const data=dataFn();
+    if(!data){alert('Please enter a date first.');return;}
+    const stored=LS.get('cal_events',[]).filter(e=>e.key!==dataKey);
     stored.push({...data,key:dataKey,synced:new Date().toISOString()});
     LS.set('cal_events',stored);
     b.style.background='var(--green-light)';b.style.color='var(--green-dark)';b.style.borderColor='var(--green)';b.innerHTML='✓ Saved for calendar';
@@ -385,8 +402,8 @@ function buildDashboard(wrap){
     {id:'community',icon:'🌍',label:'Community',color:'var(--purple)',bg:'var(--purple-light)',items:['Election reminder set','8 volunteer hours logged']},
   ];
   // Summary strip
-  const strip=mk('div');strip.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;';
-  [{label:'Tasks due today',val:'5',color:'var(--blue)'},{label:'Upcoming reminders',val:'3',color:'var(--orange)'},{label:'Streak',val:'14 🔥',color:'var(--orange)'},{label:'Goals active',val:'4 / 5',color:'var(--green)'}].forEach(s=>{
+  const strip=mk('div');strip.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;';
+  [{label:'Tasks due today',val:'5',color:'var(--blue)'},{label:'Upcoming reminders',val:'3',color:'var(--orange)'},{label:'Goals active',val:'4 / 5',color:'var(--green)'}].forEach(s=>{
     const c=mk('div');c.style.cssText=`background:var(--white);border-radius:var(--rl);border:1px solid var(--border2);padding:14px;text-align:center;box-shadow:var(--shadow);`;
     c.innerHTML=`<div style="font-size:22px;font-weight:700;color:${s.color};margin-bottom:4px;">${s.val}</div><div style="font-size:11px;color:var(--text3);">${s.label}</div>`;
     strip.appendChild(c);
@@ -516,9 +533,13 @@ function buildHealth(wrap){
       calLookup.disabled=true;
       try{
         let guess=localFoodGuess(query);
+        let lookupFailed=false;
         try{
           const url='https://world.openfoodfacts.org/cgi/search.pl?search_terms='+encodeURIComponent(query)+'&search_simple=1&action=process&json=1&page_size=5&fields=product_name,serving_size,nutriments';
-          const res=await fetch(url,{headers:{'Accept':'application/json'}});
+          const controller=new AbortController();
+          const timeoutId=setTimeout(()=>controller.abort(),8000);
+          const res=await fetch(url,{headers:{'Accept':'application/json'},signal:controller.signal});
+          clearTimeout(timeoutId);
           if(res.ok){
             const json=await res.json();
             const product=(json.products||[]).find(p=>p?.nutriments&&(
@@ -529,10 +550,16 @@ function buildHealth(wrap){
               const cals=Math.round(Number(n['energy-kcal_serving']||n['energy-kcal_100g']||n['energy-kcal']));
               if(cals>0)guess={name:product.product_name||query,calories:cals,source:product.serving_size?'Open Food Facts per serving':'Open Food Facts per 100g'};
             }
+          }else{
+            lookupFailed=true;
+            console.warn('[Peakly] Food lookup returned',res.status);
           }
-        }catch(e){}
+        }catch(e){
+          lookupFailed=true;
+          console.warn('[Peakly] Food lookup failed:',e.message);
+        }
         if(!guess){
-          setCalStatus('No automatic calorie match found. You can still enter calories manually.','error');
+          setCalStatus(lookupFailed?'Calorie lookup service is unreachable right now. You can still enter calories manually.':'No automatic calorie match found. You can still enter calories manually.','error');
           return null;
         }
         if(force||!calAmount.value||calAmount.dataset.auto==='1'){
@@ -569,6 +596,14 @@ function buildHealth(wrap){
         return null;
       }
     }
+    async function waitForLifeAdminAuth(timeoutMs=6000){
+      const start=Date.now();
+      while(Date.now()-start<timeoutMs){
+        if(window.lifeAdminSb&&window.lifeAdminUser)return {sb:window.lifeAdminSb,user:window.lifeAdminUser};
+        await new Promise(r=>setTimeout(r,200));
+      }
+      return {sb:window.lifeAdminSb||null,user:window.lifeAdminUser||null};
+    }
     async function analyzeMealPhoto(imageOverride){
       const image=imageOverride||pendingPhoto;
       if(!image){setCalStatus('Add a meal photo first.');return null;}
@@ -576,8 +611,10 @@ function buildHealth(wrap){
       calAnalyze.disabled=true;
       setCalStatus('Analyzing meal photo...');
       try{
-        const sb=window.lifeAdminSb;
-        const session=sb&&window.PeaklyAuth?.getSession?await window.PeaklyAuth.getSession(sb):null;
+        const {sb,user}=await waitForLifeAdminAuth();
+        if(!sb||!user){setCalStatus('Please sign in to use photo analysis.','error');return null;}
+        const session=window.PeaklyAuth?.getSession?await window.PeaklyAuth.getSession(sb):(await sb.auth.getSession()).data?.session;
+        if(!session?.access_token){setCalStatus('Please sign in to use photo analysis.','error');return null;}
         const res=await fetch(window.PeaklyConfig.ANALYZE_MEAL_PHOTO_URL,{
           method:'POST',
           headers:{
@@ -1050,30 +1087,47 @@ function buildHealth(wrap){
   },false));
 
   // ── WOMEN'S HEALTH ────────────────────────────────────────────────────────
-  wrap.appendChild(sblock("Women's Health",'🌸',b=>{
-    b.appendChild(grid('1fr 1fr',
-      fld('Last period start',inp('','','','date')),
-      fld('Cycle length (avg days)',inp('28',''))
-    ));
-    const papD=mk('div');papD.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
-    papD.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Pap smear — Next due</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6;">📋 Under 21 or over 65 — not typically needed · Ages 21–65 — every 3 years</div>`;
-    const pi=mk('input','inp');pi.type='date';pi.style.fontSize='12px';papD.appendChild(pi);
-    const pcsb=calSyncBtn('Sync pap reminder','pap',{title:'Pap smear due',type:'womens_health',reminder:'30days'});pcsb.style.marginTop='6px';papD.appendChild(pcsb);
-    b.appendChild(papD);
-    const mamD=mk('div');mamD.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
-    mamD.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Mammogram — Next due</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">📋 Consult your PCP to determine the right frequency for you.</div>`;
-    const mi=mk('input','inp');mi.type='date';mi.style.fontSize='12px';mamD.appendChild(mi);
-    const mcsb=calSyncBtn('Sync mammogram reminder','mammo',{title:'Mammogram due',type:'womens_health',reminder:'30days'});mcsb.style.marginTop='6px';mamD.appendChild(mcsb);
-    b.appendChild(mamD);
-    b.appendChild(grid('1fr 1fr',
-      fld('Birth control type',inp('Pill, IUD, implant…','')),
-      fld('Birth control expiration',inp('','','','date'))
-    ));
-    b.appendChild(fld('Hormonal mood insights',ta('Track mood patterns across your cycle…','',null,2)));
-    b.appendChild(infoBox('🔒 Advanced features (ovulation, pregnancy tracker, postpartum recovery) available with Pro.','blue'));
-  },false));
+  if(!LS.get('peakly_settings',{}).hideWomensHealth){
+    wrap.appendChild(sblock("Women's Health",'🌸',b=>{
+      let wh=LS.get('womens_health',{});
+      const saveWh=()=>LS.set('womens_health',wh);
+      b.appendChild(grid('1fr 1fr',
+        fld('Last period start',inp('',wh.lastPeriodStart,v=>{wh.lastPeriodStart=v;saveWh();},'date')),
+        fld('Cycle length (avg days)',inp('28',wh.cycleLength,v=>{wh.cycleLength=v;saveWh();}))
+      ));
+      const papD=mk('div');papD.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
+      papD.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Pap smear — Next due</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;line-height:1.6;">📋 Under 21 or over 65 — not typically needed · Ages 21–65 — every 3 years</div>`;
+      const pi=mk('input','inp');pi.type='date';pi.style.fontSize='12px';pi.value=wh.papDue||'';
+      pi.addEventListener('input',e=>{wh.papDue=e.target.value;saveWh();});
+      papD.appendChild(pi);
+      const pcsb=calSyncBtnLive('Sync pap reminder','womens_pap',()=>pi.value?{title:'Pap smear due',date:combineLocalDateTime(pi.value,'09:00'),time:'09:00',type:'womens_health'}:null);pcsb.style.marginTop='6px';papD.appendChild(pcsb);
+      b.appendChild(papD);
+      const mamD=mk('div');mamD.style.cssText='padding:10px;background:var(--bg);border-radius:var(--rm);margin-bottom:10px;';
+      mamD.innerHTML=`<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:6px;">Mammogram — Next due</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">📋 Consult your PCP to determine the right frequency for you.</div>`;
+      const mi=mk('input','inp');mi.type='date';mi.style.fontSize='12px';mi.value=wh.mammoDue||'';
+      mi.addEventListener('input',e=>{wh.mammoDue=e.target.value;saveWh();});
+      mamD.appendChild(mi);
+      const mcsb=calSyncBtnLive('Sync mammogram reminder','womens_mammo',()=>mi.value?{title:'Mammogram due',date:combineLocalDateTime(mi.value,'09:00'),time:'09:00',type:'womens_health'}:null);mcsb.style.marginTop='6px';mamD.appendChild(mcsb);
+      b.appendChild(mamD);
+      b.appendChild(grid('1fr 1fr',
+        fld('Birth control type',inp('Pill, IUD, implant…',wh.bcType,v=>{wh.bcType=v;saveWh();})),
+        fld('Birth control expiration',inp('',wh.bcExp,v=>{wh.bcExp=v;saveWh();},'date'))
+      ));
+      b.appendChild(fld('Hormonal mood insights',ta('Track mood patterns across your cycle…',wh.moodNotes,v=>{wh.moodNotes=v;saveWh();},2)));
+      b.appendChild(infoBox('🔒 Advanced features (ovulation, pregnancy tracker, postpartum recovery) available with Pro.','blue'));
+      const hideRow=mk('div');hideRow.style.cssText='text-align:right;margin-top:8px;';
+      const hideBtn=mk('button');hideBtn.textContent='Hide this section';hideBtn.style.cssText='font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;';
+      hideBtn.addEventListener('click',()=>{
+        if(confirm("Hide Women's Health from your Health page? You can bring it back anytime from Settings on your Profile page.")){
+          const settings=LS.get('peakly_settings',{});settings.hideWomensHealth=true;LS.set('peakly_settings',settings);
+          loadPage(cur||'health');
+        }
+      });
+      hideRow.appendChild(hideBtn);b.appendChild(hideRow);
+    },false));
+  }
 
   // ── HABITS & SELF-CARE ────────────────────────────────────────────────────
   wrap.appendChild(sblock('Habits & Self-Care','🌅',b=>{
@@ -1208,12 +1262,6 @@ function buildHealth(wrap){
       rd.appendChild(tasksPanel);
       b.appendChild(rd);
     });
-
-    // Streak
-    const streak=LS.get('habit_streak',0);
-    const sd=mk('div');sd.style.cssText='display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:var(--orange-light);border-radius:var(--rm);margin-top:4px;';
-    sd.innerHTML=`<span style="font-size:20px;">🔥</span><span style="font-size:16px;font-weight:700;color:var(--orange-dark);">${streak} day streak</span>`;
-    b.appendChild(sd);
   },false));
 }
 
@@ -1238,7 +1286,7 @@ function buildVehicle(wrap){
         const lbox=mk('div');lbox.style.cssText='padding:10px 12px;background:var(--bg);border-radius:var(--rm);border:1px solid var(--border2);margin-bottom:10px;';
         lbox.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;">Leasing Info</div>';
         lbox.appendChild(grid('1fr 1fr 1fr',
-          fld('Due date',inp('1st of month',car.leaseDate,v=>{car.leaseDate=v;LS.set('cars',cars);})),
+          fld('Due date',inp('',car.leaseDate,v=>{car.leaseDate=v;LS.set('cars',cars);},'date')),
           fld('Payment',inp('$350/mo',car.payment,v=>{car.payment=v;LS.set('cars',cars);})),
           fld('Leasing bank',inp('Toyota Financial',car.bank,v=>{car.bank=v;LS.set('cars',cars);}))
         ));
@@ -1250,8 +1298,12 @@ function buildVehicle(wrap){
             const fe=LS.get('fin_exp',[]);
             const exists=fe.find(e=>e.cat==='Car lease — '+(car.make||'Vehicle '+(ci+1)));
             if(!exists){fe.push({id:Date.now(),cat:'Car lease — '+(car.make||'Vehicle '+(ci+1)),budget:car.payment,actual:'',type:'need',due:car.leaseDate,source:'vehicle'});LS.set('fin_exp',fe);}
-            const calEvt=LS.get('cal_events',[]);calEvt.push({title:'Car lease payment — '+(car.make||''),date:car.leaseDate,type:'payment',recurring:'monthly'});LS.set('cal_events',calEvt);
+            const calKey='car_lease_'+ci;
+            let calEvt=LS.get('cal_events',[]).filter(e=>e.key!==calKey);
+            calEvt.push({title:'Car lease payment — '+(car.make||'Vehicle '+(ci+1)),date:combineLocalDateTime(car.leaseDate,'09:00'),time:'09:00',type:'payment',duration:15,recurring:'monthly',key:calKey,synced:new Date().toISOString()});
+            LS.set('cal_events',calEvt);
             finBtn.style.background='var(--green)';finBtn.style.color='#fff';finBtn.textContent='✓ Added to Finances & Calendar';
+            setTimeout(()=>{finBtn.style.background='var(--green-light)';finBtn.style.color='var(--green-dark)';finBtn.innerHTML='💰 Auto-add to Finances';},2500);
           }else{alert('Please enter due date and payment amount first.');}
         });
         finRow.appendChild(finBtn);lbox.appendChild(finRow);b.appendChild(lbox);
@@ -1612,17 +1664,42 @@ function buildHousing(wrap){
     const colors=['#FEF3C7','#DBEAFE','#DCFCE7','#FCE7F3','#EDE9FE','#FFF7ED'];
     const notesGrid=mk('div');notesGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;';
 
+    // Expand/edit modal — shared overlay reused by every note.
+    const noteModal=mk('div');noteModal.style.cssText='display:none;position:fixed;inset:0;background:rgba(15,28,46,.55);z-index:300;align-items:center;justify-content:center;padding:16px;';
+    const noteModalCard=mk('div');noteModalCard.style.cssText='background:var(--white);border-radius:16px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(15,28,46,.2);overflow:hidden;';
+    const noteModalHeader=mk('div');noteModalHeader.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border2);';
+    noteModalHeader.innerHTML='<div style="font-weight:700;font-size:15px;">Note</div>';
+    const noteModalClose=mk('button');noteModalClose.textContent='×';noteModalClose.style.cssText='font-size:22px;color:var(--text4);background:none;border:none;cursor:pointer;line-height:1;';
+    const closeNoteModal=()=>{noteModal.style.display='none';renderNotes();};
+    noteModalClose.addEventListener('click',closeNoteModal);
+    noteModalHeader.appendChild(noteModalClose);
+    const noteModalTa=mk('textarea');noteModalTa.style.cssText='flex:1;border:none;outline:none;resize:none;padding:16px;font-size:15px;line-height:1.7;font-family:var(--font);color:var(--text);min-height:280px;';
+    noteModalCard.appendChild(noteModalHeader);noteModalCard.appendChild(noteModalTa);
+    noteModal.appendChild(noteModalCard);
+    noteModal.addEventListener('click',e=>{if(e.target===noteModal)closeNoteModal();});
+    b.appendChild(noteModal);
+
+    const openNoteModal=note=>{
+      noteModalCard.style.background=note.color;
+      noteModalTa.value=note.text;
+      noteModalTa.oninput=e=>{note.text=e.target.value;LS.set('inspo_notes',notes);};
+      noteModal.style.display='flex';
+      noteModalTa.focus();
+    };
+
     const renderNotes=()=>{
       notesGrid.innerHTML='';
       notes.forEach((note,i)=>{
         const sn=mk('div','sticky-note');sn.style.cssText=`background:${note.color};border-radius:var(--rm);padding:12px;min-height:100px;position:relative;`;
         const del=mk('button','del-btn');del.textContent='×';del.style.cssText='position:absolute;top:6px;right:8px;font-size:18px;color:rgba(0,0,0,0.3);opacity:0;transition:opacity .2s;background:none;border:none;cursor:pointer;';
-        sn.onmouseover=()=>del.style.opacity='1';sn.onmouseout=()=>del.style.opacity='0';
+        sn.onmouseover=()=>{del.style.opacity='1';expand.style.opacity='1';};sn.onmouseout=()=>{del.style.opacity='0';expand.style.opacity='.5';};
         del.addEventListener('click',()=>{notes.splice(i,1);LS.set('inspo_notes',notes);renderNotes();});
+        const expand=mk('button');expand.innerHTML='⤢';expand.title='Expand & edit';expand.style.cssText='position:absolute;top:6px;right:30px;font-size:14px;color:rgba(0,0,0,0.4);opacity:.5;transition:opacity .2s;background:none;border:none;cursor:pointer;';
+        expand.addEventListener('click',()=>openNoteModal(note));
         const ta2=mk('textarea');ta2.style.cssText='background:transparent;border:none;outline:none;width:100%;font-size:13px;line-height:1.6;resize:none;font-family:var(--font);color:var(--text);min-height:80px;';
         ta2.value=note.text;ta2.placeholder='Type a note…';
         ta2.addEventListener('input',e=>{note.text=e.target.value;LS.set('inspo_notes',notes);});
-        sn.appendChild(del);sn.appendChild(ta2);notesGrid.appendChild(sn);
+        sn.appendChild(del);sn.appendChild(expand);sn.appendChild(ta2);notesGrid.appendChild(sn);
       });
       b.appendChild(notesGrid);
     };

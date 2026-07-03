@@ -94,11 +94,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .badge-pro{background:rgba(249,115,22,0.9);color:#fff;}
 .badge-free{background:rgba(255,255,255,0.2);color:#fff;}
 .badge-trial{background:rgba(252,211,77,0.9);color:#92400e;}
-.badge-streak{background:rgba(255,255,255,0.15);color:#fff;}
 
 /* ── STATS ROW ────────────────────────────────────────────── */
 .stats-row{
-  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
   margin-bottom:24px;
 }
 @media(max-width:600px){.stats-row{grid-template-columns:1fr 1fr;}}
@@ -329,7 +328,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="profile-email" id="displayEmail">jane@example.com</div>
       <div class="profile-badges">
         <span class="badge badge-pro" id="planBadge">⭐ Pro</span>
-        <span class="badge badge-streak" id="streakBadge">🔥 14 day streak</span>
       </div>
     </div>
   </div>
@@ -348,10 +346,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="stat-card-num" id="statDaysLogged">0</div>
       <div class="stat-card-label">Days logged</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-card-num" id="statStreak">0</div>
-      <div class="stat-card-label">Current streak</div>
-    </div>
   </div>
 
   <!-- GARDEN -->
@@ -361,7 +355,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="section-icon si-green">🌿</div>
         <div>
           <div class="section-title">My Garden</div>
-          <div class="section-sub">Your plants grow with your streak</div>
+          <div class="section-sub">Your plants grow as you complete tasks</div>
         </div>
       </div>
       <span class="section-chevron open" id="chevron-garden">▼</span>
@@ -589,6 +583,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <input class="inp" type="time" id="reminderTime" value="08:00" style="max-width:180px;">
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <input type="checkbox" id="pushNotifications" style="accent-color:var(--blue);width:16px;height:16px;" onchange="togglePushNotifications(this.checked)">
+        <label for="pushNotifications" style="font-size:14px;color:var(--text2);cursor:pointer;">🔔 Notify me when a task or event is ready (push notification, works even when Peakly isn't open)</label>
+      </div>
+      <div id="pushNotifStatus" style="font-size:12px;color:var(--text3);margin:-8px 0 14px 26px;"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
         <input type="checkbox" id="emailReminders" style="accent-color:var(--blue);width:16px;height:16px;" checked>
         <label for="emailReminders" style="font-size:14px;color:var(--text2);cursor:pointer;">Email reminders for upcoming appointments & bill due dates</label>
       </div>
@@ -599,6 +598,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
         <input type="checkbox" id="milestoneAlerts" style="accent-color:var(--blue);width:16px;height:16px;" checked>
         <label for="milestoneAlerts" style="font-size:14px;color:var(--text2);cursor:pointer;">Milestone celebration alerts</label>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <input type="checkbox" id="showWomensHealth" style="accent-color:var(--blue);width:16px;height:16px;" checked>
+        <label for="showWomensHealth" style="font-size:14px;color:var(--text2);cursor:pointer;">Show Women's Health section on the Health page</label>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
@@ -765,11 +768,6 @@ function loadProfile(){
   const uniqueDates=new Set(allKeys.map(k=>k.split('_').pop()));
   document.getElementById('statDaysLogged').textContent=uniqueDates.size;
 
-  // Streak (rough — count from localStorage)
-  const streak=LS.get('peakly_streak',0);
-  document.getElementById('statStreak').textContent=streak;
-  document.getElementById('streakBadge').textContent='🔥 '+streak+' day streak';
-
   // Subscription status
   // Render plan UI from cache first, then refresh from Supabase below.
   renderSubscriptionUI({
@@ -822,6 +820,59 @@ function loadProfile(){
   document.getElementById('emailReminders').checked=settings.emailReminders!==false;
   document.getElementById('weeklyDigest').checked=settings.weeklyDigest!==false;
   document.getElementById('milestoneAlerts').checked=settings.milestoneAlerts!==false;
+  document.getElementById('showWomensHealth').checked=settings.hideWomensHealth!==true;
+  refreshPushToggleState();
+}
+
+// ── Push notifications ──────────────────────────────────────
+async function refreshPushToggleState(){
+  const box=document.getElementById('pushNotifications');
+  const status=document.getElementById('pushNotifStatus');
+  if(!box)return;
+  if(!window.PeaklyPush || !window.PeaklyPush.isSupported()){
+    box.checked=false;box.disabled=true;
+    if(status)status.textContent='Not supported in this browser.';
+    return;
+  }
+  if(Notification.permission==='denied'){
+    box.checked=false;box.disabled=true;
+    if(status)status.textContent='Notifications are blocked for Peakly in your browser settings.';
+    return;
+  }
+  let subscribed=false;
+  try{
+    const reg=await navigator.serviceWorker.getRegistration();
+    const sub=reg?await reg.pushManager.getSubscription():null;
+    subscribed=!!sub;
+  }catch(e){}
+  box.checked=Notification.permission==='granted'&&subscribed;
+  if(status)status.textContent=box.checked?'On — you\'ll get a notification when a task or event is ready.':'';
+}
+
+async function togglePushNotifications(wantOn){
+  const box=document.getElementById('pushNotifications');
+  const status=document.getElementById('pushNotifStatus');
+  if(!window.PeaklyPush){box.checked=false;return;}
+  box.disabled=true;
+  if(status)status.textContent='Working…';
+  if(wantOn){
+    const r=await window.PeaklyPush.subscribe();
+    box.disabled=false;
+    if(r.ok){
+      box.checked=true;
+      if(status)status.textContent='On — you\'ll get a notification when a task or event is ready.';
+      toast('Push notifications enabled ✓');
+    }else{
+      box.checked=false;
+      if(status)status.textContent=r.reason==='denied'?'Notifications are blocked for Peakly in your browser settings.':'Couldn\'t enable notifications — try again.';
+      toast('Could not enable push notifications');
+    }
+  }else{
+    await window.PeaklyPush.unsubscribe();
+    box.checked=false;box.disabled=false;
+    if(status)status.textContent='';
+    toast('Push notifications turned off');
+  }
 }
 
 // ── Avatar picker ────────────────────────────────────────────
@@ -1248,6 +1299,7 @@ function saveSettings(){
     emailReminders:document.getElementById('emailReminders').checked,
     weeklyDigest:document.getElementById('weeklyDigest').checked,
     milestoneAlerts:document.getElementById('milestoneAlerts').checked,
+    hideWomensHealth:!document.getElementById('showWomensHealth').checked,
   };
   LS.set('peakly_settings',settings);
   toast('Settings saved ✓');
@@ -1773,7 +1825,6 @@ function renderGarden(){
 
   const isWindowsill=g.view==='windowsill';
   const plants=g.plants;
-  const streak=LS.get('peakly_streak',0);
 
   let html=`
   <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -1793,7 +1844,6 @@ function renderGarden(){
     html+=`<div style="text-align:center;font-size:11px;color:var(--text3);margin:8px 0 4px;">
       <span style="font-weight:700;color:var(--text2);">${PLANT_TYPES.find(t=>t.id===p.type)?.name||'Plant'}</span>
       &nbsp;·&nbsp; ${STAGE_NAMES[p.stage||0]}
-      &nbsp;·&nbsp; ${streak} day streak
     </div>`;
   }
 

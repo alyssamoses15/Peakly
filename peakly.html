@@ -1691,7 +1691,7 @@ function Garden() {
       fontWeight: 700,
       color: 'var(--text2)'
     }
-  }, GARDEN_PLANT_TYPES.find(t => t.id === firstPlant.type)?.name), ' · ', GARDEN_STAGE_NAMES[firstPlant.stage || 0], ' · ', streak, " day streak"), plants.length < 6 && /*#__PURE__*/React.createElement("button", {
+  }, GARDEN_PLANT_TYPES.find(t => t.id === firstPlant.type)?.name), ' · ', GARDEN_STAGE_NAMES[firstPlant.stage || 0]), plants.length < 6 && /*#__PURE__*/React.createElement("button", {
     onClick: () => setPicking(true),
     style: {
       width: '100%',
@@ -4208,12 +4208,21 @@ root.render(/*#__PURE__*/React.createElement(App, null));
   if (Notification.permission === 'default') {
     setTimeout(() => {
       Notification.requestPermission().then(p => {
-        if (p === 'granted') scheduleTaskNotifications();
+        if (p === 'granted') {
+          scheduleTaskNotifications();
+          window.PeaklyPush && window.PeaklyPush.subscribe();
+        }
       });
     }, 4000);
   } else if (Notification.permission === 'granted') {
     scheduleTaskNotifications();
+    window.PeaklyPush && window.PeaklyPush.subscribe();
   }
+  // Re-scan periodically so events/tasks added after page load still get
+  // scheduled (the previous version only scanned once at load).
+  setInterval(() => {
+    if (Notification.permission === 'granted') scheduleTaskNotifications();
+  }, 15 * 60 * 1000);
 })();
 
 // --- CLOUD SYNC LOGIC ---
@@ -4287,7 +4296,7 @@ setTimeout(syncCheckmarksFromCloud, 1500);
     {icon:'🎯',title:'Set Your Goals',body:'Head to the Goals page to pick from 100+ goal templates — fitness, mental health, business, relationships — or build your own. Your daily tasks will automatically appear here on the home page.',target:'[href="peakly-goals.html"]',position:'below'},
     {icon:'📅',title:'Your Calendar',body:'Everything syncs to your Calendar automatically — goal tasks, routines, appointments from Life Admin. You can also add one-off or recurring events.',target:'[href="peakly-calendar.html"]',position:'below'},
     {icon:'🗂️',title:'Life Admin',body:'Track health, finances, home, vehicle, meals, and more in Life Admin. It\'s your whole life in one place — and it all feeds into your calendar.',target:'[href="peakly-second-brain-1.html"]',position:'below'},
-    {icon:'✅',title:'You\'re all set!',body:'Check off your daily tasks here on the home page, watch your garden grow with your streak, and review your week every Saturday. You\'ve got this.',target:null,position:'center'},
+    {icon:'✅',title:'You\'re all set!',body:'Check off your daily tasks here on the home page, watch your garden grow, and review your week every Saturday. You\'ve got this.',target:null,position:'center'},
   ];
 
   let cur=0;
