@@ -467,8 +467,6 @@ function buildHealth(wrap){
     const calBox=mk('div');calBox.style.cssText='background:var(--bg);border-radius:18px;padding:12px;margin-top:10px;';
     let calories=LS.get('calorie_entries',[]);
     let selectedMeal='Breakfast';
-    let pendingPhoto='';
-    let pendingAnalysis=null;
     let lookupTimer=null;
     const mealTypes=['Breakfast','Lunch','Dinner','Snack','Other'];
     const calGoal=mk('input','inp');calGoal.type='number';calGoal.min='0';calGoal.step='50';calGoal.value=LS.get('calorie_goal',2000);calGoal.style.cssText='font-size:12px;max-width:120px;';
@@ -477,36 +475,11 @@ function buildHealth(wrap){
     const calTabs=mk('div','cal-meal-tabs');
     const calName=mk('input','inp');calName.placeholder='What did you eat?';calName.style.fontSize='12px';
     const calAmount=mk('input','inp');calAmount.type='number';calAmount.min='0';calAmount.step='1';calAmount.placeholder='Calories';calAmount.style.fontSize='12px';
-    const photoInput=mk('input');photoInput.type='file';photoInput.accept='image/*';photoInput.setAttribute('capture','environment');photoInput.style.display='none';
-    const photoTile=mk('div','cal-photo-tile');
     const calLookup=mk('button','cal-smart-btn');calLookup.type='button';calLookup.textContent='Lookup calories';
-    const calAnalyze=mk('button','cal-smart-btn');calAnalyze.type='button';calAnalyze.textContent='Analyze photo';
     const calStatus=mk('div','cal-smart-status');
     const calAdd=mk('button');calAdd.textContent='+ Add meal';calAdd.style.cssText='width:100%;padding:11px;border-radius:var(--rm);background:var(--green);color:#fff;font-size:13px;font-weight:800;margin-top:8px;';
     const calWrap=mk('div');
 
-    function setPendingPhoto(src){
-      pendingPhoto=src||'';
-      photoTile.innerHTML=pendingPhoto?`<img src="${pendingPhoto}" alt="Meal photo preview">`:'<div><div style="font-size:24px;margin-bottom:4px;">📷</div><div>Add meal photo</div><div style="font-size:10px;font-weight:500;margin-top:2px;">camera or gallery</div></div>';
-    }
-    function resizeMealPhoto(file,cb){
-      const reader=new FileReader();
-      reader.onload=ev=>{
-        const img=new Image();
-        img.onload=()=>{
-          const max=420;
-          const scale=Math.min(1,max/Math.max(img.width,img.height));
-          const canvas=document.createElement('canvas');
-          canvas.width=Math.max(1,Math.round(img.width*scale));
-          canvas.height=Math.max(1,Math.round(img.height*scale));
-          canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-          cb(canvas.toDataURL('image/jpeg',0.58));
-        };
-        img.onerror=()=>cb(ev.target.result);
-        img.src=ev.target.result;
-      };
-      reader.readAsDataURL(file);
-    }
     function setCalStatus(msg,type='muted'){
       calStatus.textContent=msg||'';
       calStatus.style.color=type==='error'?'var(--red)':(type==='success'?'var(--green-dark)':'var(--text3)');
@@ -574,76 +547,6 @@ function buildHealth(wrap){
         calLookup.disabled=false;
       }
     }
-    function dataUrlToBlob(dataUrl){
-      const parts=dataUrl.split(',');
-      const mime=(parts[0].match(/:(.*?);/)||[])[1]||'image/jpeg';
-      const bin=atob(parts[1]||'');
-      const bytes=new Uint8Array(bin.length);
-      for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
-      return new Blob([bytes],{type:mime});
-    }
-    async function uploadMealPhoto(src){
-      if(!src||!src.startsWith('data:image/')||!window.lifeAdminSb||!window.lifeAdminUser)return null;
-      try{
-        const fileName=`meal-photos/${window.lifeAdminUser.id}/${Date.now()}.jpg`;
-        const blob=dataUrlToBlob(src);
-        const { error }=await window.lifeAdminSb.storage.from('images').upload(fileName,blob,{contentType:'image/jpeg',upsert:false});
-        if(error)throw error;
-        const { data }=window.lifeAdminSb.storage.from('images').getPublicUrl(fileName);
-        return data?.publicUrl||null;
-      }catch(e){
-        console.warn('[Peakly] meal photo cloud upload skipped:',e.message);
-        return null;
-      }
-    }
-    async function waitForLifeAdminAuth(timeoutMs=6000){
-      const start=Date.now();
-      while(Date.now()-start<timeoutMs){
-        if(window.lifeAdminSb&&window.lifeAdminUser)return {sb:window.lifeAdminSb,user:window.lifeAdminUser};
-        await new Promise(r=>setTimeout(r,200));
-      }
-      return {sb:window.lifeAdminSb||null,user:window.lifeAdminUser||null};
-    }
-    async function analyzeMealPhoto(imageOverride){
-      const image=imageOverride||pendingPhoto;
-      if(!image){setCalStatus('Add a meal photo first.');return null;}
-      if(!window.PeaklyConfig?.ANALYZE_MEAL_PHOTO_URL){setCalStatus('Photo analysis service is not configured yet.','error');return null;}
-      calAnalyze.disabled=true;
-      setCalStatus('Analyzing meal photo...');
-      try{
-        const {sb,user}=await waitForLifeAdminAuth();
-        if(!sb||!user){setCalStatus('Please sign in to use photo analysis.','error');return null;}
-        const session=window.PeaklyAuth?.getSession?await window.PeaklyAuth.getSession(sb):(await sb.auth.getSession()).data?.session;
-        if(!session?.access_token){setCalStatus('Please sign in to use photo analysis.','error');return null;}
-        const res=await fetch(window.PeaklyConfig.ANALYZE_MEAL_PHOTO_URL,{
-          method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            'Authorization':`Bearer ${session?.access_token||''}`,
-            'apikey':window.PeaklyConfig.SUPABASE_KEY
-          },
-          body:JSON.stringify({image, hint:calName.value.trim()})
-        });
-        const json=await res.json().catch(()=>({}));
-        if(!res.ok)throw new Error(json.error||'Photo analysis failed');
-        pendingAnalysis=json;
-        if(json.name)calName.value=json.name;
-        if(json.calories){
-          calAmount.value=Math.round(Number(json.calories));
-          calAmount.dataset.auto='1';
-          calAmount.dataset.source='Photo analysis';
-        }
-        const items=Array.isArray(json.items)&&json.items.length?json.items.join(', '):(json.name||'meal');
-        setCalStatus(`Photo estimate: ${Math.round(Number(json.calories)||0)} cal for ${items}. Review before saving.`,'success');
-        return json;
-      }catch(e){
-        pendingAnalysis=null;
-        setCalStatus(e.message||'Photo analysis failed. You can still save manually.','error');
-        return null;
-      }finally{
-        calAnalyze.disabled=false;
-      }
-    }
     function saveCalories(){LS.set('calorie_entries',calories);}
     function renderMealTabs(){
       calTabs.innerHTML='';
@@ -667,7 +570,7 @@ function buildHealth(wrap){
         <div class="cal-ring" style="--cal-pct:${pct}%"><div class="cal-ring-inner"><div style="font-size:20px;font-weight:800;color:var(--green-dark);">${remaining.toLocaleString()}</div><div style="font-size:10px;color:var(--text3);font-weight:700;">cal left</div></div></div>
         <div style="flex:1;min-width:210px;">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
-            <div><div class="clabel" style="margin:0;">Daily calories</div><div style="font-size:13px;color:var(--text3);">Type a food for auto calories or add a photo for AI analysis.</div></div>
+            <div><div class="clabel" style="margin:0;">Daily calories</div><div style="font-size:13px;color:var(--text3);">Type a food for auto calories.</div></div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             <div class="cal-stat"><div style="font-size:16px;font-weight:800;color:var(--text);">${dayTotal.toLocaleString()}</div><div style="font-size:10px;color:var(--text3);font-weight:700;">eaten</div></div>
@@ -714,7 +617,6 @@ function buildHealth(wrap){
     calGoal.addEventListener('input',()=>{LS.set('calorie_goal',parseInt(calGoal.value)||0);renderCalories();});
     calDate.addEventListener('input',renderCalories);
     calName.addEventListener('input',()=>{
-      pendingAnalysis=null;
       clearTimeout(lookupTimer);
       if(calName.value.trim().length>=3){
         lookupTimer=setTimeout(()=>lookupFoodCalories(false),650);
@@ -723,23 +625,6 @@ function buildHealth(wrap){
     calName.addEventListener('blur',()=>{if(calName.value.trim().length>=2)lookupFoodCalories(false);});
     calAmount.addEventListener('input',()=>{calAmount.dataset.auto='';calAmount.dataset.source='';});
     calLookup.addEventListener('click',()=>lookupFoodCalories(true));
-    calAnalyze.addEventListener('click',()=>analyzeMealPhoto());
-    photoTile.addEventListener('click',()=>photoInput.click());
-    photoInput.addEventListener('change',e=>{
-      const file=e.target.files&&e.target.files[0];
-      if(!file)return;
-      setCalStatus('Preparing meal photo...');
-      resizeMealPhoto(file,async src=>{
-        setPendingPhoto(src);
-        setCalStatus('Photo ready. Analyzing and syncing if available...');
-        analyzeMealPhoto(src);
-        const cloudUrl=await uploadMealPhoto(src);
-        if(cloudUrl){
-          setPendingPhoto(cloudUrl);
-          if(calAmount.dataset.auto!=='1')setCalStatus('Photo saved to cloud. Review calories before adding.','success');
-        }
-      });
-    });
     calAdd.addEventListener('click',()=>{
       const amount=parseInt(calAmount.value);
       if(!amount||amount<0)return;
@@ -749,20 +634,18 @@ function buildHealth(wrap){
         meal:selectedMeal,
         name:calName.value.trim(),
         calories:amount,
-        photo:pendingPhoto,
-        source:calAmount.dataset.source||'',
-        analysis:pendingAnalysis||null
+        source:calAmount.dataset.source||''
       });
       saveCalories();
-      calName.value='';calAmount.value='';calAmount.dataset.auto='';calAmount.dataset.source='';photoInput.value='';pendingAnalysis=null;setPendingPhoto('');setCalStatus('');
+      calName.value='';calAmount.value='';calAmount.dataset.auto='';calAmount.dataset.source='';setCalStatus('');
       renderCalories();
     });
     const calControls=mk('div');calControls.style.cssText='display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;';
     calControls.appendChild(fld('Date',calDate,0));calControls.appendChild(fld('Daily goal',calGoal,0));
-    const calForm=mk('div');calForm.style.cssText='display:grid;grid-template-columns:1fr 120px 120px;gap:8px;margin:10px 0;align-items:stretch;';
-    calForm.appendChild(calName);calForm.appendChild(calAmount);calForm.appendChild(photoTile);
+    const calForm=mk('div');calForm.style.cssText='display:grid;grid-template-columns:1fr 120px;gap:8px;margin:10px 0;align-items:stretch;';
+    calForm.appendChild(calName);calForm.appendChild(calAmount);
     const calSmart=mk('div','cal-smart-row');
-    calSmart.appendChild(calLookup);calSmart.appendChild(calAnalyze);calSmart.appendChild(calStatus);
+    calSmart.appendChild(calLookup);calSmart.appendChild(calStatus);
     const calClear=mk('button');calClear.textContent='Clear selected day';calClear.style.cssText='font-size:11px;color:var(--text3);margin-top:8px;text-decoration:underline;';
     calClear.addEventListener('click',()=>{
       const selectedDate=calDate.value||todayValue();
@@ -770,8 +653,7 @@ function buildHealth(wrap){
       saveCalories();
       renderCalories();
     });
-    setPendingPhoto('');
-    calBox.appendChild(calControls);calBox.appendChild(calHero);calBox.appendChild(calTabs);calBox.appendChild(calForm);calBox.appendChild(calSmart);calBox.appendChild(photoInput);calBox.appendChild(calAdd);calBox.appendChild(calWrap);calBox.appendChild(calClear);
+    calBox.appendChild(calControls);calBox.appendChild(calHero);calBox.appendChild(calTabs);calBox.appendChild(calForm);calBox.appendChild(calSmart);calBox.appendChild(calAdd);calBox.appendChild(calWrap);calBox.appendChild(calClear);
     renderCalories();
     b.appendChild(calBox);
 
