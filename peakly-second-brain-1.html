@@ -998,7 +998,9 @@ function buildHealth(wrap){
         fld('Birth control expiration',inp('',wh.bcExp,v=>{wh.bcExp=v;saveWh();},'date'))
       ));
       b.appendChild(fld('Hormonal mood insights',ta('Track mood patterns across your cycle…',wh.moodNotes,v=>{wh.moodNotes=v;saveWh();},2)));
-      b.appendChild(infoBox('🔒 Advanced features (ovulation, pregnancy tracker, postpartum recovery) available with Pro.','blue'));
+      b.appendChild(isPro()
+        ? infoBox('✨ Advanced tracking (ovulation, pregnancy, postpartum recovery) is on our roadmap for Pro members — not built yet, but coming soon.','blue')
+        : infoBox('🔒 Advanced features (ovulation, pregnancy tracker, postpartum recovery) available with Pro.','blue'));
       const hideRow=mk('div');hideRow.style.cssText='text-align:right;margin-top:8px;';
       const hideBtn=mk('button');hideBtn.textContent='Hide this section';hideBtn.style.cssText='font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;';
       hideBtn.addEventListener('click',()=>{
